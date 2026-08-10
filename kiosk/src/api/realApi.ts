@@ -102,6 +102,8 @@ export interface KioskProfile {
 
 // ── Token manager ─────────────────────────────────────────────────────────────
 
+type RequestOpts = { skipLog?: boolean };
+
 let _token: string | null = null;
 
 async function fetchToken(): Promise<string> {
@@ -128,7 +130,7 @@ async function fetchToken(): Promise<string> {
     return _token;
 }
 
-async function request<T>(path: string, retried = false): Promise<T> {
+async function request<T>(path: string, retried = false, opts: RequestOpts = {}): Promise<T> {
     const token = _token ?? await fetchToken();
     const started = Date.now();
 
@@ -138,8 +140,8 @@ async function request<T>(path: string, retried = false): Promise<T> {
 
     if (res.status === 401 && !retried) {
         _token = null;
-        logKioskEvent('api', 'warn', 'GET 401 — refreshing token', { path });
-        return request<T>(path, true);
+        if (!opts.skipLog) logKioskEvent('api', 'warn', 'GET 401 — refreshing token', { path });
+        return request<T>(path, true, opts);
     }
 
     if (!res.ok) {
@@ -148,15 +150,15 @@ async function request<T>(path: string, retried = false): Promise<T> {
             const body = await res.json();
             if (body.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
         } catch { /* ignore parse errors */ }
-        logKioskEvent('api', 'error', `GET ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
+        if (!opts.skipLog) logKioskEvent('api', 'error', `GET ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
-    logKioskEvent('api', 'info', `GET ${path}`, { status: res.status, ms: Date.now() - started });
+    if (!opts.skipLog) logKioskEvent('api', 'info', `GET ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
-async function requestPost<T>(path: string, body: unknown, retried = false): Promise<T> {
+async function requestPost<T>(path: string, body: unknown, retried = false, opts: RequestOpts = {}): Promise<T> {
     const token = _token ?? await fetchToken();
     const started = Date.now();
 
@@ -171,8 +173,8 @@ async function requestPost<T>(path: string, body: unknown, retried = false): Pro
 
     if (res.status === 401 && !retried) {
         _token = null;
-        logKioskEvent('api', 'warn', 'POST 401 — refreshing token', { path });
-        return requestPost<T>(path, body, true);
+        if (!opts.skipLog) logKioskEvent('api', 'warn', 'POST 401 — refreshing token', { path });
+        return requestPost<T>(path, body, true, opts);
     }
 
     if (!res.ok) {
@@ -181,15 +183,15 @@ async function requestPost<T>(path: string, body: unknown, retried = false): Pro
             const err = await res.json();
             if (err.detail) detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
         } catch { /* ignore parse errors */ }
-        logKioskEvent('api', 'error', `POST ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
+        if (!opts.skipLog) logKioskEvent('api', 'error', `POST ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
-    logKioskEvent('api', 'info', `POST ${path}`, { status: res.status, ms: Date.now() - started });
+    if (!opts.skipLog) logKioskEvent('api', 'info', `POST ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
-async function requestPatch<T>(path: string, body: unknown, retried = false): Promise<T> {
+async function requestPatch<T>(path: string, body: unknown, retried = false, opts: RequestOpts = {}): Promise<T> {
     const token = _token ?? await fetchToken();
     const started = Date.now();
 
@@ -204,8 +206,8 @@ async function requestPatch<T>(path: string, body: unknown, retried = false): Pr
 
     if (res.status === 401 && !retried) {
         _token = null;
-        logKioskEvent('api', 'warn', 'PATCH 401 — refreshing token', { path });
-        return requestPatch<T>(path, body, true);
+        if (!opts.skipLog) logKioskEvent('api', 'warn', 'PATCH 401 — refreshing token', { path });
+        return requestPatch<T>(path, body, true, opts);
     }
 
     if (!res.ok) {
@@ -214,11 +216,11 @@ async function requestPatch<T>(path: string, body: unknown, retried = false): Pr
             const err = await res.json();
             if (err.detail) detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
         } catch { /* ignore parse errors */ }
-        logKioskEvent('api', 'error', `PATCH ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
+        if (!opts.skipLog) logKioskEvent('api', 'error', `PATCH ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
-    logKioskEvent('api', 'info', `PATCH ${path}`, { status: res.status, ms: Date.now() - started });
+    if (!opts.skipLog) logKioskEvent('api', 'info', `PATCH ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
@@ -408,7 +410,7 @@ export const realApi = {
      * no separate credential payload needed since the kiosk is already
      * authenticated for the whole process lifetime. */
     async sendHeartbeat(): Promise<{ status: string }> {
-        return requestPost<{ status: string }>('/kiosk/heartbeat', {});
+        return requestPost<{ status: string }>('/kiosk/heartbeat', {}, false, { skipLog: true });
     },
 
     async updateKioskLocation(fullName: string): Promise<KioskProfile> {
@@ -422,7 +424,7 @@ export const realApi = {
     /** Uploads a batch of on-device event-log entries — see kioskLogUploader.ts,
      * which calls this on an interval and tracks its own "already sent" cursor. */
     async uploadKioskLogs(entries: Array<{ ts: string; level: string; category: string; message: string; data?: Record<string, unknown> }>): Promise<{ inserted: number }> {
-        return requestPost<{ inserted: number }>('/kiosk/logs', { entries });
+        return requestPost<{ inserted: number }>('/kiosk/logs', { entries }, false, { skipLog: true });
     },
 
     /**

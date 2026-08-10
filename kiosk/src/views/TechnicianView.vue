@@ -20,6 +20,7 @@ import {
     Bug,
     Download,
     RefreshCw,
+    Trash2,
 } from 'lucide-vue-next';
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
@@ -30,6 +31,8 @@ import {
     TECHNICIAN_SESSION_KEY,
 } from '../lib/technicianPassword';
 import {
+    clearAllKioskLogs,
+    ensureStorageSpace,
     exportKioskLogsText,
     getKioskLogStorageStats,
     getKioskLogsForDay,
@@ -54,6 +57,7 @@ const locationInput = ref('');
 const savingLocation = ref(false);
 const saveMessage = ref('');
 const copyMessage = ref('');
+const clearMessage = ref('');
 const searchQuery = ref('');
 
 const billPollLoading = ref(false);
@@ -154,6 +158,10 @@ const t = computed(() => ({
         updateCheckFailed: 'Could not check for updates',
         updateNoDownload: 'No download URL for this device',
         updateOpened: 'Download started — complete install from the system prompt',
+        storageUsed: 'Local storage',
+        clearLogs: 'Clear logs',
+        clearLogsConfirm: 'Delete all on-device event logs? Uploaded copies remain on the server.',
+        clearLogsDone: 'Local logs cleared',
     },
     TH: {
         console: 'ผู้ดูแลเครื่อง',
@@ -211,6 +219,10 @@ const t = computed(() => ({
         updateCheckFailed: 'ตรวจสอบอัปเดตไม่สำเร็จ',
         updateNoDownload: 'ไม่พบลิงก์ดาวน์โหลดสำหรับเครื่องนี้',
         updateOpened: 'เริ่มดาวน์โหลดแล้ว — ติดตั้งต่อจากระบบ',
+        storageUsed: 'พื้นที่ log บนเครื่อง',
+        clearLogs: 'ล้าง log',
+        clearLogsConfirm: 'ลบ log ทั้งหมดบนเครื่อง? สำเนาที่อัปโหลดแล้วยังอยู่บน server',
+        clearLogsDone: 'ล้าง log บนเครื่องแล้ว',
     },
 }[store.language]));
 
@@ -350,6 +362,16 @@ async function copyLogs() {
     } catch {
         copyMessage.value = t.value.copyFailed;
     }
+}
+
+function clearLogs() {
+    if (!window.confirm(t.value.clearLogsConfirm)) return;
+    clearAllKioskLogs();
+    ensureStorageSpace();
+    selectedDay.value = new Date().toISOString().slice(0, 10);
+    clearMessage.value = t.value.clearLogsDone;
+    setTimeout(() => { clearMessage.value = ''; }, 2500);
+    logKioskEvent('system', 'info', 'Technician cleared all local logs');
 }
 
 function goBack() {
@@ -632,7 +654,8 @@ async function runBillPoll() {
 
                     <p class="retention-line">
                         {{ t.retention }}: <span>{{ stats.retainDays }} {{ t.days }}</span> ·
-                        {{ t.maxDay }}: <span>{{ stats.maxDayMb }} MB</span>
+                        {{ t.maxDay }}: <span>{{ stats.maxDayMb }} MB</span> ·
+                        {{ t.storageUsed }}: <span>{{ stats.estimatedMb }} MB</span>
                     </p>
                 </section>
 
@@ -646,13 +669,20 @@ async function runBillPoll() {
                             </div>
                             <p class="logs-sub">{{ t.entriesOf(filtered.length, counts.total) }}</p>
                         </div>
-                        <button class="btn-outline" type="button" @click="copyLogs">
-                            <Copy :size="14" />
-                            {{ t.copy }}
-                        </button>
+                        <div class="logs-header-actions">
+                            <button class="btn-outline" type="button" @click="copyLogs">
+                                <Copy :size="14" />
+                                {{ t.copy }}
+                            </button>
+                            <button class="btn-outline btn-outline-danger" type="button" @click="clearLogs">
+                                <Trash2 :size="14" />
+                                {{ t.clearLogs }}
+                            </button>
+                        </div>
                     </div>
 
                     <p v-if="copyMessage" class="copy-banner">{{ copyMessage }}</p>
+                    <p v-if="clearMessage" class="copy-banner">{{ clearMessage }}</p>
 
                     <div class="logs-toolbar">
                         <div class="search-wrap">
@@ -1476,6 +1506,23 @@ async function runBillPoll() {
 .btn-outline:hover {
     border-color: #cbd5e1;
     background: #f8fafc;
+}
+
+.logs-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.btn-outline-danger {
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+.btn-outline-danger:hover {
+    border-color: #fca5a5;
+    background: #fef2f2;
 }
 
 .copy-banner {

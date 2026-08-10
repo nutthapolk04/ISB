@@ -2,7 +2,7 @@ import { computed, ref } from 'vue';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { Hardware, type BillEvent } from 'capacitor-hardware';
 import { realApi } from '../api/realApi';
-import { logKioskEvent } from '../lib/kioskLog';
+import { ensureStorageSpace, logKioskEvent } from '../lib/kioskLog';
 
 const PENDING_KEY = 'kiosk-pending-cash-topup';
 
@@ -15,8 +15,46 @@ interface PendingCashTopup {
     actingCustomerId: number | null;
 }
 
+/** In-memory fallback when localStorage quota is exhausted. */
+let memoryPending: PendingCashTopup | null = null;
+
 function newIdempotencyKey(): string {
     return crypto.randomUUID();
+}
+
+function loadPending(): PendingCashTopup | null {
+    if (memoryPending) return memoryPending;
+    try {
+        const raw = localStorage.getItem(PENDING_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw) as PendingCashTopup;
+    } catch {
+        try {
+            localStorage.removeItem(PENDING_KEY);
+        } catch {
+            /* ignore */
+        }
+        return null;
+    }
+}
+
+function savePending(pending: PendingCashTopup): void {
+    memoryPending = pending;
+    try {
+        ensureStorageSpace();
+        localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+    } catch {
+        /* API must still run — memoryPending holds the idempotency key for retry */
+    }
+}
+
+function clearPending(): void {
+    memoryPending = null;
+    try {
+        localStorage.removeItem(PENDING_KEY);
+    } catch {
+        /* ignore */
+    }
 }
 
 const collecting = ref(false);
@@ -89,28 +127,26 @@ function resetSessionState() {
 
 /** Retry a cash top-up that stacked bills but failed to reach the server. */
 export async function retryPendingCashTopup(): Promise<boolean> {
-    const raw = localStorage.getItem(PENDING_KEY);
-    if (!raw) return false;
-
-    let pending: PendingCashTopup;
-    try {
-        pending = JSON.parse(raw) as PendingCashTopup;
-    } catch {
-        localStorage.removeItem(PENDING_KEY);
-        logKioskEvent('pending', 'error', 'Corrupt pending top-up removed');
-        return false;
-    }
+    const pending = loadPending();
+    if (!pending) return false;
 
     logKioskEvent('pending', 'warn', 'Retrying pending cash top-up', { ...pending });
 
     if (!pending.idempotencyKey) {
-        localStorage.removeItem(PENDING_KEY);
+        clearPending();
         return false;
     }
 
     try {
-        await realApi.topUp(pending.walletId, pending.amount, 'cash', pending.idempotencyKey, pending.actingUserId ?? null, pending.actingCustomerId ?? null);
-        localStorage.removeItem(PENDING_KEY);
+        await realApi.topUp(
+            pending.walletId,
+            pending.amount,
+            'cash',
+            pending.idempotencyKey,
+            pending.actingUserId ?? null,
+            pending.actingCustomerId ?? null,
+        );
+        clearPending();
         logKioskEvent('pending', 'info', 'Pending cash top-up retry succeeded', { amount: pending.amount });
         return true;
     } catch (e) {
@@ -157,8 +193,7 @@ export function useBillAcceptor() {
 
     /**
      * Credit the wallet for cash already stacked in the acceptor.
-     * Persists to localStorage before the API call so a network failure can be retried.
-     * Returns the new transaction id and post-top-up balance so the caller can print a receipt.
+     * Persists idempotency key best-effort (localStorage + memory) then calls the API.
      */
     async function finalizeTopUp(
         walletId: string,
@@ -166,21 +201,15 @@ export function useBillAcceptor() {
         actingUserId: number | null = null,
         actingCustomerId: number | null = null,
     ): Promise<{ transaction_id: number; balance_after: number }> {
-        const existingRaw = localStorage.getItem(PENDING_KEY);
+        const existing = loadPending();
         let idempotencyKey = newIdempotencyKey();
-        if (existingRaw) {
-            try {
-                const existing = JSON.parse(existingRaw) as PendingCashTopup;
-                if (
-                    existing.walletId === walletId &&
-                    existing.amount === amount &&
-                    existing.idempotencyKey
-                ) {
-                    idempotencyKey = existing.idempotencyKey;
-                }
-            } catch {
-                /* use fresh key */
-            }
+        if (
+            existing &&
+            existing.walletId === walletId &&
+            existing.amount === amount &&
+            existing.idempotencyKey
+        ) {
+            idempotencyKey = existing.idempotencyKey;
         }
 
         const pending: PendingCashTopup = {
@@ -191,11 +220,12 @@ export function useBillAcceptor() {
             actingUserId,
             actingCustomerId,
         };
-        localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+        savePending(pending);
         logKioskEvent('pending', 'warn', 'Pending cash top-up saved before API', { ...pending });
+
         try {
             const res = await realApi.topUp(walletId, amount, 'cash', idempotencyKey, actingUserId, actingCustomerId);
-            localStorage.removeItem(PENDING_KEY);
+            clearPending();
             logKioskEvent('cash', 'info', 'Cash top-up API succeeded', {
                 walletId,
                 amount,
@@ -204,7 +234,7 @@ export function useBillAcceptor() {
             });
             return res;
         } catch (e) {
-            logKioskEvent('cash', 'error', 'Cash top-up API failed — pending retained in storage', {
+            logKioskEvent('cash', 'error', 'Cash top-up API failed — pending retained for retry', {
                 walletId,
                 amount,
                 idempotencyKey,

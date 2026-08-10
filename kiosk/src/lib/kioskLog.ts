@@ -1,6 +1,6 @@
 /**
  * On-device kiosk event log with daily buckets and rotation.
- * Inspired by pm2-logrotate: cap per-day size, retain N days, compress old days.
+ * Tuned for Android WebView localStorage (~5 MB total origin quota).
  */
 
 export type KioskLogLevel = 'info' | 'warn' | 'error';
@@ -29,10 +29,14 @@ const INDEX_KEY = 'kiosk-log-index';
 const DAY_PREFIX = 'kiosk-log-day-';
 const COMPRESSED_SUFFIX = '.gz.json';
 
-/** ~5 MB per day — mobile-friendly cap (pm2 ref: 30M on server). */
-const MAX_DAY_BYTES = 5 * 1024 * 1024;
-/** Keep 14 daily buckets like pm2-logrotate retain. */
-const RETAIN_DAYS = 14;
+/** Per-day cap — total origin quota is ~5 MB on many Android WebViews. */
+const MAX_DAY_BYTES = 512 * 1024;
+/** Keep a few days on-device; uploaded rows are pruned by the uploader. */
+const RETAIN_DAYS = 3;
+/** Target total footprint for all kiosk-log keys (leave headroom for pending top-up, cursor, etc.). */
+const QUOTA_TARGET_BYTES = 2.5 * 1024 * 1024;
+
+const KIOSK_STORAGE_PREFIXES = [INDEX_KEY, DAY_PREFIX, 'kiosk-log-upload-cursor-ts'];
 
 let cachedDeviceName = '';
 
@@ -91,22 +95,6 @@ function writeDayEntries(day: string, entries: KioskLogEntry[]): void {
     localStorage.setItem(dayStorageKey(day), JSON.stringify(entries));
 }
 
-function compressDay(day: string, entries: KioskLogEntry[]): void {
-    try {
-        const json = JSON.stringify(entries);
-        const compressed = gzipLite(json);
-        localStorage.setItem(`${dayStorageKey(day)}${COMPRESSED_SUFFIX}`, compressed);
-        localStorage.removeItem(dayStorageKey(day));
-    } catch {
-        /* best-effort — keep uncompressed if compression fails */
-    }
-}
-
-/** Tiny gzip substitute: base64 JSON blob tagged as compressed for storage savings. */
-function gzipLite(text: string): string {
-    return `b64:${btoa(unescape(encodeURIComponent(text)))}`;
-}
-
 function decompressLite(blob: string): string {
     if (!blob.startsWith('b64:')) return blob;
     return decodeURIComponent(escape(atob(blob.slice(4))));
@@ -138,14 +126,16 @@ function trimDayIfNeeded(entries: KioskLogEntry[]): KioskLogEntry[] {
     return trimmed;
 }
 
+function removeDayFromStorage(day: string): void {
+    localStorage.removeItem(dayStorageKey(day));
+    localStorage.removeItem(`${dayStorageKey(day)}${COMPRESSED_SUFFIX}`);
+}
+
 function pruneOldDays(index: LogIndex): LogIndex {
     const sorted = [...index.days].sort();
     while (sorted.length > RETAIN_DAYS) {
         const oldest = sorted.shift();
-        if (oldest) {
-            localStorage.removeItem(dayStorageKey(oldest));
-            localStorage.removeItem(`${dayStorageKey(oldest)}${COMPRESSED_SUFFIX}`);
-        }
+        if (oldest) removeDayFromStorage(oldest);
     }
     return { days: sorted };
 }
@@ -153,15 +143,85 @@ function pruneOldDays(index: LogIndex): LogIndex {
 function rotateIfNewDay(index: LogIndex, today: string): LogIndex {
     const last = index.days[index.days.length - 1];
     if (last && last !== today) {
-        const prevEntries = readDayEntries(last);
-        if (prevEntries.length > 0) {
-            compressDay(last, prevEntries);
-        }
+        removeDayFromStorage(last);
     }
     if (!index.days.includes(today)) {
         index.days.push(today);
     }
     return pruneOldDays(index);
+}
+
+/** Rough byte count for kiosk-log keys in localStorage. */
+export function estimateKioskLogStorageBytes(): number {
+    let total = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (KIOSK_STORAGE_PREFIXES.some((p) => key.startsWith(p) || key === p)) {
+            const val = localStorage.getItem(key);
+            total += key.length + (val?.length ?? 0);
+        }
+    }
+    return total;
+}
+
+/** Drop oldest log days (then trim today) until under QUOTA_TARGET_BYTES. */
+export function ensureStorageSpace(): void {
+    const today = todayKey();
+    for (let pass = 0; pass < 20 && estimateKioskLogStorageBytes() > QUOTA_TARGET_BYTES; pass++) {
+        const index = readIndex();
+        const sorted = [...index.days].sort();
+        const dropDay = sorted.find((d) => d !== today) ?? (sorted.length === 1 ? today : null);
+        if (!dropDay) break;
+
+        if (dropDay === today) {
+            const entries = readDayEntries(today);
+            if (entries.length <= 20) break;
+            writeDayEntries(today, entries.slice(-Math.max(20, Math.floor(entries.length / 2))));
+            continue;
+        }
+
+        removeDayFromStorage(dropDay);
+        writeIndex({ days: index.days.filter((d) => d !== dropDay) });
+    }
+}
+
+/** Remove on-device rows already uploaded to the server (ts <= upToTs). */
+export function deleteUploadedLogsUpTo(upToTs: number): number {
+    let removed = 0;
+    let index = readIndex();
+
+    for (const day of [...index.days]) {
+        const entries = readDayEntriesAny(day);
+        const kept = entries.filter((e) => e.ts > upToTs);
+        removed += entries.length - kept.length;
+
+        if (kept.length === 0) {
+            removeDayFromStorage(day);
+            index = { days: index.days.filter((d) => d !== day) };
+        } else if (kept.length < entries.length) {
+            writeDayEntries(day, kept.sort((a, b) => a.ts - b.ts));
+            localStorage.removeItem(`${dayStorageKey(day)}${COMPRESSED_SUFFIX}`);
+        }
+    }
+
+    writeIndex(index);
+    if (removed > 0) ensureStorageSpace();
+    return removed;
+}
+
+/** Technician / recovery — wipe all kiosk log buckets. */
+export function clearAllKioskLogs(): void {
+    const index = readIndex();
+    for (const day of index.days) {
+        removeDayFromStorage(day);
+    }
+    localStorage.removeItem(INDEX_KEY);
+    try {
+        localStorage.setItem('kiosk-log-upload-cursor-ts', '0');
+    } catch {
+        /* best-effort */
+    }
 }
 
 export function logKioskEvent(
@@ -185,7 +245,7 @@ export function logKioskEvent(
     const consoleFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
     consoleFn(`[KioskLog:${category}]`, message, data ?? '');
 
-    try {
+    const persist = (): boolean => {
         let index = readIndex();
         index = rotateIfNewDay(index, today);
         const entries = readDayEntries(today);
@@ -193,8 +253,19 @@ export function logKioskEvent(
         const trimmed = trimDayIfNeeded(entries);
         writeDayEntries(today, trimmed);
         writeIndex(index);
+        return true;
+    };
+
+    try {
+        persist();
     } catch (e) {
-        console.warn('[KioskLog] persist failed:', e);
+        console.warn('[KioskLog] persist failed, purging:', e);
+        try {
+            ensureStorageSpace();
+            persist();
+        } catch (e2) {
+            console.warn('[KioskLog] persist failed after purge:', e2);
+        }
     }
 }
 
@@ -232,9 +303,19 @@ export function exportKioskLogsText(day?: string): string {
     return [header, ...lines].join('\n');
 }
 
-export function getKioskLogStorageStats(): { days: number; retainDays: number; maxDayMb: number } {
-    return { days: listKioskLogDays().length, retainDays: RETAIN_DAYS, maxDayMb: MAX_DAY_BYTES / (1024 * 1024) };
+export function getKioskLogStorageStats(): {
+    days: number;
+    retainDays: number;
+    maxDayMb: number;
+    estimatedMb: number;
+} {
+    return {
+        days: listKioskLogDays().length,
+        retainDays: RETAIN_DAYS,
+        maxDayMb: MAX_DAY_BYTES / (1024 * 1024),
+        estimatedMb: Math.round((estimateKioskLogStorageBytes() / (1024 * 1024)) * 10) / 10,
+    };
 }
 
-// Boot marker
+ensureStorageSpace();
 logKioskEvent('system', 'info', 'Kiosk log initialized', getKioskLogStorageStats());
