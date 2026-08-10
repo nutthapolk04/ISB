@@ -32,7 +32,6 @@ import {
 } from '../lib/technicianPassword';
 import {
     clearAllKioskLogs,
-    ensureStorageSpace,
     exportKioskLogsText,
     getKioskLogStorageStats,
     getKioskLogsForDay,
@@ -72,14 +71,29 @@ const updateInstallMessage = ref('');
 
 const selectedDay = ref('');
 const categoryFilter = ref<KioskLogCategory | 'all'>('all');
+const days = ref<string[]>([]);
+const dayEntries = ref<KioskLogEntry[]>([]);
+const stats = ref({ days: 0, retainDays: 90, estimatedMb: 0 });
+const logsLoading = ref(false);
 
-const stats = computed(() => getKioskLogStorageStats());
-const days = computed(() => listKioskLogDays());
-
-const dayEntries = computed((): KioskLogEntry[] => {
-    const day = selectedDay.value || days.value[0] || new Date().toISOString().slice(0, 10);
-    return getKioskLogsForDay(day);
-});
+async function refreshLogView(): Promise<void> {
+    logsLoading.value = true;
+    try {
+        const [dayList, storageStats] = await Promise.all([
+            listKioskLogDays(),
+            getKioskLogStorageStats(),
+        ]);
+        days.value = dayList;
+        stats.value = storageStats;
+        if (!selectedDay.value || !dayList.includes(selectedDay.value)) {
+            selectedDay.value = dayList[0] ?? new Date().toISOString().slice(0, 10);
+        }
+        const day = selectedDay.value || dayList[0] || new Date().toISOString().slice(0, 10);
+        dayEntries.value = await getKioskLogsForDay(day);
+    } finally {
+        logsLoading.value = false;
+    }
+}
 
 const filtered = computed((): KioskLogEntry[] => {
     const q = searchQuery.value.trim().toLowerCase();
@@ -130,6 +144,7 @@ const t = computed(() => ({
         search: 'Search messages…',
         all: 'All',
         empty: 'No log entries match your filter',
+        loadingLogs: 'Loading logs…',
         back: 'Back',
         uptime: 'Status',
         logEntries: 'Log entries',
@@ -191,6 +206,7 @@ const t = computed(() => ({
         search: 'ค้นหาข้อความ…',
         all: 'ทั้งหมด',
         empty: 'ไม่พบ log ตามตัวกรอง',
+        loadingLogs: 'กำลังโหลด log…',
         back: 'กลับ',
         uptime: 'สถานะ',
         logEntries: 'รายการ log',
@@ -276,9 +292,13 @@ function formatLogTime(ts: number): string {
 }
 
 onMounted(() => {
-    selectedDay.value = days.value[0] ?? new Date().toISOString().slice(0, 10);
     locationInput.value = store.deviceProfile?.full_name ?? '';
+    void refreshLogView();
     logKioskEvent('system', 'info', techLogAtKiosk('Technician console opened'));
+});
+
+watch(selectedDay, () => {
+    void refreshLogView();
 });
 
 watch(unlocked, (isUnlocked) => {
@@ -354,7 +374,7 @@ async function saveLocation() {
 }
 
 async function copyLogs() {
-    const text = exportKioskLogsText(selectedDay.value || undefined);
+    const text = await exportKioskLogsText(selectedDay.value || undefined);
     try {
         await navigator.clipboard.writeText(text);
         copyMessage.value = t.value.copied;
@@ -365,11 +385,11 @@ async function copyLogs() {
     }
 }
 
-function clearLogs() {
+async function clearLogs() {
     if (!window.confirm(t.value.clearLogsConfirm)) return;
-    clearAllKioskLogs();
-    ensureStorageSpace();
+    await clearAllKioskLogs();
     selectedDay.value = new Date().toISOString().slice(0, 10);
+    await refreshLogView();
     clearMessage.value = t.value.clearLogsDone;
     setTimeout(() => { clearMessage.value = ''; }, 2500);
     logKioskEvent('system', 'info', techLogAtKiosk('Technician cleared all local logs'));
@@ -657,7 +677,6 @@ async function runBillPoll() {
 
                     <p class="retention-line">
                         {{ t.retention }}: <span>{{ stats.retainDays }} {{ t.days }}</span> ·
-                        {{ t.maxDay }}: <span>{{ stats.maxDayMb }} MB</span> ·
                         {{ t.storageUsed }}: <span>{{ stats.estimatedMb }} MB</span>
                     </p>
                 </section>
@@ -710,7 +729,8 @@ async function runBillPoll() {
                     </div>
 
                     <div class="log-scroll">
-                        <p v-if="filtered.length === 0" class="empty-msg">{{ t.empty }}</p>
+                        <p v-if="logsLoading" class="empty-msg">{{ t.loadingLogs }}</p>
+                        <p v-else-if="filtered.length === 0" class="empty-msg">{{ t.empty }}</p>
                         <ul v-else class="log-list">
                             <li v-for="(e, idx) in filtered" :key="`${e.ts}-${idx}`" class="log-item">
                                 <component :is="levelIcon(e.level)" :size="16"

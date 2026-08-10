@@ -2,7 +2,7 @@ import { computed, ref } from 'vue';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { Hardware, type BillEvent } from 'capacitor-hardware';
 import { realApi } from '../api/realApi';
-import { ensureStorageSpace, logKioskEvent } from '../lib/kioskLog';
+import { logKioskEvent } from '../lib/kioskLog';
 import { formatThbAmount, techLogAtKiosk } from '../lib/techLogMessage';
 
 const PENDING_KEY = 'kiosk-pending-cash-topup';
@@ -49,7 +49,6 @@ function loadPending(): PendingCashTopup | null {
 function savePending(pending: PendingCashTopup): void {
     memoryPending = pending;
     try {
-        ensureStorageSpace();
         localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
     } catch {
         /* API must still run — memoryPending holds the idempotency key for retry */

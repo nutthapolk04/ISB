@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { realApi, CardBlockedError, type KioskProfile } from '../api/realApi';
 import type { User, Transaction } from '../api/mockApi';
-import { logKioskEvent, setKioskDeviceName, ensureStorageSpace } from '../lib/kioskLog';
+import { initKioskLogs, logKioskEvent, setKioskDeviceName } from '../lib/kioskLog';
 import { memberLogData, resolveMemberLogId, techLogAtKiosk } from '../lib/techLogMessage';
 import { startKioskLogUploader } from '../lib/kioskLogUploader';
 import { startKioskHeartbeat } from '../lib/kioskHeartbeat';
@@ -94,7 +94,7 @@ export const useKioskStore = defineStore('kiosk', () => {
         bootStatus.value = 'loading';
         bootError.value = null;
         try {
-            ensureStorageSpace();
+            await initKioskLogs();
             await realApi.init();
             await Promise.all([fetchSchoolInfo(), fetchDeviceProfile()]);
             bootStatus.value = 'ready';
