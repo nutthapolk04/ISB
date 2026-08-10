@@ -201,7 +201,7 @@ const t = {
 
             <h1 class="mb-4">{{ currT.welcome }}</h1>
             <p class=" text-center mb-12 text-breathe" style="font-size: 1.75rem; font-weight: 300; ">{{ currT.sub
-                }}
+            }}
             </p>
             <p v-if="rfidBlocked" class="rfid-error-msg">{{ currT.cardBlocked }}</p>
             <p v-else-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
