@@ -57,6 +57,7 @@ import { CartPanel } from "./store/CartPanel";
 import { SpecialItemPriceDialog } from "./store/SpecialItemPriceDialog";
 import { panelColorClass } from "./store/storeTypes";
 import type { Product } from "./store/storeTypes";
+import { buildCheckoutItem } from "./store/buildCheckoutItem";
 
 const Store = () => {
     const { t } = useTranslation();
@@ -760,14 +761,12 @@ const Store = () => {
                     shop_id: user?.shopId ?? undefined,
                     discount: checkout.billDiscountAmount,
                     notes: checkout.receiptNote.trim() || undefined,
-                    items: checkout.cart.map((i) => ({
-                        product_variant_id: i.id,
-                        quantity: i.quantity,
-                        unit_price: i.price,
-                        price_override: i.priceOverride ?? null,
-                        discount: 0,
-                        options: [],
-                    })),
+                    items: checkout.cart.map((i) =>
+                        buildCheckoutItem(i, {
+                            unitPrice: i.price,
+                            discount: checkout.getItemDiscountAmount(i),
+                        }),
+                    ),
                 })}
                 onPaid={checkout.handleQrConfirmed}
                 onIntentReady={(info) => {
