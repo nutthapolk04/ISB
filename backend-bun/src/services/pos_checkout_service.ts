@@ -841,6 +841,7 @@ async function runCheckout(input: CheckoutInput) {
               ${input.notes ?? null}, ${input.edc_terminal_ref ?? null},
               ${input.edc_approval_code ?? null}, ${input.edc_masked_card ?? null}, ${edcCardFee},
               ${paymentMethod === "CASH" ? input.cash_received ?? null : null},
+              ${receiptSpendingGroupId}, ${input.userId}, ${input.idempotency_key ?? null})
       RETURNING id
     `;
         const receiptId = rIns[0].id;
