@@ -93,23 +93,43 @@ if ($paywireProc) {
 # ── 3. Chrome kiosk auto-start shortcut ───────────────────────────────
 Write-Step "3) ตรวจสอบ Chrome kiosk auto-start shortcut..."
 $kioskShortcut = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\ISB POS Kiosk.lnk"
-if (-not (Test-Path $kioskShortcut)) {
-    Write-Warn "ไม่พบ shortcut -- กำลังสร้างให้อัตโนมัติ..."
+$kioskArgs = '--kiosk "https://isb.schooney.tech/login" --kiosk-printing --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+
+# Shortcuts created by an older installer/repair run are missing
+# --kiosk-printing: without it, window.print() (used for every receipt —
+# see frontend/src/lib/printReceipt.ts) shows an interactive print dialog
+# instead of silently printing to the default printer. In full-screen
+# --kiosk mode that dialog is easy to miss, so the receipt never comes out
+# even though the cash drawer (wired into the printer, fires independently
+# of dialog confirmation) still kicks. Just checking Test-Path isn't
+# enough — a shortcut can exist AND be missing the flag — so check its
+# actual Arguments and repair in place if it doesn't match.
+$needsShortcut = $true
+if (Test-Path $kioskShortcut) {
+    $wshellCheck = New-Object -ComObject WScript.Shell
+    $existing = $wshellCheck.CreateShortcut($kioskShortcut)
+    if ($existing.Arguments -like "*--kiosk-printing*") {
+        Write-Ok "shortcut พบที่ $kioskShortcut (มี --kiosk-printing แล้ว)"
+        $needsShortcut = $false
+    } else {
+        Write-Warn "shortcut มีอยู่แต่ไม่มี --kiosk-printing -- ใบเสร็จจะไม่ออกอัตโนมัติ (เจอ print dialog ค้าง) กำลังแก้ไขให้..."
+    }
+}
+if ($needsShortcut) {
     $chromeKey = Get-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe" -ErrorAction SilentlyContinue
     $chromePath = if ($chromeKey) { $chromeKey.GetValue("") } else { $null }
     if ($chromePath -and (Test-Path $chromePath)) {
         $wshell = New-Object -ComObject WScript.Shell
         $shortcut = $wshell.CreateShortcut($kioskShortcut)
         $shortcut.TargetPath = $chromePath
-        $shortcut.Arguments = '--kiosk "https://isb.schooney.tech/login" --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+        $shortcut.Arguments = $kioskArgs
         $shortcut.Save()
-        Write-Ok "สร้าง shortcut สำเร็จ ($chromePath)"
+        Write-Ok "สร้าง/แก้ไข shortcut สำเร็จ ($chromePath) -- ต้อง log off/on หรือรีสตาร์ท Chrome kiosk เพื่อให้มีผล"
     } else {
         Write-Err "ไม่พบ Chrome ติดตั้งอยู่บนเครื่องนี้ -- ติดตั้ง Chrome ก่อนแล้วรันสคริปต์นี้ซ้ำ"
     }
 }
 if (Test-Path $kioskShortcut) {
-    Write-Ok "shortcut พบที่ $kioskShortcut"
     $results["Kiosk Shortcut"] = $true
 } else {
     $results["Kiosk Shortcut"] = $false
@@ -140,6 +160,34 @@ if (Test-PolicyValue) {
 } else {
     Write-Err "ตั้งค่า registry ไม่สำเร็จ"
     $results["Chrome Policy"] = $false
+}
+
+# ── 5. Chrome popup-allowlist policy (customer-display watchdog) ──────
+# The customer-display popup (screen 2) is watched by a JS watchdog that
+# silently reopens it if it ever closes — but that reopen fires from a timer,
+# not a click, so Chrome's popup blocker eats it without this policy.
+Write-Step "5) ตรวจสอบ Chrome popup-allowlist policy (สำหรับจอลูกค้า/จอ 2)..."
+$popupPolicyPath = "HKLM:\SOFTWARE\Policies\Google\Chrome\PopupsAllowedForUrls"
+function Test-PopupPolicyValue {
+    if (-not (Test-Path $popupPolicyPath)) { return $false }
+    $vals = Get-ItemProperty -Path $popupPolicyPath -ErrorAction SilentlyContinue
+    return [bool]($vals.PSObject.Properties | Where-Object { $_.Name -notmatch '^PS' -and $_.Value -eq $allowedUrl })
+}
+$popupPolicyWasMissing = -not (Test-PopupPolicyValue)
+if ($popupPolicyWasMissing) {
+    Write-Warn "ไม่พบค่า '$allowedUrl' ใน popup allowlist -- กำลังตั้งค่าให้อัตโนมัติ..."
+    New-Item -Path $popupPolicyPath -Force | Out-Null
+    Set-ItemProperty -Path $popupPolicyPath -Name "1" -Value $allowedUrl
+}
+if (Test-PopupPolicyValue) {
+    Write-Ok "registry มีค่า '$allowedUrl' อยู่แล้ว"
+    if ($popupPolicyWasMissing) {
+        Write-Warn "เพิ่งตั้งใหม่ -- ต้องปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้งถึงจะมีผลจริง"
+    }
+    $results["Chrome Popup Policy"] = $true
+} else {
+    Write-Err "ตั้งค่า registry ไม่สำเร็จ"
+    $results["Chrome Popup Policy"] = $false
 }
 
 # ── สรุปผล ─────────────────────────────────────────────────────────
