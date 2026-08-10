@@ -11,6 +11,7 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Receipt, Eye, Download, Loader2, Ban } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/IconButton";
 import { InfoCallout } from "@/components/InfoCallout";
@@ -27,6 +28,7 @@ import { ReceiptStatsPanel } from "./receipts/ReceiptStatsPanel";
 import { ReceiptSearchPanel } from "./receipts/ReceiptSearchPanel";
 import { ReceiptVoidDialog } from "./receipts/ReceiptVoidDialog";
 import { ReceiptDetailDialog } from "./receipts/ReceiptDetailDialog";
+import { UnsuccessfulPanel } from "./receipts/UnsuccessfulPanel";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,7 +42,11 @@ const PAGE_SIZE = 10;
 
 const Receipts = () => {
     const { t } = useTranslation();
-    const { user } = useAuth();
+    const { user, hasRole } = useAuth();
+    // Same gate as the API: carts and payer ids across the whole shop are a
+    // manager's business, not a cashier's. Hiding the tab is presentation —
+    // the endpoints refuse a cashier regardless.
+    const canSeeUnsuccessful = hasRole("manager") || hasRole("admin");
     const { pathname } = useLocation();
     const schoolInfo = useSchoolInfo();
 
@@ -60,6 +66,7 @@ const Receipts = () => {
 
     const [searchReceiptId, setSearchReceiptId] = useState("");
     const [searchPayer, setSearchPayer] = useState("");
+    const [activeTab, setActiveTab] = useState("all");
     const [searchDateFrom, setSearchDateFrom] = useState("");
     const [searchDateTo, setSearchDateTo] = useState("");
     const [searchPaymentType, setSearchPaymentType] = useState("all");
@@ -291,6 +298,20 @@ const Receipts = () => {
                 onClearSearch={handleClearSearch}
             />
 
+            {/* The Unsuccessful tab reads a different pair of tables, so the two
+                views can never be one query. They do share the date filter above,
+                which is the thing a reader compares them by. Hidden entirely from
+                cashiers — it exposes carts and payer ids across the whole shop. */}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+                {canSeeUnsuccessful && (
+                    <TabsList className="mb-3">
+                        <TabsTrigger value="all">{t("receipts.allReceipts")}</TabsTrigger>
+                        <TabsTrigger value="unsuccessful">
+                            {t("receipts.unsuccessful", "Unsuccessful")}
+                        </TabsTrigger>
+                    </TabsList>
+                )}
+                <TabsContent value="all">
             <Card>
                 <CardHeader>
                     <div className="flex items-center">
@@ -480,6 +501,17 @@ const Receipts = () => {
                     )}
                 </CardContent>
             </Card>
+                </TabsContent>
+                {canSeeUnsuccessful && (
+                    <TabsContent value="unsuccessful">
+                        <UnsuccessfulPanel
+                            dateFrom={appliedSearch.dateFrom}
+                            dateTo={appliedSearch.dateTo}
+                            shopId={user?.shopId ?? null}
+                        />
+                    </TabsContent>
+                )}
+            </Tabs>
 
             <ReceiptVoidDialog
                 receipt={voidTarget}

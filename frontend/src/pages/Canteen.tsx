@@ -157,6 +157,12 @@ export default function Canteen() {
     }, [user?.shopId]);
 
     const cart = useCanteenCart();
+    /**
+     * Idempotency key for the sale being paid for — minted once per press of
+     * Charge, never per confirm click. Same contract as the Store POS; see
+     * useStoreCheckout's checkoutKeyRef for why the scope matters.
+     */
+    const checkoutKeyRef = useRef<string>("");
     const [products, setProducts] = useState<CanteenProduct[]>([]);
 
     // ── Product color editing (palette popover on tile) ─────────────────────
@@ -607,6 +613,7 @@ export default function Canteen() {
                 })),
                 discount: cart.billDiscountAmount,
                 notes: receiptNote.trim() || undefined,
+                idempotency_key: checkoutKeyRef.current || undefined,
             };
             const res = await api.post<CheckoutResponse>("/pos/checkout", payload);
             return res;
@@ -851,6 +858,7 @@ export default function Canteen() {
 
     // Handle charge button - if member is pre-selected, charge directly
     const handleCharge = async () => {
+        checkoutKeyRef.current = crypto.randomUUID();
         if (preSelectedMember) {
             // Direct charge for pre-selected member (wallet or department)
             const amount = cart.total;

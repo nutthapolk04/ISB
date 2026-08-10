@@ -72,6 +72,10 @@ export const posCheckout = {
         discount: t.Optional(t.Nullable(t.Number())),
         notes: t.Optional(t.Nullable(t.String())),
         shop_id: t.Optional(t.Nullable(t.String())),
+        /** One key per checkout attempt. Repeats return the original receipt
+         *  instead of creating a second one. Optional — omitting it is the
+         *  pre-existing behaviour (kiosk, BAY QR webhook). */
+        idempotency_key: t.Optional(t.Nullable(t.String({ maxLength: 64 }))),
     }),
     detail: { tags: ["POS"], summary: "Checkout sale" },
 };
@@ -146,4 +150,28 @@ export const posListEdcEvents = {
         limit: t.Optional(t.String()),
     }),
     detail: { tags: ["POS"], summary: "List EDC bridge events (manager/admin)" },
+};
+
+/**
+ * Client report that a checkout request never completed. `payload` is the exact
+ * body that was attempted, so the cart can be reconstructed; `client_error` is
+ * what the browser saw. Not a failure claim — the service resolves the
+ * idempotency key against receipts before storing anything.
+ */
+export const posReportFailedCheckout = {
+    body: t.Object({
+        payload: t.Unknown(),
+        client_error: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: { tags: ["POS"], summary: "Report a checkout that never completed" },
+};
+
+export const posListFailedCheckouts = {
+    query: t.Object({
+        shop_id: t.Optional(t.String()),
+        date_from: t.Optional(t.String()),
+        date_to: t.Optional(t.String()),
+        limit: t.Optional(t.String()),
+    }),
+    detail: { tags: ["POS"], summary: "List unsuccessful checkouts (manager/admin)" },
 };

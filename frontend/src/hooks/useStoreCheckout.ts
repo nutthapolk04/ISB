@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError, RequestTimeoutError } from "@/lib/api";
@@ -98,6 +98,17 @@ export function useStoreCheckout({
     const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
     // Pre-selected member from search (for direct wallet charge)
     const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
+    /**
+     * Idempotency key for the checkout currently being paid for.
+     *
+     * Minted once per entry into the payment flow — NOT per confirm click,
+     * which would defeat the point, and NOT once per session, which would be
+     * far worse: a stale key would make the second sale return the first
+     * sale's receipt and silently vanish. Scoping it to one press of "Charge"
+     * means repeat confirms within a payment collapse onto one receipt while
+     * two distinct sales can never share a key.
+     */
+    const checkoutKeyRef = useRef<string>("");
     // Increment after each successful checkout to refresh the SpendingLimitChip
     const [chipRefreshKey, setChipRefreshKey] = useState(0);
 
@@ -433,6 +444,10 @@ export function useStoreCheckout({
                 edc_approval_code: ctx.edcRefs?.approval_code,
                 edc_masked_card: ctx.edcRefs?.masked_card,
                 edc_mode: ctx.edcRefs?.mode,
+                // Empty only if a caller reached checkout without going through
+                // handleOpenPayment; the backend treats a blank key as "no key"
+                // and behaves exactly as it did before.
+                idempotency_key: checkoutKeyRef.current || undefined,
             };
 
             // A checkout that has not answered in 30s is not going to. Without a
@@ -531,6 +546,20 @@ export function useStoreCheckout({
                 receiptNumber: receipt.receipt_number,
             });
         } catch (err: any) {
+            // A request that never completed is the one case the server cannot
+            // log for itself — it never saw the call. Report it so the cart is
+            // not lost. Fire-and-forget: the cashier's error message must not
+            // wait on it. The server resolves the idempotency key against
+            // receipts, so a sale that actually landed is dropped rather than
+            // recorded as a phantom failure.
+            if (err instanceof RequestTimeoutError || !(err instanceof ApiError)) {
+                void api
+                    .post("/pos/failed-checkouts", {
+                        payload,
+                        client_error: err instanceof Error ? err.message : String(err),
+                    })
+                    .catch(() => { /* best-effort */ });
+            }
             if (err instanceof RequestTimeoutError) {
                 // The request may well have been processed — saying "failed"
                 // here is what makes a cashier charge the customer twice.
@@ -572,6 +601,7 @@ export function useStoreCheckout({
             toast.error(t("store.pleaseAddProducts"));
             return;
         }
+        checkoutKeyRef.current = crypto.randomUUID();
 
         // Customer display: surface "Your Order" the moment the cashier moves
         // to the payment step (whether the picker opens or a fast-path wallet

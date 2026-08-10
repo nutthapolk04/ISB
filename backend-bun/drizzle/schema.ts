@@ -387,6 +387,67 @@ export const edcTxnEvents = pgTable("edc_txn_events", {
 		}).onDelete("set null"),
 ]);
 
+/**
+ * A checkout that did not become a receipt.
+ *
+ * Complements `edc_txn_events`, which only sees the card terminal. This table
+ * covers every payment method and every reason a sale failed to record, with
+ * the cart attached so the row can be read months later — the original
+ * complaint was that a lost sale left an amount and nothing else.
+ *
+ * Written from two places:
+ *   - the server, in PosController.checkout()'s catch, when the request
+ *     arrived and was rejected or blew up;
+ *   - the browser, when the request itself never completed (network drop,
+ *     timeout). That report carries the idempotency key, which the server
+ *     resolves against `receipts` — so a timeout whose sale actually landed is
+ *     dropped rather than recorded as a phantom failure.
+ *
+ * Append-only. Nothing in the sale path reads it, and a write failure here is
+ * swallowed so it can never mask the real error the cashier needs to see.
+ */
+export const posFailedCheckouts = pgTable("pos_failed_checkouts", {
+	id: serial().primaryKey().notNull(),
+	/**
+	 * 'rejected'      — server answered 4xx (out of stock, insufficient balance).
+	 * 'error'         — server answered 5xx; the whole transaction rolled back.
+	 * 'not_recorded'  — the request never completed AND the idempotency key
+	 *                   proved no receipt exists. Never a guess.
+	 */
+	status: varchar({ length: 20 }).notNull(),
+	shopId: varchar("shop_id", { length: 50 }),
+	cashierUserId: integer("cashier_user_id"),
+	paymentMethod: varchar("payment_method", { length: 30 }),
+	transactionMode: varchar("transaction_mode", { length: 30 }),
+	/** Cart total as the POS computed it, so the row is readable without
+	 *  re-summing the snapshot. */
+	amount: numeric({ precision: 10, scale:  2 }),
+	/** Same shape as edc_txn_events.cart_snapshot, but product names are
+	 *  resolved here at write time — the checkout payload carries only ids. */
+	cartSnapshot: jsonb("cart_snapshot"),
+	/** Stable backend error code when there was one (e.g. INSUFFICIENT_USER_WALLET). */
+	errorCode: varchar("error_code", { length: 64 }),
+	errorMessage: text("error_message"),
+	/** Links this attempt to the receipt it would have become, and is what
+	 *  makes a timeout resolvable instead of ambiguous. */
+	idempotencyKey: varchar("idempotency_key", { length: 64 }),
+	/** EDC only — lets a paper slip be matched back to a failed attempt. */
+	edcApprovalCode: varchar("edc_approval_code", { length: 32 }),
+	edcTerminalRef: varchar("edc_terminal_ref", { length: 50 }),
+	/** Backend request id, so a row can be tied to the server log line. */
+	requestId: varchar("request_id", { length: 64 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("ix_pos_failed_checkouts_created_at").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
+	index("ix_pos_failed_checkouts_shop").using("btree", table.shopId.asc().nullsLast().op("text_ops")),
+	index("ix_pos_failed_checkouts_idempotency_key").using("btree", table.idempotencyKey.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.cashierUserId],
+			foreignColumns: [users.id],
+			name: "pos_failed_checkouts_cashier_user_id_fkey"
+		}).onDelete("set null"),
+]);
+
 export const emailAlertsLog = pgTable("email_alerts_log", {
 	id: serial().primaryKey().notNull(),
 	alertType: varchar("alert_type", { length: 40 }).notNull(),
@@ -1326,6 +1387,18 @@ export const receipts = pgTable("receipts", {
 	voidedReason: varchar("voided_reason", { length: 500 }),
 	cashReceived: numeric("cash_received", { precision: 10, scale:  2 }),
 	spendingGroupId: integer("spending_group_id"),
+	/**
+	 * Client-generated key identifying one checkout attempt, so a retry or a
+	 * double-click returns the original receipt instead of creating a second
+	 * one (which would also deduct stock twice).
+	 *
+	 * Nullable, and null for every historical row plus every path that doesn't
+	 * send one (kiosk, the BAY QR webhook) — the uniqueness index is partial so
+	 * those stay unconstrained. The POS mints a fresh key each time the cashier
+	 * enters the payment flow, never per click, so two distinct sales can never
+	 * collapse onto one key.
+	 */
+	idempotencyKey: varchar("idempotency_key", { length: 64 }),
 }, (table) => [
 	index("ix_receipts_id").using("btree", table.id.asc().nullsLast().op("int4_ops")),
 	index("ix_receipts_payer_department_id").using("btree", table.payerDepartmentId.asc().nullsLast().op("int4_ops")),
@@ -1334,6 +1407,14 @@ export const receipts = pgTable("receipts", {
 	index("ix_receipts_payer_user").using("btree", table.payerUserId.asc().nullsLast().op("int4_ops")),
 	index("ix_receipts_payer_user_id").using("btree", table.payerUserId.asc().nullsLast().op("int4_ops")),
 	uniqueIndex("ix_receipts_receipt_number").using("btree", table.receiptNumber.asc().nullsLast().op("text_ops")),
+	// Partial: only rows that actually carry a key are constrained, so the
+	// thousands of historical NULLs (and the paths that never send one) are
+	// unaffected. This index IS the concurrency guard — checkout() inserts and
+	// catches the violation rather than checking first, which two simultaneous
+	// requests would both pass.
+	uniqueIndex("ix_receipts_idempotency_key")
+		.using("btree", table.idempotencyKey.asc().nullsLast().op("text_ops"))
+		.where(sql`(idempotency_key IS NOT NULL)`),
 	index("ix_receipts_requester_user_id").using("btree", table.requesterUserId.asc().nullsLast().op("int4_ops")),
 	index("ix_receipts_shop").using("btree", table.shopId.asc().nullsLast().op("text_ops")),
 	index("ix_receipts_shop_id").using("btree", table.shopId.asc().nullsLast().op("text_ops")),

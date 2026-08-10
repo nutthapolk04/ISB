@@ -441,7 +441,7 @@ describe("amountsMatch", () => {
 
 describe("pruneEdcTelemetry (DB)", () => {
     it.if(HAS_DB)(
-        "clears the identity-bearing snapshot at 30 days but keeps the row",
+        "clears the identity-bearing snapshot at 90 days but keeps the row",
         async () => {
             if (!dbOk) return;
             // The snapshot is the only part of this table carrying identifiers
@@ -463,8 +463,9 @@ describe("pruneEdcTelemetry (DB)", () => {
                 });
                 ids.push(id);
 
-                // Age it past the snapshot cutoff but well inside the row's year.
-                const aged = new Date(Date.now() - 31 * 86_400_000).toISOString();
+                // Age it past the snapshot cutoff (raised 30 -> 90 days on request
+                // 2026-08-07) but well inside the row's year.
+                const aged = new Date(Date.now() - 91 * 86_400_000).toISOString();
                 await db.update(edcTxnEvents).set({ createdAt: aged }).where(eq(edcTxnEvents.id, id));
 
                 const res = await pruneEdcTelemetry();
@@ -474,6 +475,31 @@ describe("pruneEdcTelemetry (DB)", () => {
                 expect(row).toBeDefined();                    // row survives
                 expect(row.cartSnapshot).toBeNull();          // identity is gone
                 expect(row.amount).toBe("900.00");            // reconciliation data stays
+            } finally {
+                if (ids.length) await db.delete(edcTxnEvents).where(inArray(edcTxnEvents.id, ids));
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "keeps a 60-day-old snapshot — inside the 90-day window, not the old 30",
+        async () => {
+            if (!dbOk) return;
+            // Pins the retention bump: under the previous 30-day rule this row
+            // would already have been stripped.
+            const ids: number[] = [];
+            try {
+                const { id } = await recordEdcEvent({
+                    event: "started", context: "store_pos", shop_id: `${TAG}-60d`,
+                    cashierUserId: null, cart_snapshot: { items: [], total: 5 },
+                });
+                ids.push(id);
+                const aged = new Date(Date.now() - 60 * 86_400_000).toISOString();
+                await db.update(edcTxnEvents).set({ createdAt: aged }).where(eq(edcTxnEvents.id, id));
+                await pruneEdcTelemetry();
+                const [row] = await db.select().from(edcTxnEvents).where(eq(edcTxnEvents.id, id));
+                expect(row.cartSnapshot).not.toBeNull();
             } finally {
                 if (ids.length) await db.delete(edcTxnEvents).where(inArray(edcTxnEvents.id, ids));
             }

@@ -16,6 +16,8 @@ import {
 	listEdcEvents,
 	type RecordEdcEventInput,
 } from "@/services/edc_telemetry_service";
+import { recordFailedCheckout, listFailedCheckouts } from "@/services/failed_checkout_service";
+import { scopeShop } from "@/services/report_service";
 import { qrInquiry as bayQrInquiry } from "@/services/pymt_gateway";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
@@ -90,6 +92,71 @@ export const PosController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (PC-03)] PosController.checkout() error:`, e);
+			// Keep the cart. Without this a rejected sale leaves only a log line
+			// and nobody can say afterwards what the customer was buying.
+			// Fire-and-forget and self-swallowing: the cashier's error must not
+			// wait on it, and a logging fault must not replace the real message.
+			const status = ((e as { status?: number }).status ?? 500) >= 500 ? "error" : "rejected";
+			void recordFailedCheckout({
+				status,
+				body: body as Record<string, unknown>,
+				cashierUserId: Number(user.sub) || null,
+				errorCode: (e as { code?: string }).code ?? null,
+				errorMessage: e instanceof Error ? e.message : String(e),
+				requestId: String(reqContext.requestId ?? ""),
+			});
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	/**
+	 * Client-side report that a checkout request never completed (network drop
+	 * or timeout).
+	 *
+	 * Not a failure claim — the service resolves the idempotency key against
+	 * `receipts` first and drops the report if the sale actually landed. Always
+	 * answers 200 so a best-effort caller never retries into a loop.
+	 */
+	reportFailedCheckout: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-11)] PosController.reportFailedCheckout() called.`);
+		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-11)] PosController.reportFailedCheckout() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const result = await recordFailedCheckout({
+			status: "not_recorded",
+			body: (body as { payload?: Record<string, unknown> })?.payload ?? {},
+			cashierUserId: Number(user.sub) || null,
+			errorMessage: (body as { client_error?: string })?.client_error ?? null,
+			requestId: String(reqContext.requestId ?? ""),
+		});
+		logger.info(`[${reqContext.requestId} (PC-11)] PosController.reportFailedCheckout() completed.`);
+		return successResponse(reqContext, result, ResponseStatus.OK);
+	},
+
+	listFailedCheckouts: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { query } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-12)] PosController.listFailedCheckouts() called.`);
+		// Same gate as the EDC event log: carts and payer ids, not a POS feature.
+		if (!hasRole(user.roles, "manager", "admin")) {
+			logger.warn(`[${reqContext.requestId} (PC-12)] PosController.listFailedCheckouts() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			const scopedShopId = scopeShop(user, query.shop_id ?? null);
+			const result = await listFailedCheckouts({
+				shopId: scopedShopId ?? undefined,
+				dateFrom: query.date_from ?? undefined,
+				dateToExclusive: query.date_to ?? undefined,
+				limit: query.limit ? Number(query.limit) : undefined,
+			});
+			logger.info(`[${reqContext.requestId} (PC-12)] PosController.listFailedCheckouts() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (PC-12)] PosController.listFailedCheckouts() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},
@@ -271,10 +338,15 @@ export const PosController = {
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
+			// Scope to the caller's own shop. Without this a manager could read
+			// another shop's carts and masked cards just by changing shop_id —
+			// or omit it entirely and get every shop. admin/finance still see
+			// across shops, matching every other report.
+			const scopedShopId = scopeShop(user, query.shop_id ?? null);
 			const result = await listEdcEvents({
 				dateFrom: query.date_from ?? undefined,
 				dateToExclusive: query.date_to ?? undefined,
-				shopId: query.shop_id ?? undefined,
+				shopId: scopedShopId ?? undefined,
 				unrecordedOnly: query.unrecorded_only === "true",
 				limit: query.limit ? Number(query.limit) : undefined,
 			});

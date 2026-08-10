@@ -409,8 +409,10 @@ export async function listEdcEvents(args: ListEdcEventsArgs = {}): Promise<EdcTx
 
 // ── Retention ─────────────────────────────────────────────────────────────
 
-/** Personal identifiers live only this long — see the scheduler's comment. */
-export const SNAPSHOT_RETENTION_DAYS = 30;
+/** Personal identifiers live only this long — see the scheduler's comment.
+ *  Raised 30 -> 90 on request 2026-08-07 so an investigation still has the
+ *  cart a quarter later; the identifier set is unchanged (ids only). */
+export const SNAPSHOT_RETENTION_DAYS = 90;
 /** The terminal's side of the conversation outlives it, for disputes. */
 export const ROW_RETENTION_DAYS = 365;
 

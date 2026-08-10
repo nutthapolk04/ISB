@@ -82,6 +82,17 @@ export interface CheckoutInput {
     notes?: string | null;
     shop_id?: string | null;
     userId: number;
+    /**
+     * Client-generated key for this checkout attempt. Optional — omitting it
+     * gives exactly the old behaviour, which is what the kiosk and the BAY QR
+     * webhook do.
+     *
+     * When present, a repeat of the same key returns the receipt the first
+     * call created instead of making a second one. That protects against the
+     * double-click and against a retry after a lost response, both of which
+     * would otherwise deduct stock twice.
+     */
+    idempotency_key?: string | null;
 }
 
 async function generateReceiptNumber(sqlTx: SqlTx, shopId?: string | null): Promise<string> {
@@ -273,7 +284,53 @@ async function resolveSpendingGroupForShop(
     return { id: rows[0].id, dailyLimit: pgNumber(rows[0].dailyLimit) ?? 0 };
 }
 
+/**
+ * Look up the receipt a previous call already created for this key.
+ *
+ * Used twice: once up front as a cheap fast path, and again after a unique
+ * violation, which is the case that actually matters — two requests racing
+ * with the same key both pass any "does it exist yet" check, so the database
+ * constraint is the real guard and this is how the loser recovers.
+ */
+async function findReceiptByIdempotencyKey(key: string): Promise<number | null> {
+    const rows = await pgClient<Array<{ id: number }>>`
+    SELECT id FROM receipts WHERE idempotency_key = ${key} LIMIT 1
+  `;
+    return rows[0]?.id ?? null;
+}
+
+/** Postgres unique-violation SQLSTATE. */
+const PG_UNIQUE_VIOLATION = "23505";
+
+/**
+ * Did this failure come from a unique index?
+ *
+ * Deliberately not narrowed to the idempotency index. When two requests
+ * carrying the same key race, the one that loses does not necessarily trip
+ * *that* index first: generateReceiptNumber() derives the next sequence with a
+ * plain read, so both transactions compute the same receipt_number and the
+ * loser usually fails on `ix_receipts_receipt_number` instead. Either way the
+ * meaning for us is identical — someone else got there first — and the caller
+ * resolves it by looking the key up, which only succeeds if a receipt really
+ * exists. A collision that is not ours still throws, because the lookup finds
+ * nothing.
+ */
+function isUniqueViolation(e: unknown): boolean {
+    return (e as { code?: string })?.code === PG_UNIQUE_VIOLATION;
+}
+
 export async function checkout(input: CheckoutInput) {
+    // ── Idempotency fast path ────────────────────────────────────────────
+    // A repeat of a key we've already fulfilled returns the original receipt
+    // and does no work at all — no second stock deduction, no second wallet
+    // debit. This is only the cheap path; the authoritative guard is the
+    // partial unique index, handled at the insert below.
+    const idempotencyKey = input.idempotency_key?.trim() || null;
+    if (idempotencyKey) {
+        const existingId = await findReceiptByIdempotencyKey(idempotencyKey);
+        if (existingId !== null) return getReceipt(existingId);
+    }
+
     // ── Pre-flight validation ────────────────────────────────────────────
     const paymentMethod = (input.payment_method ?? "").toUpperCase();
     if (!ALLOWED_PAYMENT_METHODS.has(paymentMethod)) {
@@ -359,7 +416,9 @@ export async function checkout(input: CheckoutInput) {
 
     // Run the actual mutation under one DB transaction.
     let postCheckoutCustomerData: { customerId: number; balanceAfter: number } | null = null;
-    const newReceiptId = await pgClient.begin(async (sqlTx) => {
+    let newReceiptId: number;
+    try {
+        newReceiptId = await pgClient.begin(async (sqlTx) => {
         const receiptNumber = await generateReceiptNumber(sqlTx, effectiveShopId);
 
         let subtotal = 0;
@@ -725,14 +784,14 @@ export async function checkout(input: CheckoutInput) {
          customer_id, payer_user_id, payer_department_id, requester_user_id,
          shop_id, subtotal, discount, tax, total, status,
          notes, edc_terminal_ref, edc_approval_code, edc_masked_card, edc_card_fee,
-         cash_received, spending_group_id, created_by)
+         cash_received, spending_group_id, created_by, idempotency_key)
       VALUES (${receiptNumber}, ${transactionMode}, ${paymentMethod},
               ${receiptCustomerId}, ${receiptPayerUserId}, ${receiptPayerDeptId}, ${input.requester_user_id ?? null},
               ${effectiveShopId}, ${subtotal}, ${billDiscount}, 0, ${total}, 'ACTIVE',
               ${input.notes ?? null}, ${input.edc_terminal_ref ?? null},
               ${input.edc_approval_code ?? null}, ${input.edc_masked_card ?? null}, ${edcCardFee},
               ${paymentMethod === "CASH" ? input.cash_received ?? null : null},
-              ${receiptSpendingGroupId}, ${input.userId})
+              ${receiptSpendingGroupId}, ${input.userId}, ${idempotencyKey})
       RETURNING id
     `;
         const receiptId = rIns[0].id;
@@ -778,7 +837,19 @@ export async function checkout(input: CheckoutInput) {
     `;
 
         return receiptId;
-    });
+        });
+    } catch (e) {
+        // Lost a race against a concurrent request carrying the same key: the
+        // other one already wrote the receipt, so return theirs rather than
+        // surfacing a constraint error. The lookup is what makes this safe —
+        // an unrelated unique violation finds no receipt and falls through to
+        // the throw below.
+        if (idempotencyKey && isUniqueViolation(e)) {
+            const existingId = await findReceiptByIdempotencyKey(idempotencyKey);
+            if (existingId !== null) return getReceipt(existingId);
+        }
+        throw e;
+    }
 
     const receipt = await getReceipt(newReceiptId);
     // Fire-and-forget — never block checkout response

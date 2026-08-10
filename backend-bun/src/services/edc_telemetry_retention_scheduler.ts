@@ -1,15 +1,16 @@
 import { pruneEdcTelemetry } from "./edc_telemetry_service";
+import { pruneFailedCheckouts } from "./failed_checkout_service";
 import { logger } from "@/logger";
 
 /**
- * Two-stage retention for `edc_txn_events`.
+ * Two-stage retention for `edc_txn_events` and `pos_failed_checkouts`.
  *
  * The two halves of a row have very different lifetimes:
  *
  *   `cart_snapshot` carries identifiers for the person who bought (customer_id
- *   / user_id / external_id). It is the reason this table holds any personal
+ *   / user_id / external_id). It is the reason these tables hold any personal
  *   data at all, and it stops being useful once an incident has been dealt
- *   with — so it is cleared after 30 days.
+ *   with — so it is cleared after 90 days.
  *
  *   Everything else (amount, POS reference, approval code, response code) is
  *   the terminal's side of the conversation and carries no personal data. A
@@ -31,9 +32,10 @@ export function startEdcTelemetryRetentionScheduler(): void {
         if (running) return;
         running = true;
         try {
-            const { snapshotsCleared, rowsDeleted } = await pruneEdcTelemetry();
-            if (snapshotsCleared > 0 || rowsDeleted > 0) {
-                logger.info("[edc-retention] pruned", { snapshotsCleared, rowsDeleted });
+            const edc = await pruneEdcTelemetry();
+            const failed = await pruneFailedCheckouts();
+            if (edc.snapshotsCleared || edc.rowsDeleted || failed.snapshotsCleared || failed.rowsDeleted) {
+                logger.info("[edc-retention] pruned", { edc, failed });
             }
         } catch (e) {
             logger.error("[edc-retention] prune failed", e);

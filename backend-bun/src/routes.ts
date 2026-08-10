@@ -293,6 +293,8 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .post("/qr-intent/:refCode/cancel", PosController.cancelQrIntent, PosSchema.posQrIntentCancel)
             .post("/edc-events", PosController.recordEdcEvent, PosSchema.posRecordEdcEvent)
             .get("/edc-events", PosController.listEdcEvents, PosSchema.posListEdcEvents)
+            .post("/failed-checkouts", PosController.reportFailedCheckout, PosSchema.posReportFailedCheckout)
+            .get("/failed-checkouts", PosController.listFailedCheckouts, PosSchema.posListFailedCheckouts)
     )
     // ── Returns ─────────────────────────────────────────────────────────────
     .group("/returns", (app) =>
