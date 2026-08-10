@@ -2077,7 +2077,9 @@
   },
   "checkout": {
     "failed": "Checkout failed",
-    "failedHint": "Please try again or check your network connection."
+    "failedHint": "Please try again or check your network connection.",
+    "timeoutTitle": "Outcome unknown",
+    "timeoutHint": "Server did not respond — do not retry payment. Check the receipts list first to see if a receipt was already created."
   },
   "cashPay": {
     "title": "Cash Payment",
@@ -2217,7 +2219,20 @@
     "deptEmpVerify": "Verify employee (tap card or enter username)",
     "deptEmpPlaceholder": "Tap employee card or type username…",
     "change": "Change",
-    "empNotFound": "Employee not found"
+    "empNotFound": "Employee not found",
+    "edcRecoveryConfirmFailed": "Failed to save the receipt — please try again or contact your administrator",
+    "edcQueryApprovedNoCode": "Terminal confirms the transaction was approved, but no approval code was returned — enter it from the slip below",
+    "edcQueryNoAnswer": "Terminal did not respond — enter the code from the slip instead",
+    "edcQueryFailed": "Could not check with the terminal — enter the code from the slip instead",
+    "edcQrTimeoutChecking": "QR scan timed out on our side — the EDC terminal may still be processing (its own 3-minute window hasn't elapsed yet). Checking with the terminal automatically. Do not retry the transaction until the result is confirmed.",
+    "edcApprovedNoCode": "The terminal approved this transaction but did not return an approval code — do not retry (this may cause a duplicate charge). Please contact your administrator to record the receipt manually.",
+    "edcConnectionLost": "Connection to the EDC terminal was lost during the transaction — it may still be processing (e.g. the QR hasn't timed out yet). Do not retry until you've checked with the terminal.",
+    "edcUnknownOutcomeDesc": "The actual outcome of this transaction is not yet known.",
+    "edcCardFeeNote": "Includes 3% card fee: ฿{{fee}} (goods total ฿{{goods}})",
+    "edcConnectionLostTitle": "Transaction outcome unknown",
+    "edcQueryTerminal": "Check latest transaction with terminal",
+    "edcManualApprLabel": "Or enter APPR.CODE from the slip",
+    "edcRecordSale": "Record Sale"
   },
   "shopUsers": {
     "titleSuffix": "Users",
