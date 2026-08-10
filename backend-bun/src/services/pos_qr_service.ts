@@ -238,6 +238,13 @@ export async function confirmPosQrSale(refCode: string): Promise<number | null> 
         if (intent.status === "cancelled") return { kind: "skip", receiptId: null };
         // Another worker has already taken the claim — back off. They (or the
         // next retry after a phase-B crash) will finish stamping the receipt.
+        // Note this only matches the in-flight sentinel, not
+        // 'gateway_webhook_failed' (see phase B below) — a failed attempt
+        // must remain retryable, or a checkout() bug permanently bricks the
+        // intent: money already captured by BAY, but no receipt ever created
+        // and no future call — webhook redelivery, /inquiry, "Check Now" —
+        // able to try again. That is exactly what happened on 2026-08-10
+        // (ref=POS-20260810-2H13YJ, "Product id=-3 not found").
         if (intent.confirmed_via === "gateway_webhook_claimed") {
             return { kind: "skip", receiptId: null };
         }
@@ -286,7 +293,28 @@ export async function confirmPosQrSale(refCode: string): Promise<number | null> 
         payment_method: "qr_promptpay",
         userId: claim.cart.userId ?? claim.createdBy ?? 0,
     };
-    const receipt = await checkout(checkoutInput);
+    let receipt: Awaited<ReturnType<typeof checkout>>;
+    try {
+        receipt = await checkout(checkoutInput);
+    } catch (err) {
+        // The customer's money is already captured by BAY at this point — this
+        // is now a "charged but not recorded" case that must stay visible and
+        // retryable, never silently stuck. Release the claim (distinct sentinel
+        // so phase A's "in-flight" skip above doesn't match it) so the next
+        // webhook redelivery, /inquiry call, or "Check Now" click gets another
+        // shot instead of skipping forever.
+        logger.error("[POS QR] confirmPosQrSale checkout failed after claim — releasing for retry", {
+            refCode,
+            intentId: claim.intentId,
+            error: err instanceof Error ? err.message : String(err),
+        });
+        await db.execute(
+            sql`UPDATE payment_intents
+            SET confirmed_via = 'gateway_webhook_failed'
+            WHERE id = ${claim.intentId} AND receipt_id IS NULL`,
+        );
+        throw err;
+    }
     const receiptId = receipt.id;
     const phaseBMs = performance.now() - tPhaseB;
 
