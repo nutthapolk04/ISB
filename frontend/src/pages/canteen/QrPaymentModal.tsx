@@ -45,11 +45,12 @@ interface PosQrIntent {
     created_at: string;
 }
 
-type Phase = "creating" | "waiting" | "checking" | "confirmed" | "failed" | "expired";
+type Phase = "creating" | "waiting" | "confirmed" | "failed" | "expired";
 
 const POLL_INTERVAL_MS = 2000;
-const INQUIRY_EVERY_N_POLLS = 3; // ~6 s
-const MAX_WAIT_MS = 5 * 60 * 1000; // 5 minutes
+const SLOW_POLL_INTERVAL_MS = 5000; // after the timeout banner shows, ease off but never stop checking
+const INQUIRY_EVERY_N_POLLS = 3; // ~6 s while fast-polling
+const TIMEOUT_DISPLAY_MS = 5 * 60 * 1000; // past this, show "still waiting" — auto-check keeps running regardless
 
 export function QrPaymentModal({
     open,
@@ -65,6 +66,11 @@ export function QrPaymentModal({
     const [error, setError] = useState<string>("");
     // Stable ref so the poll loop can cancel itself when the modal closes.
     const cancelledRef = useRef(false);
+    // Guards against ever firing a second BAY intent for the same open
+    // session (e.g. a double-invoked effect) — two live intents for one cart
+    // would put two distinct QR codes in front of the customer and risk a
+    // duplicate charge if both got scanned.
+    const intentRequestedRef = useRef(false);
     // The parent passes a fresh `buildCartPayload` closure on every render.
     // We snapshot the latest reference in a ref so the create-intent effect
     // can read it WITHOUT taking it as a dep — otherwise the effect would
@@ -84,12 +90,15 @@ export function QrPaymentModal({
             // Also clear the customer display so it doesn't keep showing a
             // stale QR after the cashier cancels or the payment completes.
             cancelledRef.current = true;
+            intentRequestedRef.current = false;
             setIntent(null);
             setError("");
             setPhase("creating");
             onIntentReadyRef.current?.(null);
             return;
         }
+        if (intentRequestedRef.current) return;
+        intentRequestedRef.current = true;
         cancelledRef.current = false;
 
         const createIntent = async () => {
@@ -128,16 +137,28 @@ export function QrPaymentModal({
     const onIntentReadyRef = useRef(onIntentReady);
     onIntentReadyRef.current = onIntentReady;
 
-    // Poll status while the intent is alive.
+    // Poll status while the intent is alive. There is no manual "Check Now"
+    // button — this loop is the only thing that ever asks the bank again, and
+    // it keeps running through both the "waiting" and "expired" UI states.
+    // Crossing the timeout only changes what's on screen; it never stops the
+    // background checking.
     useEffect(() => {
-        if (!open || !intent || phase !== "waiting") return;
+        if (!open || !intent || (phase !== "waiting" && phase !== "expired")) return;
         cancelledRef.current = false;
         let round = 0;
         const startTime = Date.now();
+        let pastTimeout = phase === "expired";
 
         const poll = async () => {
-            while (!cancelledRef.current && Date.now() - startTime < MAX_WAIT_MS) {
+            while (!cancelledRef.current) {
                 round += 1;
+                if (!pastTimeout && Date.now() - startTime >= TIMEOUT_DISPLAY_MS) {
+                    pastTimeout = true;
+                    setError(
+                        "Bank has not confirmed in 5 minutes. Still checking automatically in the background — safe to skip and move on, this will complete on its own once the bank answers.",
+                    );
+                    setPhase("expired");
+                }
                 try {
                     // Cheap local-status poll most rounds; force-sync against BAY
                     // every Nth round so we don't depend solely on the webhook.
@@ -170,13 +191,9 @@ export function QrPaymentModal({
                 } catch {
                     // Network / 5xx — keep trying. Webhook is the source of truth.
                 }
-                await new Promise<void>((res) => setTimeout(res, POLL_INTERVAL_MS));
-            }
-            if (!cancelledRef.current) {
-                setError(
-                    "Bank has not confirmed in 5 minutes. Safe to skip and move on — this stays pending and will complete on its own once the bank answers. Use Check Now to check right away.",
+                await new Promise<void>((res) =>
+                    setTimeout(res, pastTimeout ? SLOW_POLL_INTERVAL_MS : POLL_INTERVAL_MS),
                 );
-                setPhase("expired");
             }
         };
         void poll();
@@ -184,53 +201,15 @@ export function QrPaymentModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, intent, phase]);
 
-    const handleCheckNow = async () => {
-        if (!intent) return;
-        setPhase("checking");
-        try {
-            const fresh = await api.post<PosQrIntent>(
-                `/pos/qr-intent/${intent.ref_code}/inquiry`,
-                {},
-            );
-            setIntent(fresh);
-            if (fresh.status === "confirmed") {
-                setPhase("confirmed");
-                onPaidRef.current({
-                    refCode: fresh.ref_code,
-                    receiptId: fresh.receipt_id,
-                    receiptNumber: fresh.receipt_number,
-                });
-            } else if (fresh.status === "cancelled") {
-                setError("Payment was cancelled or failed at the bank.");
-                setPhase("failed");
-            } else {
-                setPhase("waiting");
-            }
-        } catch (e) {
-            setError(e instanceof ApiError ? e.detail : "Could not contact the bank");
-            setPhase("expired");
-        }
-    };
-
-    // Used by both the mid-wait "Cancel" button and the post-timeout "Skip for
-    // now" button — leaving this modal must never blindly mark the intent
-    // cancelled. It used to call /cancel directly, which just force-set
-    // status='cancelled' on OUR row with no idea what BAY actually did; if the
-    // customer had in fact paid and the webhook was only delayed (exactly the
-    // failure mode "waited too long" implies), confirmPosQrSale's Phase A skips
-    // cancelled intents outright — the payment would be captured with no
-    // receipt ever created, permanently. Ask BAY directly via /inquiry instead
-    // (same endpoint "Check Now" uses): it only cancels locally when BAY
-    // itself confirms nothing happened, and auto-completes the receipt if BAY
-    // says it went through after all. If BAY still can't say either way, the
-    // intent is left exactly as 'pending' — safe to pick up later from a
-    // webhook redelivery or another inquiry — instead of us guessing.
-    const handleLeave = async () => {
-        if (!intent) {
-            onBack();
-            return;
-        }
-        cancelledRef.current = true;
+    // Shared first step for both "Skip" and "Cancel": ask BAY directly via
+    // /inquiry (same endpoint the background poll loop uses) before leaving.
+    // Never blindly mark the intent cancelled here — if the customer had in
+    // fact paid and the webhook was only delayed, confirmPosQrSale's Phase A
+    // skips cancelled intents outright and the payment would be captured with
+    // no receipt ever created, permanently. Returns true if BAY confirmed the
+    // payment (caller should stop — onPaid already fired).
+    const checkBeforeLeaving = async (): Promise<boolean> => {
+        if (!intent) return false;
         try {
             const fresh = await api.post<PosQrIntent>(`/pos/qr-intent/${intent.ref_code}/inquiry`, {});
             if (fresh.status === "confirmed") {
@@ -240,11 +219,11 @@ export function QrPaymentModal({
                     receiptId: fresh.receipt_id,
                     receiptNumber: fresh.receipt_number,
                 });
-                return;
+                return true;
             }
             if (fresh.status === "pending") {
                 console.log(
-                    `[POS QR] left waiting — ref=${intent.ref_code} still pending at BAY, left for a later callback/inquiry (not cancelled)`,
+                    `[POS QR] left waiting — ref=${intent.ref_code} still pending at BAY, left for a later callback/inquiry`,
                 );
             }
         } catch (e) {
@@ -254,10 +233,52 @@ export function QrPaymentModal({
                 e,
             );
         }
+        return false;
+    };
+
+    /**
+     * "Skip" — cashier moves on without giving up on this QR. The intent AND
+     * the Transactions-tab row are left exactly as 'pending': the cart is
+     * already in the log (created back at /pos/qr-intent time), and if BAY's
+     * webhook calls back later, confirmPosQrSale resolves it the normal way —
+     * flips the transaction to 'success' and stamps the receipt — with no
+     * further action needed here.
+     */
+    const handleSkip = async () => {
+        if (!intent) {
+            onBack();
+            return;
+        }
+        cancelledRef.current = true;
+        const confirmed = await checkBeforeLeaving();
+        if (confirmed) return;
         onBack();
     };
 
-    const isPending = phase === "waiting" || phase === "checking";
+    /**
+     * "Cancel" — cashier is certain this attempt is done (e.g. the customer
+     * walked away). Marks only the Transactions-tab row 'cancelled' for
+     * visibility; the payment_intent itself is left untouched so a late
+     * webhook can still complete the sale, which flips this same row back to
+     * 'success' automatically if that happens.
+     */
+    const handleCancel = async () => {
+        if (!intent) {
+            onBack();
+            return;
+        }
+        cancelledRef.current = true;
+        const confirmed = await checkBeforeLeaving();
+        if (confirmed) return;
+        try {
+            await api.post(`/pos/qr-intent/${intent.ref_code}/abandon`, {});
+        } catch {
+            // Best-effort — Transactions tab may show "pending" a bit longer.
+        }
+        onBack();
+    };
+
+    const isPending = phase === "waiting" || phase === "expired";
 
     return (
         <Dialog
@@ -272,7 +293,7 @@ export function QrPaymentModal({
                         <Button
                             size="icon"
                             variant="ghost"
-                            onClick={handleLeave}
+                            onClick={handleSkip}
                             className="-ml-2 h-7 w-7"
                             aria-label="Back"
                             disabled={phase === "creating"}
@@ -291,7 +312,7 @@ export function QrPaymentModal({
                     </div>
                 )}
 
-                {(phase === "waiting" || phase === "checking") && intent && (
+                {phase === "waiting" && intent && (
                     <>
                         <div className="flex flex-col items-center gap-3 py-2">
                             <div className="flex h-48 w-48 items-center justify-center rounded-2xl border-2 border-indigo-200 bg-white p-3">
@@ -313,42 +334,21 @@ export function QrPaymentModal({
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                {phase === "checking" ? (
-                                    <>
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                        Checking bank…
-                                    </>
-                                ) : (
-                                    <>
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                        Waiting for payment…
-                                    </>
-                                )}
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Waiting for payment…
                             </div>
                         </div>
 
                         <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                className="flex-1"
-                                onClick={handleLeave}
-                                disabled={phase === "checking"}
-                            >
-                                Cancel
+                            <Button variant="outline" className="flex-1" onClick={handleSkip}>
+                                Skip
                             </Button>
                             <Button
-                                className="flex-1 bg-indigo-500 hover:bg-indigo-600"
-                                onClick={handleCheckNow}
-                                disabled={phase === "checking"}
+                                variant="outline"
+                                className="flex-1 text-destructive hover:text-destructive"
+                                onClick={handleCancel}
                             >
-                                {phase === "checking" ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Checking…
-                                    </>
-                                ) : (
-                                    "Check Now"
-                                )}
+                                Cancel
                             </Button>
                         </div>
                     </>
@@ -362,20 +362,32 @@ export function QrPaymentModal({
                     </div>
                 )}
 
-                {(phase === "failed" || phase === "expired") && (
+                {phase === "expired" && (
+                    <div className="flex flex-col items-center gap-3 py-4">
+                        <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
+                        <p className="text-sm text-center text-muted-foreground">{error}</p>
+                        <div className="flex gap-2 w-full">
+                            <Button variant="outline" className="flex-1" onClick={handleSkip}>
+                                Skip
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="flex-1 text-destructive hover:text-destructive"
+                                onClick={handleCancel}
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {phase === "failed" && (
                     <div className="flex flex-col items-center gap-3 py-4">
                         <AlertTriangle className="h-10 w-10 text-amber-500" />
                         <p className="text-sm text-center text-muted-foreground">{error}</p>
-                        <div className="flex gap-2 w-full">
-                            <Button variant="outline" className="flex-1" onClick={handleLeave}>
-                                {phase === "expired" ? "Skip for now" : "Back"}
-                            </Button>
-                            {phase === "expired" && intent && (
-                                <Button className="flex-1" onClick={handleCheckNow}>
-                                    Check Now
-                                </Button>
-                            )}
-                        </div>
+                        <Button variant="outline" className="w-full" onClick={handleSkip}>
+                            Back
+                        </Button>
                     </div>
                 )}
             </DialogContent>
