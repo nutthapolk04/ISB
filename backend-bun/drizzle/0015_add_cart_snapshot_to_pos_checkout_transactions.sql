@@ -1,0 +1,1 @@
+ALTER TABLE "pos_checkout_transactions" ADD COLUMN "cart_snapshot" jsonb;

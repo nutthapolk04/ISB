@@ -12,6 +12,7 @@ export const approvalrequesttype = pgEnum("approvalrequesttype", ['BUDGET_OVERRI
 export const approvalstatus = pgEnum("approvalstatus", ['PENDING', 'APPROVED', 'REJECTED'])
 export const auditaction = pgEnum("auditaction", ['CREATE', 'UPDATE', 'DELETE', 'RETURN', 'EXCHANGE', 'CANCEL', 'VOID', 'REPRINT', 'APPROVE', 'REJECT'])
 export const budgettransactiontype = pgEnum("budgettransactiontype", ['ALLOCATION', 'DEDUCTION', 'ADJUSTMENT'])
+export const checkouttransactionstatus = pgEnum("checkouttransactionstatus", ['pending', 'success', 'failed', 'cancelled'])
 export const creditnotestatus = pgEnum("creditnotestatus", ['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED'])
 export const customertypeenum = pgEnum("customertypeenum", ['PUBLIC', 'INTERNAL'])
 export const movementtype = pgEnum("movementtype", ['receive', 'sale', 'adjustment', 'internal_use', 'void', 'exchange'])
@@ -1382,6 +1383,56 @@ export const receipts = pgTable("receipts", {
 			foreignColumns: [users.id],
 			name: "receipts_voided_by_fkey"
 		}),
+]);
+
+/**
+ * One row per checkout attempt — created when a payment method is picked and
+ * confirmed (checkout()/createPosQrIntent()), resolved to success/failed/
+ * cancelled once the outcome is known. Distinct from `receipts` (completed
+ * sales only) and from the per-method telemetry tables (`edc_txn_events`,
+ * `payment_intents`) — this is the one place that shows every attempt across
+ * every payment method in a single status timeline, including a QR sale still
+ * waiting on BAY's webhook (invisible everywhere else until it resolves).
+ */
+export const posCheckoutTransactions = pgTable("pos_checkout_transactions", {
+	id: serial().primaryKey().notNull(),
+	/** Links to payment_intents.ref_code for QR sales; null for direct checkouts. */
+	refCode: varchar("ref_code", { length: 50 }),
+	status: checkouttransactionstatus().notNull().default('pending'),
+	transactionMode: varchar("transaction_mode", { length: 20 }),
+	paymentMethod: varchar("payment_method", { length: 30 }).notNull(),
+	shopId: varchar("shop_id", { length: 50 }),
+	cashierUserId: integer("cashier_user_id"),
+	payerKind: varchar("payer_kind", { length: 20 }),
+	payerId: integer("payer_id"),
+	itemsCount: integer("items_count"),
+	amount: numeric({ precision: 10, scale:  2 }),
+	/** Raw cart items as submitted at attempt-start time (pre-checkout) — the
+	 *  only place the cart is visible for attempts that never became a
+	 *  receipt (pending/failed/cancelled). Names are resolved at read time. */
+	cartSnapshot: jsonb("cart_snapshot"),
+	/** Set once status='success'. */
+	receiptId: integer("receipt_id"),
+	/** Set once status='failed'. */
+	errorMessage: text("error_message"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	/** When status left 'pending'. */
+	resolvedAt: timestamp("resolved_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("ix_pos_checkout_txn_created_at").using("btree", table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
+	index("ix_pos_checkout_txn_shop").using("btree", table.shopId.asc().nullsLast().op("text_ops")),
+	index("ix_pos_checkout_txn_status").using("btree", table.status.asc().nullsLast().op("enum_ops")),
+	index("ix_pos_checkout_txn_ref_code").using("btree", table.refCode.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.cashierUserId],
+			foreignColumns: [users.id],
+			name: "pos_checkout_transactions_cashier_user_id_fkey"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.receiptId],
+			foreignColumns: [receipts.id],
+			name: "pos_checkout_transactions_receipt_id_fkey"
+		}).onDelete("set null"),
 ]);
 
 export const roles = pgTable("roles", {

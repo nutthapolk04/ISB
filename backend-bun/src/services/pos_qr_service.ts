@@ -28,6 +28,7 @@ import { pgNumber, pgToIso } from "@/lib/dates";
 import { logger } from "@/logger";
 import { createQrPayment, isPymtConfigured, PymtGatewayError } from "@/services/pymt_gateway";
 import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
+import { startTransaction, markTransactionCancelledByRefCode } from "@/services/pos_transaction_service";
 
 // ── DTOs ──────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,22 @@ export async function createPosQrIntent(input: CreatePosQrInput): Promise<PosQrI
         })
         .returning();
 
+    // Best-effort — this is the "picked QR and confirmed" moment for the
+    // Transactions tab. A logging failure here must never block a real QR
+    // sale, so startTransaction swallows its own errors.
+    await startTransaction({
+        refCode,
+        transactionMode: input.cart.transaction_mode ?? null,
+        paymentMethod: "bay_qr",
+        shopId: input.cart.shop_id ?? null,
+        cashierUserId: input.cashierUserId,
+        payerKind: input.cart.payer_kind ?? null,
+        payerId: input.cart.customer_id ?? input.cart.payer_user_id ?? input.cart.payer_department_id ?? null,
+        itemsCount: input.cart.items.length,
+        amount: input.amount,
+        items: input.cart.items,
+    });
+
     try {
         const r = await createQrPayment({
             amount: input.amount,
@@ -131,6 +148,7 @@ export async function createPosQrIntent(input: CreatePosQrInput): Promise<PosQrI
             .set({ status: "cancelled" })
             .where(eq(paymentIntents.id, inserted.id))
             .catch(() => { });
+        await markTransactionCancelledByRefCode(refCode);
         throw e;
     }
 }
@@ -295,7 +313,9 @@ export async function confirmPosQrSale(refCode: string): Promise<number | null> 
     };
     let receipt: Awaited<ReturnType<typeof checkout>>;
     try {
-        receipt = await checkout(checkoutInput);
+        // Linked by refCode — updates the transaction row created back at
+        // createPosQrIntent time rather than starting a second one.
+        receipt = await checkout(checkoutInput, { linkToTransactionRefCode: refCode });
     } catch (err) {
         // The customer's money is already captured by BAY at this point — this
         // is now a "charged but not recorded" case that must stay visible and
@@ -358,4 +378,5 @@ export async function cancelPosQrIntent(refCode: string): Promise<void> {
         .where(
             sql`${paymentIntents.refCode} = ${refCode} AND ${paymentIntents.status} = 'pending' AND ${paymentIntents.intentType} = 'pos_sale'`,
         );
+    await markTransactionCancelledByRefCode(refCode);
 }
