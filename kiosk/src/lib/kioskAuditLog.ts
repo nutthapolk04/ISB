@@ -176,12 +176,20 @@ export function auditTopupEnd(params: TopupEndParams): void {
     });
 }
 
-export function auditLock(): void {
-    writeAudit('LOCK', 'info', {});
+export interface LockAuditParams {
+    ref?: string;
+    method?: TopupMethod;
+    payer_id?: string;
+    receiver_id?: string;
+    actual_amount?: number;
 }
 
-export function auditUnlock(): void {
-    writeAudit('UNLOCK', 'info', {});
+export function auditLock(params: LockAuditParams = {}): void {
+    writeAudit('LOCK', 'info', { ...params });
+}
+
+export function auditUnlock(params: LockAuditParams = {}): void {
+    writeAudit('UNLOCK', 'info', { ...params });
 }
 
 export function auditClearCashBox(amount: number, bills: BillsCount): void {

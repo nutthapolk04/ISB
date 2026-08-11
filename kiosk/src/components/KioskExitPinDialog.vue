@@ -6,12 +6,16 @@ import { Delete } from 'lucide-vue-next';
 import { kioskPasscodeLength, verifyTechnicianPassword } from '../lib/technicianPassword';
 import { useKioskStore } from '../stores/kioskStore';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     open: boolean;
-}>();
+    mode?: 'exit-kiosk' | 'unlock-service';
+}>(), {
+    mode: 'exit-kiosk',
+});
 
 const emit = defineEmits<{
     close: [];
+    success: [];
 }>();
 
 const store = useKioskStore();
@@ -84,6 +88,13 @@ async function submitPin() {
     }
 
     exiting.value = true;
+
+    if (props.mode === 'unlock-service') {
+        emit('success');
+        emit('close');
+        exiting.value = false;
+        return;
+    }
 
     if (Capacitor.getPlatform() !== 'android') {
         emit('close');

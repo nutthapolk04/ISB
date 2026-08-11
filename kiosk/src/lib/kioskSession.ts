@@ -4,6 +4,7 @@
  */
 import type { Router } from 'vue-router';
 import type { useKioskStore } from '../stores/kioskStore';
+import { isOutOfService } from './kioskOutOfService';
 
 const RFID_BLOCK_MS = 2500;
 let rfidBlockedUntil = 0;
@@ -23,7 +24,14 @@ export function resetKioskSession(store: KioskStore, router: Router): void {
     const routeName = router.currentRoute.value.name;
     const onTechnician = routeName === 'technician';
     store.logout();
-    if (!onTechnician && routeName !== 'welcome') {
+    if (onTechnician) return;
+    if (isOutOfService()) {
+        if (routeName !== 'out-of-service') {
+            void router.replace('/out-of-service');
+        }
+        return;
+    }
+    if (routeName !== 'welcome') {
         void router.replace('/');
     }
 }

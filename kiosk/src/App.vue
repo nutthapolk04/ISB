@@ -7,6 +7,7 @@ import { Hardware } from 'capacitor-hardware';
 import { retryPendingCashTopup } from './hooks/useBillAcceptor.ts';
 import { connectPrinter } from './hooks/usePrinter.ts';
 import { blockRfidAfterBoot, resetKioskSession } from './lib/kioskSession.ts';
+import { isOutOfService } from './lib/kioskOutOfService.ts';
 import BootSplashScreen from './components/BootSplashScreen.vue';
 
 const router = useRouter();
@@ -36,13 +37,14 @@ const resetTimeout = () => {
     if (timeoutId) clearTimeout(timeoutId);
     store.updateActivity();
 
-    if (route.name === 'welcome' || route.name === 'technician') return;
+    if (route.name === 'welcome' || route.name === 'technician' || route.name === 'out-of-service') return;
     if (store.suppressGlobalIdleTimeout) return;
 
     timeoutId = window.setTimeout(handleTimeout, TIMEOUT_DEFAULT);
 };
 
 const handleTimeout = () => {
+    if (isOutOfService()) return;
     store.logout();
     router.push('/');
 };
@@ -59,7 +61,13 @@ onMounted(async () => {
     window.addEventListener('touchstart', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
     resetTimeout();
-    void store.bootstrap().then(() => retryPendingCashTopup());
+    void store.bootstrap().then(() => {
+        if (isOutOfService()) {
+            router.replace('/out-of-service');
+            return;
+        }
+        retryPendingCashTopup();
+    });
 
     void App.addListener('resume', () => {
         resetKioskSession(store, router);

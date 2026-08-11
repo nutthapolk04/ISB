@@ -8,6 +8,7 @@ import {
     type BillsCount,
     type TopupStatus,
 } from '../lib/kioskAuditLog';
+import { retryTopupApi } from '../lib/topupApiRetry';
 
 const PENDING_KEY = 'kiosk-pending-cash-topup';
 
@@ -39,7 +40,7 @@ function newSessionRef(): string {
     return crypto.randomUUID();
 }
 
-function loadPending(): PendingCashTopup | null {
+export function loadPending(): PendingCashTopup | null {
     if (memoryPending) return memoryPending;
     try {
         const raw = localStorage.getItem(PENDING_KEY);
@@ -71,7 +72,7 @@ function savePending(pending: PendingCashTopup): void {
     }
 }
 
-function clearPending(): void {
+export function clearPending(): void {
     memoryPending = null;
     try {
         localStorage.removeItem(PENDING_KEY);
@@ -300,7 +301,9 @@ export function useBillAcceptor() {
         savePending(pending);
 
         try {
-            const res = await realApi.topUp(walletId, amount, 'cash', ref, actingUserId, actingCustomerId);
+            const res = await retryTopupApi(() =>
+                realApi.topUp(walletId, amount, 'cash', ref, actingUserId, actingCustomerId),
+            );
             clearPending();
             logTopupEnd(ctx, 'success', amount, { transaction_id: res.transaction_id });
             return res;

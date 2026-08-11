@@ -5,6 +5,8 @@ import TechnicianView from '../views/TechnicianView.vue';
 import BalanceView from '../views/BalanceView.vue';
 import TransactionHistoryView from '../views/TransactionHistoryView.vue';
 import TopUpView from '../views/TopUpView.vue';
+import OutOfServiceView from '../views/OutOfServiceView.vue';
+import { isOutOfService } from '../lib/kioskOutOfService';
 // TransferView kept (feature disabled) — flip TRANSFER_ENABLED in BalanceView
 // and restore this route when re-enabling family transfer.
 // import TransferView from '../views/TransferView.vue';
@@ -44,6 +46,11 @@ const routes = [
         component: TopUpView
     },
     {
+        path: '/out-of-service',
+        name: 'out-of-service',
+        component: OutOfServiceView,
+    },
+    {
         // Disabled for now — TransferView.vue remains in the repo.
         path: '/transfer',
         name: 'transfer',
@@ -64,6 +71,11 @@ const router = createRouter({
 const AUTH_ROUTE_NAMES = new Set(['balance', 'history', 'topup', 'transfer']);
 
 router.beforeEach((to) => {
+    if (isOutOfService()) {
+        if (to.name === 'out-of-service' || to.name === 'technician') return true;
+        return { name: 'out-of-service' };
+    }
+
     if (!AUTH_ROUTE_NAMES.has(String(to.name ?? ''))) return true;
     const store = useKioskStore();
     if (!store.isAuthenticated) {

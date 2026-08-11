@@ -7,7 +7,14 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { realApi } from '../api/realApi';
 import { useBillAcceptor, type CashTopupContext } from '../hooks/useBillAcceptor';
 import { usePrinter } from '../hooks/usePrinter';
-import { auditTopupBegin, auditTopupEnd } from '../lib/kioskAuditLog';
+import { auditTopupEnd } from '../lib/kioskAuditLog';
+import { enterOutOfService } from '../lib/kioskOutOfService';
+import {
+    buildRecoveryReceiptData,
+    buildRecoverySnapshot,
+    RECOVERY_RECEIPT_DISPLAY_MS,
+    type RecoveryTopupSnapshot,
+} from '../lib/recoveryReceipt';
 import { getMinTopupAmount, isKioskDebugMode } from '../lib/debugMode';
 import type { TopupReceiptData, ReceiptRow } from '../lib/escpos';
 import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
@@ -139,6 +146,8 @@ const t = {
         receiptType: 'Top-up',
         receiptTxId: 'Transaction No.',
         receiptPayerIsbId: 'Payer ISB ID',
+        receiptReceiverIsbId: 'Receiver ISB ID',
+        receiptRef: 'Reference',
         receiptPayer: 'Payer',
         receiptDevice: 'Machine',
         receiptBalanceAfter: 'Remaining Balance from this transaction',
@@ -149,6 +158,10 @@ const t = {
         printed: 'Receipt printed',
         printFailed: 'Could not print receipt',
         reprint: 'Print again',
+        recoveryTitle: 'Payment Received — Service Issue',
+        recoverySubtitle: 'Your payment was received but could not be credited automatically.',
+        recoveryStaffMessage: 'Please bring this receipt to a staff member for assistance.',
+        recoveryOosHint: 'This kiosk will stop service in {n}s…',
     },
     TH: {
         title: 'เติมเงิน',
@@ -214,6 +227,8 @@ const t = {
         receiptType: 'เติมเงิน',
         receiptTxId: 'เลขที่รายการ',
         receiptPayerIsbId: 'รหัส ISB ผู้ชำระ',
+        receiptReceiverIsbId: 'รหัส ISB ผู้รับ',
+        receiptRef: 'เลขอ้างอิง',
         receiptPayer: 'ผู้ชำระ',
         receiptDevice: 'เครื่อง',
         receiptBalanceAfter: 'ยอดคงเหลือ',
@@ -224,6 +239,10 @@ const t = {
         printed: 'พิมพ์ใบเสร็จแล้ว',
         printFailed: 'พิมพ์ใบเสร็จไม่สำเร็จ',
         reprint: 'พิมพ์อีกครั้ง',
+        recoveryTitle: 'รับเงินแล้ว — ระบบขัดข้อง',
+        recoverySubtitle: 'รับเงินสดแล้ว แต่ไม่สามารถเติมเงินเข้าระบบได้อัตโนมัติ',
+        recoveryStaffMessage: 'กรุณานำใบเสร็จนี้ไปติดต่อเจ้าหน้าที่เพื่อดำเนินการ',
+        recoveryOosHint: 'เครื่องจะหยุดให้บริการในอีก {n} วินาที…',
     }
 };
 
@@ -232,7 +251,7 @@ const methods = [
     { key: 'cash', icon: 'banknote', colorBg: '#f0fdf4', colorText: '#16a34a', border: '#86efac' },
 ];
 
-type Step = 'methods' | 'amount' | 'qr' | 'cash-confirm' | 'success' | 'fail';
+type Step = 'methods' | 'amount' | 'qr' | 'cash-confirm' | 'success' | 'fail' | 'recovery-receipt';
 
 const selectedMethod = ref<string | null>(null);
 const currentStep = ref<Step>('amount');
@@ -291,6 +310,11 @@ type PrintState = 'idle' | 'printing' | 'done' | 'error';
 const printState = ref<PrintState>('idle');
 let autoPrinted = false;
 
+const recoverySnapshot = ref<RecoveryTopupSnapshot | null>(null);
+const recoverySecondsLeft = ref(0);
+let recoveryTimer: number | null = null;
+let recoveryTick: number | null = null;
+
 /** Cash session is locked once any bill has been stacked — no back, logout, or method change. */
 const cashLocked = computed(
     () => currentStep.value === 'cash-confirm' && bill.collectedThb.value > 0,
@@ -313,14 +337,7 @@ const selectMethod = async (key: string) => {
     if (key === 'cash') {
         currentStep.value = 'cash-confirm';
         try {
-            const ref = await bill.start(amountNumber.value);
-            auditTopupBegin({
-                ref,
-                method: 'CASH',
-                payer_id: topupPayerId(),
-                receiver_id: topupReceiverId(),
-                target_amount: amountNumber.value,
-            });
+            await bill.start(amountNumber.value);
         } catch (e) {
             console.warn('[TopUp] startCollecting failed:', e);
             failType.value = 'server';
@@ -438,13 +455,6 @@ const initQrPayment = async () => {
     try {
         const intent = await realApi.createTopupIntent(walletId, amountNumber.value, store.currentUser?.actingUserId ?? null, store.currentUser?.actingCustomerId ?? null);
         activeRefCode.value = intent.ref_code;
-        auditTopupBegin({
-            ref: intent.ref_code,
-            method: 'QR',
-            payer_id: topupPayerId(),
-            receiver_id: topupReceiverId(),
-            target_amount: amountNumber.value,
-        });
         qrDataUrl.value = await QRCode.toDataURL(intent.qr_payload, {
             width: 240,
             margin: 2,
@@ -539,6 +549,7 @@ const scheduleSuccessLogout = () => {
 
 onUnmounted(() => {
     clearSuccessLogoutTimer();
+    clearRecoveryTimer();
     clearQrTimer();
     clearCashIdleTimer();
     stopTopupSuccessSound();
@@ -568,16 +579,17 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
 
     isProcessing.value = true;
     failDetail.value = null;
+    const ref = bill.getCashSessionRef();
+    const ctx = ref ? cashTopupContext(ref) : null;
     try {
         await bill.stop();
-        const ref = bill.getCashSessionRef();
-        if (!ref) return false;
+        if (!ref || !ctx) return false;
         const res = await bill.finalizeTopUp(
             walletId,
             amount,
             store.currentUser?.actingUserId ?? null,
             store.currentUser?.actingCustomerId ?? null,
-            cashTopupContext(ref),
+            ctx,
         );
         receiptTxId.value = res.transaction_id;
         creditedAmount.value = amount;
@@ -585,6 +597,23 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
         currentStep.value = 'success';
         return true;
     } catch (e) {
+        if (amount > 0 && ref && ctx) {
+            recoverySnapshot.value = buildRecoverySnapshot({
+                method: 'CASH',
+                ref,
+                payer_id: ctx.payer_id,
+                receiver_id: ctx.receiver_id,
+                payer_name_masked: store.currentWallet?.holderName
+                    ? maskReceiptPayerName(store.currentWallet.holderName)
+                    : undefined,
+                actual_amount: amount,
+                target_amount: ctx.target_amount,
+                device_name: store.deviceProfile?.full_name,
+            });
+            currentStep.value = 'recovery-receipt';
+            void startRecoveryFlow();
+            return false;
+        }
         const isNetwork = e instanceof TypeError && (e.message.includes('fetch') || e.message.includes('network'));
         failType.value = isNetwork ? 'internet' : 'server';
         failDetail.value = e instanceof Error ? e.message : String(e);
@@ -594,6 +623,95 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
         isProcessing.value = false;
         bill.resetSessionState();
     }
+};
+
+const clearRecoveryTimer = () => {
+    if (recoveryTimer != null) {
+        clearTimeout(recoveryTimer);
+        recoveryTimer = null;
+    }
+    if (recoveryTick != null) {
+        clearInterval(recoveryTick);
+        recoveryTick = null;
+    }
+    recoverySecondsLeft.value = 0;
+};
+
+const formatRecoveryDate = (iso: string) =>
+    new Intl.DateTimeFormat(store.language === 'TH' ? 'th-TH' : 'en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+        timeZone: 'Asia/Bangkok',
+    }).format(new Date(iso));
+
+const recoveryReceiptData = computed(() => {
+    if (!recoverySnapshot.value) return null;
+    const tt = currT.value;
+    return buildRecoveryReceiptData(
+        recoverySnapshot.value,
+        {
+            receiptTitle: tt.receiptTitle,
+            receiptType: tt.receiptType,
+            receiptRef: tt.receiptRef,
+            receiptTxId: tt.receiptTxId,
+            receiptPayerIsbId: tt.receiptPayerIsbId,
+            receiptReceiverIsbId: tt.receiptReceiverIsbId,
+            receiptPayer: tt.receiptPayer,
+            receiptDevice: tt.receiptDevice,
+            successDate: tt.successDate,
+            successMethod: tt.successMethod,
+            successAmount: tt.successAmount,
+            receiptPoweredBy: tt.receiptPoweredBy,
+        },
+        tt.cash,
+        formatCurrency,
+        formatRecoveryDate,
+        store.schoolInfo.school_name || undefined,
+    );
+});
+
+const printRecoveryReceipt = async () => {
+    const data = recoveryReceiptData.value;
+    if (!data || printState.value === 'printing') return;
+    printState.value = 'printing';
+    try {
+        await printer.printTopupReceipt(data);
+        printState.value = 'done';
+    } catch (e) {
+        console.warn('[TopUp] recovery print failed:', e);
+        printState.value = 'error';
+    }
+};
+
+const finishAndLogoutToOos = () => {
+    clearRecoveryTimer();
+    clearQrTimer();
+    stopPolling();
+    void bill.stop();
+    store.logout();
+    router.replace('/out-of-service');
+};
+
+const startRecoveryFlow = async () => {
+    store.setSuppressGlobalIdle(true);
+    printState.value = 'idle';
+    autoPrinted = false;
+
+    recoverySecondsLeft.value = Math.ceil(RECOVERY_RECEIPT_DISPLAY_MS / 1000);
+    recoveryTick = window.setInterval(() => {
+        recoverySecondsLeft.value = Math.max(0, recoverySecondsLeft.value - 1);
+    }, 1000);
+
+    if (!autoPrinted) {
+        autoPrinted = true;
+        void printRecoveryReceipt();
+    }
+
+    recoveryTimer = window.setTimeout(() => {
+        if (!recoverySnapshot.value) return;
+        enterOutOfService(recoverySnapshot.value);
+        finishAndLogoutToOos();
+    }, RECOVERY_RECEIPT_DISPLAY_MS);
 };
 
 const handleHeaderBack = () => {
@@ -648,7 +766,7 @@ const executeCancelTopup = async () => {
     if (currentStep.value === 'cash-confirm') {
         if (bill.collectedThb.value > 0) {
             const ok = await finalizeCashTopUp();
-            if (ok) return;
+            if (ok || recoverySnapshot.value) return;
         } else {
             const ref = bill.getCashSessionRef();
             if (ref) logCashTopupEnd('cancelled', ref, 0);
@@ -757,7 +875,7 @@ const printReceipt = async () => {
 // so this also recovers when the boot-time printer connect failed.
 // Also schedule a short auto-logout so the next member can tap in right away.
 watch(currentStep, (step) => {
-    const suppress = step === 'qr' || step === 'cash-confirm' || step === 'success' || step === 'fail';
+    const suppress = step === 'qr' || step === 'cash-confirm' || step === 'success' || step === 'fail' || step === 'recovery-receipt';
     store.setSuppressGlobalIdle(suppress);
 
     if (step === 'cash-confirm') {
@@ -821,7 +939,7 @@ const overpayExceedsCap = computed(() => {
 <template>
     <div class="kiosk-container topup-view">
         <!-- Header -->
-        <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail' && currentStep !== 'qr'">
+        <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail' && currentStep !== 'qr' && currentStep !== 'recovery-receipt'">
             <button v-if="!cashLocked" class="back-btn" @click="handleHeaderBack">
                 <ChevronLeft :size="32" />
                 <span>{{ currT.back }}</span>
@@ -1104,6 +1222,36 @@ const overpayExceedsCap = computed(() => {
             <button class="kiosk-btn btn-primary" style="margin-top: 1rem;" @click="goBackToBalance">
                 {{ currT.backToBalance }}
             </button>
+        </div>
+
+        <!-- Recovery receipt — cash collected but server top-up failed -->
+        <div v-if="currentStep === 'recovery-receipt' && recoveryReceiptData" class="result-screen recovery-screen">
+            <div class="result-icon recovery-icon-wrap">
+                <AlertTriangle :size="72" />
+            </div>
+            <h2 class="result-title">{{ currT.recoveryTitle }}</h2>
+            <p class="recovery-subtitle">{{ currT.recoverySubtitle }}</p>
+            <div class="recovery-receipt-card">
+                <div v-for="row in recoveryReceiptData.rows" :key="row.label" class="result-row">
+                    <span class="result-label">{{ row.label }}</span>
+                    <span class="result-value">{{ row.value }}</span>
+                </div>
+                <div class="result-amount-box">
+                    <span class="result-label">{{ recoveryReceiptData.amountLabel }}</span>
+                    <span class="result-amount">{{ recoveryReceiptData.amountText }}</span>
+                </div>
+            </div>
+            <p class="recovery-staff-msg">{{ currT.recoveryStaffMessage }}</p>
+            <div class="receipt-print-block">
+                <p v-if="printState === 'printing'" class="print-status printing">{{ currT.printing }}</p>
+                <p v-else-if="printState === 'done'" class="print-status done">
+                    <CheckCircle2 :size="18" /> {{ currT.printed }}
+                </p>
+                <p v-else-if="printState === 'error'" class="print-status error">{{ currT.printFailed }}</p>
+            </div>
+            <p v-if="recoverySecondsLeft > 0" class="auto-logout-hint">
+                {{ currT.recoveryOosHint.replace('{n}', String(recoverySecondsLeft)) }}
+            </p>
         </div>
 
         <!-- Step 5: Failure Screen -->
@@ -1713,6 +1861,42 @@ const overpayExceedsCap = computed(() => {
     justify-content: center;
     gap: 0.5rem;
     width: 100%;
+}
+
+/* Recovery receipt (post-payment server failure) */
+.recovery-screen {
+    text-align: center;
+}
+
+.recovery-icon-wrap {
+    color: #d97706;
+    margin-bottom: 0.75rem;
+}
+
+.recovery-subtitle {
+    margin: 0 0 1.25rem;
+    color: var(--text-muted);
+    font-size: 1rem;
+    max-width: 28rem;
+}
+
+.recovery-receipt-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card-bg);
+    border-radius: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow);
+    text-align: left;
+}
+
+.recovery-staff-msg {
+    margin: 1.25rem 0 0;
+    max-width: 28rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #b45309;
+    line-height: 1.45;
 }
 
 /* Failure */

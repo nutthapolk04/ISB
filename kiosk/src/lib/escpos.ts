@@ -221,16 +221,21 @@ async function drawReceipt(ctx: CanvasRenderingContext2D, data: ReceiptData): Pr
     y = dashed(ctx, marginX, y);
     y += 14;
 
-    // Balance after — centered, large
-    ctx.textAlign = 'center';
-    ctx.font = `24px ${FONT_STACK}`;
-    ctx.fillText(data.balanceLabel, cx, y);
-    y += 34;
-    ctx.font = `bold 52px ${FONT_STACK}`;
-    ctx.fillText(data.balanceText, cx, y);
-    y += 66;
+    if (data.balanceLabel && data.balanceText) {
+        // Balance after — centered, large
+        ctx.textAlign = 'center';
+        ctx.font = `24px ${FONT_STACK}`;
+        ctx.fillText(data.balanceLabel, cx, y);
+        y += 34;
+        ctx.font = `bold 52px ${FONT_STACK}`;
+        ctx.fillText(data.balanceText, cx, y);
+        y += 66;
 
-    y = hr(ctx, marginX, y, 4);
+        y = hr(ctx, marginX, y, 4);
+    } else {
+        y += 10;
+        y = hr(ctx, marginX, y, 4);
+    }
     y += 20;
 
     // Footer
