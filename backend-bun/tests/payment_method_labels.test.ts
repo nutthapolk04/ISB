@@ -29,7 +29,10 @@ describe("payment_method_labels", () => {
     });
 
     test("aggregated EDC row uses summed fee", () => {
-        expect(formatAggregatedPaymentMethodLabel("EDC", 0)).toBe("EDC QR");
+        // Both branches read "EDC Credit Card" now — the edc_qr key still
+        // exists (fee=0 resolves to it), but its own display text was folded
+        // into "EDC Credit Card" once the EDC QR sub-mode button was disabled.
+        expect(formatAggregatedPaymentMethodLabel("EDC", 0)).toBe("EDC Credit Card");
         expect(formatAggregatedPaymentMethodLabel("EDC", 12.5)).toBe("EDC Credit Card");
     });
 });

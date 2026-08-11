@@ -95,6 +95,10 @@ export const posCheckout = {
          *  instead of creating a second one. Optional — omitting it is the
          *  pre-existing behaviour (kiosk, BAY QR webhook). */
         idempotency_key: t.Optional(t.Nullable(t.String({ maxLength: 64 }))),
+        /** ref_code returned by POST /pos/edc-intent — when present, checkout
+         *  updates that pending Transactions-tab row instead of creating a
+         *  new one. Absent for every other payment method (unaffected). */
+        edc_pending_ref: t.Optional(t.Nullable(t.String({ maxLength: 64 }))),
     }),
     detail: { tags: ["POS"], summary: "Checkout sale" },
 };
@@ -140,6 +144,27 @@ export const posQrIntentCancel = {
 export const posQrIntentAbandon = {
     params: t.Object({ refCode: t.String() }),
     detail: { tags: ["POS"], summary: "Mark POS QR transaction log row as cancelled (cashier gave up)" },
+};
+
+/**
+ * Log a pending EDC checkout attempt the instant the cashier picks EDC as the
+ * payment method — before the terminal has replied. Same shape as the QR
+ * intent's cart, reused as-is.
+ */
+export const posStartEdcAttempt = {
+    body: t.Object({
+        // Client-derived from the attempt's idempotency key (same value the
+        // EDC telemetry log uses as pos_ref) — ties this row to that one.
+        ref_code: t.String({ minLength: 8, maxLength: 50 }),
+        amount: t.Number({ exclusiveMinimum: 0 }),
+        cart: checkoutCartSchema,
+    }),
+    detail: { tags: ["POS"], summary: "Log a pending EDC checkout attempt (Transactions tab)" },
+};
+
+export const posEdcIntentAbandon = {
+    params: t.Object({ refCode: t.String() }),
+    detail: { tags: ["POS"], summary: "Mark a pending EDC transaction log row as cancelled (cashier gave up)" },
 };
 
 /**

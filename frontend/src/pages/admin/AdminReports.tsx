@@ -1478,7 +1478,7 @@ export default function AdminReports() {
                                                     <SelectItem value="DEBIT_CARD">{t("common.paymentMethods.debit_card", "Debit Card")}</SelectItem>
                                                     <SelectItem value="QR_PROMPTPAY">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
                                                     <SelectItem value="BANK_TRANSFER">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
-                                                    <SelectItem value="EDC">{t("common.paymentMethods.edc", "EDC QR")}</SelectItem>
+                                                    <SelectItem value="EDC">{t("common.paymentMethods.edc", "EDC Credit Card")}</SelectItem>
                                                     <SelectItem value="DEPARTMENT">{t("common.paymentMethods.department", "Budget Deduction")}</SelectItem>
                                                     <SelectItem value="OTHER">{t("common.paymentMethods.other", "Other")}</SelectItem>
                                                 </SelectContent>
