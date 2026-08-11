@@ -43,14 +43,15 @@ export interface CanteenCartState {
   billDiscountAmount: number;
   total: number;
   itemCount: number;
-  /** Add item with no options — plain products. */
-  addItem: (product: CanteenProduct) => void;
+  /** Add item with no options — plain products. qty defaults to 1 (normal tap). */
+  addItem: (product: CanteenProduct, qty?: number) => void;
   /** Add a special item (price=0) with a cashier-entered price. Always creates a new line. */
-  addSpecialItem: (product: CanteenProduct, price: number) => void;
+  addSpecialItem: (product: CanteenProduct, price: number, qty?: number) => void;
   /** Add item with explicit options (from MenuOptionModal). */
   addItemWithOptions: (
     product: CanteenProduct,
     selectedOptions: SelectedOptionGroup[],
+    qty?: number,
   ) => void;
   incrementLine: (cartLineId: string) => void;
   decrementLine: (cartLineId: string) => void;
@@ -107,7 +108,7 @@ export function useCanteenCart(): CanteenCartState {
   }, []);
 
   const addItem = useCallback(
-    (product: CanteenProduct) => {
+    (product: CanteenProduct, qty: number = 1) => {
       setItems((prev) => {
         // No-options products collapse by product id — fingerprint is "".
         const existing = prev.find(
@@ -117,7 +118,7 @@ export function useCanteenCart(): CanteenCartState {
           flashLine(existing.cartLineId);
           return prev.map((i) =>
             i.cartLineId === existing.cartLineId
-              ? { ...i, quantity: i.quantity + 1 }
+              ? { ...i, quantity: i.quantity + qty }
               : i,
           );
         }
@@ -127,7 +128,7 @@ export function useCanteenCart(): CanteenCartState {
           {
             ...product,
             cartLineId: lineId,
-            quantity: 1,
+            quantity: qty,
             selectedOptions: [],
             optionsTotal: 0,
           },
@@ -139,7 +140,7 @@ export function useCanteenCart(): CanteenCartState {
   );
 
   const addSpecialItem = useCallback(
-    (product: CanteenProduct, price: number) => {
+    (product: CanteenProduct, price: number, qty: number = 1) => {
       // Special items always get their own line (no dedup) since each may have a different price.
       const lineId = generateLineId();
       flashLine(lineId);
@@ -147,7 +148,7 @@ export function useCanteenCart(): CanteenCartState {
         {
           ...product,
           cartLineId: lineId,
-          quantity: 1,
+          quantity: qty,
           selectedOptions: [],
           optionsTotal: 0,
           priceOverride: price,
@@ -159,7 +160,7 @@ export function useCanteenCart(): CanteenCartState {
   );
 
   const addItemWithOptions = useCallback(
-    (product: CanteenProduct, selectedOptions: SelectedOptionGroup[]) => {
+    (product: CanteenProduct, selectedOptions: SelectedOptionGroup[], qty: number = 1) => {
       const optionsTotal = selectedOptions.reduce(
         (sum, g) =>
           sum +
@@ -180,7 +181,7 @@ export function useCanteenCart(): CanteenCartState {
           flashLine(existing.cartLineId);
           return prev.map((i) =>
             i.cartLineId === existing.cartLineId
-              ? { ...i, quantity: i.quantity + 1 }
+              ? { ...i, quantity: i.quantity + qty }
               : i,
           );
         }
@@ -190,7 +191,7 @@ export function useCanteenCart(): CanteenCartState {
           {
             ...product,
             cartLineId: lineId,
-            quantity: 1,
+            quantity: qty,
             selectedOptions,
             optionsTotal,
           },

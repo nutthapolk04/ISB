@@ -28,7 +28,7 @@ interface Props {
   /** Base price to preview (already respects price mode). */
   basePrice: number;
   onClose: () => void;
-  onConfirm: (groups: SelectedOptionGroup[]) => void;
+  onConfirm: (groups: SelectedOptionGroup[], qty: number) => void;
 }
 
 type GroupId = number;
@@ -55,10 +55,15 @@ export default function MenuOptionModal({
   });
 
   const [selection, setSelection] = useState<SelectionState>({});
+  // Overall line quantity — separate from any per-option "quantity" group
+  // above (e.g. "2x cheese"), which multiplies the option's own price delta.
+  // This multiplies the whole line (base + options) instead.
+  const [qty, setQty] = useState(1);
 
   // Reset selection each time a new product opens.
   useEffect(() => {
     setSelection({});
+    setQty(1);
   }, [product?.id]);
 
   const pickSingle = (groupId: number, optionId: number) => {
@@ -144,11 +149,11 @@ export default function MenuOptionModal({
       if (firstError) toast.error(firstError);
       return;
     }
-    onConfirm(selectedGroups);
+    onConfirm(selectedGroups, qty);
   };
 
   const open = !!product;
-  const linePreview = (basePrice + optionsTotal).toFixed(2);
+  const linePreview = ((basePrice + optionsTotal) * qty).toFixed(2);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -285,6 +290,32 @@ export default function MenuOptionModal({
             </div>
           ))}
 
+          <div className="flex items-center justify-between rounded-md border border-border p-2">
+            <Label className="text-sm font-semibold">{t("canteen.pos.quantityLabel", "Quantity")}</Label>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                disabled={qty <= 1}
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </Button>
+              <span className="w-6 text-center text-sm tabular-nums">{qty}</span>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => setQty((q) => q + 1)}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
           <div className="rounded-md bg-muted/40 p-3 text-sm space-y-1">
             <div className="flex justify-between text-muted-foreground">
               <span>{t("canteen.subtotalBase")}</span>
@@ -294,6 +325,12 @@ export default function MenuOptionModal({
               <div className="flex justify-between text-muted-foreground">
                 <span>{t("canteen.subtotalOptions")}</span>
                 <span className="tabular-nums">+฿{optionsTotal.toFixed(2)}</span>
+              </div>
+            )}
+            {qty > 1 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>{t("canteen.pos.quantityLabel", "Quantity")}</span>
+                <span className="tabular-nums">×{qty}</span>
               </div>
             )}
             <div className="flex justify-between pt-1 font-semibold">

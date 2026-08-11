@@ -130,6 +130,7 @@
     "cashReceived": "Cash Received",
     "change": "Change",
     "enterAmount": "Enter amount",
+    "quantityLabel": "Quantity",
     "studentCardNumber": "Member Card Number",
     "enterStudentCardNumber": "Enter member card number",
     "departmentPlaceholder": "Select department",
@@ -1893,7 +1894,8 @@
       "retailVsInternalDesc": "Retail = standard price for customers · Internal = staff/family rate for internal use",
       "setPrice": "Set Price",
       "enterPriceHint": "Enter selling price",
-      "insufficientBalance": "Insufficient Balance"
+      "insufficientBalance": "Insufficient Balance",
+      "quantityLabel": "Quantity"
     },
     "memberSearch": {
       "title": "Search Member",
@@ -2001,7 +2003,9 @@
     "select": "Select",
     "next": "Next",
     "prev": "Prev",
-    "showingOf": "Showing {{from}}–{{to}} of {{total}}"
+    "showingOf": "Showing {{from}}–{{to}} of {{total}}",
+    "clear": "Clear",
+    "backspace": "Backspace"
   },
   "errorBoundary": {
     "title": "Something went wrong while loading this page",
@@ -2075,7 +2079,9 @@
     "todayRemaining": "Today's remaining",
     "todayUsedOf": "{{spent}} / {{limit}}",
     "dailyLimitReached": "Daily spending limit reached",
-    "shopMissingGroup": "This shop has no spending group assigned"
+    "shopMissingGroup": "This shop has no spending group assigned",
+    "quantityDialogTitle": "Set Quantity",
+    "quantityDialogConfirm": "Add {{qty}}"
   },
   "checkout": {
     "failed": "Checkout failed",
