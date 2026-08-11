@@ -705,6 +705,8 @@
     "stockCardReportDesc": "Per-SKU movement history with opening and closing balance",
     "bundleReport": "Bundle Report",
     "bundleReportDesc": "Bundle products with component breakdown and current sellable quantity",
+    "receiveStockReport": "Receive Stock Report",
+    "receiveStockReportDesc": "Every stock intake transaction — product, quantity, cost, PO/invoice, and who recorded it",
     "salesSummaryReport": "Daily Sales Report",
     "salesSummaryReportDesc": "Daily sales totals with payment method breakdown by receipt",
     "salesByItemReport": "Sales by Item",

@@ -5,6 +5,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CreditCard, Banknote, QrCode, Nfc, Building2 } from "lucide-react";
+import type { EdcTerminalStatus } from "@/hooks/useEdcTerminalStatus";
 
 export type CanteenPaymentMethod = "wallet" | "cash" | "qr" | "edc" | "department";
 
@@ -17,6 +18,10 @@ interface PaymentMethodPickerProps {
   /** Override the wallet method's label (e.g., "บัตรนักเรียน" for store). */
   walletLabel?: string;
   onSelect: (method: CanteenPaymentMethod) => void;
+  /** Live EDC bridge connection — shown as a dot on the EDC tile so the
+   *  cashier knows before opening it. Omit the prop (rather than "unknown")
+   *  to hide the dot entirely on pickers that never render an EDC tile. */
+  edcStatus?: EdcTerminalStatus;
 }
 
 const ALL_METHODS: Record<
@@ -64,6 +69,7 @@ export function PaymentMethodPicker({
   methods = DEFAULT_METHODS,
   walletLabel,
   onSelect,
+  edcStatus,
 }: PaymentMethodPickerProps) {
   // 5-method layout uses 5 cols on lg, 3 on smaller; 4-method stays 3-col grid.
   const gridCols = methods.length >= 5 ? "grid-cols-3 lg:grid-cols-5" : "grid-cols-3";
@@ -90,9 +96,27 @@ export function PaymentMethodPicker({
                 key={key}
                 type="button"
                 onClick={() => onSelect(key)}
-                className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-5 text-center transition-all
+                className="group relative flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-5 text-center transition-all
                            hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/40 hover:border-amber-300 active:scale-[0.98]"
               >
+                {key === "edc" && edcStatus && (
+                  <span
+                    className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${
+                      edcStatus === "connected"
+                        ? "bg-emerald-500"
+                        : edcStatus === "disconnected"
+                          ? "bg-red-500"
+                          : "bg-muted-foreground/40 animate-pulse"
+                    }`}
+                    title={
+                      edcStatus === "connected"
+                        ? "EDC connected"
+                        : edcStatus === "disconnected"
+                          ? "EDC not connected"
+                          : "Connecting to EDC…"
+                    }
+                  />
+                )}
                 <div
                   className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${def.gradient} text-white shadow-md`}
                 >

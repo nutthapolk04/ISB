@@ -11,6 +11,7 @@ import {
 	salesSummaryReport,
 	salesByItemReport,
 	bundleReport,
+	receiveStockReport,
 	effectiveModule,
 	scopeShop,
 } from "@/services/report_service";
@@ -220,6 +221,32 @@ export const ReportController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (RP-08)] ReportController.bundle() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	receiveStock: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { query } = reqContext;
+		logger.info(`[${reqContext.requestId} (RP-10)] ReportController.receiveStock() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (RP-10)] ReportController.receiveStock() calling receiveStockReport().`);
+			const result = await receiveStockReport({
+				user,
+				dateFrom: query.date_from ?? undefined,
+				dateTo: query.date_to ?? undefined,
+				shopId: query.shop_id ?? undefined,
+				module: query.module ?? undefined,
+				productSearch: query.product_search ?? undefined,
+				category: query.category ?? undefined,
+				poNumber: query.po_number ?? undefined,
+				invoiceNumber: query.invoice_number ?? undefined,
+				sortOrder: query.sort_order ?? null,
+			});
+			logger.info(`[${reqContext.requestId} (RP-10)] ReportController.receiveStock() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (RP-10)] ReportController.receiveStock() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

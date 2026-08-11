@@ -120,6 +120,13 @@
       "when": 1786126000000,
       "tag": "0016_extend_kiosk_logs_message",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786420697453,
+      "tag": "0017_add_po_invoice_to_shop_movements",
+      "breakpoints": true
     }
   ]
 }

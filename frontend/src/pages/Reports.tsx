@@ -16,7 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList, FileSpreadsheet, Building2 } from "lucide-react";
+import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList, FileSpreadsheet, Building2, Truck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { InfoCallout } from "@/components/InfoCallout";
@@ -41,6 +41,7 @@ import { StockCardReport } from "./reports/StockCardReport";
 import { SalesSummaryReport } from "./reports/SalesSummaryReport";
 import { SalesByItemReport } from "./reports/SalesByItemReport";
 import { BundleReport } from "./reports/BundleReport";
+import { ReceiveStockReport } from "./reports/ReceiveStockReport";
 import { InternalUsedReportPanel } from "./reports/InternalUsedReport";
 import { scrollToReportSection } from "@/lib/scrollToReportSection";
 
@@ -52,6 +53,7 @@ const INLINE_REPORT_TYPES = new Set([
     "salesByItemReport",
     "bundleReport",
     "internalUsedReport",
+    "receiveStockReport",
 ]);
 
 interface SalesRow {
@@ -111,6 +113,7 @@ const COMMON_REPORTS = [
 const STORE_ONLY_REPORTS = [
     { type: "stockReport", icon: Package, needsRange: false },
     { type: "stockCardReport", icon: ClipboardList, needsRange: true },
+    { type: "receiveStockReport", icon: Truck, needsRange: false },
     { type: "bundleReport", icon: Package, needsRange: false },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
@@ -167,6 +170,7 @@ const Reports = () => {
             stockCardReport: "S013",
             bundleReport: "S014",
             internalUsedReport: "S015",
+            receiveStockReport: "S016",
         };
     const visibleReports = useMemo(
         () => (isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS),
@@ -200,7 +204,8 @@ const Reports = () => {
             reportType === "salesSummaryReport" ||
             reportType === "salesByItemReport" ||
             reportType === "bundleReport" ||
-            reportType === "internalUsedReport"
+            reportType === "internalUsedReport" ||
+            reportType === "receiveStockReport"
         ) {
             setSelectedReportType(reportType);
             setReportOpenNonce((n) => n + 1);
@@ -625,6 +630,18 @@ const Reports = () => {
                 <BundleReport
                     key={reportOpenNonce}
                     reportId={REPORT_ID_MAP["bundleReport"]}
+                />
+            )}
+
+            {selectedReportType === "receiveStockReport" && (
+                <ReceiveStockReport
+                    key={reportOpenNonce}
+                    reportId={REPORT_ID_MAP["receiveStockReport"]}
+                    needsShopSelector={needsShopSelector}
+                    isCanteenReportsPage={isCanteenReportsPage}
+                    selectedStall={selectedStall}
+                    onSelectedStallChange={setSelectedStall}
+                    canteenStalls={canteenStalls}
                 />
             )}
 
