@@ -566,7 +566,13 @@ export default function Canteen() {
             | { kind: "department"; departmentId: number },
         extras?: {
             cashReceived?: number;
-            edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string; mode?: "qr" | "card" };
+            edcRefs?: {
+                approval_code: string;
+                terminal_ref?: string;
+                masked_card?: string;
+                mode?: "qr" | "card";
+                edc_pending_ref?: string | null;
+            };
         },
     ) => {
         setConfirming(true);
@@ -591,6 +597,7 @@ export default function Canteen() {
                 edc_terminal_ref: extras?.edcRefs?.terminal_ref,
                 edc_masked_card: extras?.edcRefs?.masked_card,
                 edc_mode: extras?.edcRefs?.mode,
+                edc_pending_ref: extras?.edcRefs?.edc_pending_ref ?? undefined,
                 shop_id: CANTEEN_SHOP_ID,
                 items: cart.items.map((i) => ({
                     product_variant_id: i.id,
@@ -829,7 +836,13 @@ export default function Canteen() {
     // calls back through `onPaid` once the webhook produces a receipt.
     // (Old handleConfirmQr removed; the modal owns the checkout side-effect.)
 
-    const handleConfirmEdc = async (refs: { approval_code: string; terminal_ref?: string; masked_card?: string; mode: "qr" | "card" }) => {
+    const handleConfirmEdc = async (refs: {
+        approval_code: string;
+        terminal_ref?: string;
+        masked_card?: string;
+        mode: "qr" | "card";
+        edc_pending_ref?: string | null;
+    }) => {
         setEdcOpen(false);
         const amount = cart.total;
         display.processing({
@@ -1368,6 +1381,26 @@ export default function Canteen() {
                 onBack={() => { setEdcOpen(false); setMethodPickerOpen(true); }}
                 onConfirm={handleConfirmEdc}
                 confirming={confirming}
+                buildCartPayload={() => ({
+                    transaction_mode: cart.priceMode === "internal" ? "internal_issue" : "sale",
+                    payer_kind: "customer",
+                    shop_id: CANTEEN_SHOP_ID,
+                    discount: cart.billDiscountAmount,
+                    notes: receiptNote.trim() || undefined,
+                    items: cart.items.map((i) => ({
+                        product_variant_id: i.id,
+                        quantity: i.quantity,
+                        unit_price: cart.priceMode === "internal" ? i.internalPrice : i.price,
+                        price_override: i.priceOverride ?? null,
+                        discount: cart.lineDiscountAmountFor(i),
+                        options: i.selectedOptions.flatMap((g) =>
+                            g.options.map((o) => ({
+                                option_id: o.id,
+                                quantity: o.quantity,
+                            })),
+                        ),
+                    })),
+                })}
                 telemetry={{
                     context: "canteen_pos",
                     shopId: CANTEEN_SHOP_ID,

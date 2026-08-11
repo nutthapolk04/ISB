@@ -75,6 +75,27 @@ export async function startTransaction(input: StartTransactionInput): Promise<nu
     }
 }
 
+/**
+ * Log a `pending` row the moment EDC is picked as the payment method —
+ * before the terminal has replied at all. Mirrors the POS QR intent (pending
+ * row created at intent-time, not at confirm-time): an EDC attempt that never
+ * gets an approval code back (terminal unreachable, cashier gives up) still
+ * shows up in the Transactions tab instead of leaving no trace. That's what
+ * happened on 2026-08-10 — edc_txn_events recorded the bridge's "Failed to
+ * fetch", but nothing appeared in the Transactions tab because checkout() was
+ * never reached. `refCode` is client-supplied (derived from the same
+ * idempotency key the EDC telemetry log already keys its own `pos_ref` on —
+ * see posRefFromIdempotencyKey on the frontend) so this row and its
+ * edc_txn_events counterpart are trivially cross-referenceable. Never throws
+ * — same contract as startTransaction.
+ */
+export async function startEdcAttempt(
+    input: Omit<StartTransactionInput, "paymentMethod"> & { refCode: string },
+): Promise<{ refCode: string | null }> {
+    const id = await startTransaction({ ...input, paymentMethod: "edc" });
+    return { refCode: id != null ? input.refCode : null };
+}
+
 export async function markTransactionSuccess(id: number | null, receiptId: number, amount?: number): Promise<void> {
     if (id == null) return;
     try {

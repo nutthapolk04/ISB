@@ -21,7 +21,10 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodLabelKey, string> = {
     campus_card: "Campus Card",
     cash: "Cash",
     thai_qr: "Thai QR",
-    edc_qr: "EDC QR",
+    // EDC only offers card now — the QR sub-mode button is disabled, so this
+    // key reads the same as edc_credit_card rather than a QR label nobody can
+    // trigger anymore. Keep in sync with frontend/src/lib/paymentMethodLabels.ts.
+    edc_qr: "EDC Credit Card",
     edc_credit_card: "EDC Credit Card",
     edc_debit_card: "EDC Debit Card",
     credit_card: "Credit Card",

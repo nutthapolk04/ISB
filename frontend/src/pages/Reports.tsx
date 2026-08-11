@@ -307,7 +307,9 @@ const Reports = () => {
                 "Cash",
                 "Campus Card",
                 "Thai QR",
-                "EDC QR",
+                // EDC only offers card now — edc_qr's label was folded into
+                // "EDC Credit Card" (see paymentMethodLabels.ts), so there's no
+                // longer a distinct "EDC QR" bucket to sort here.
                 "EDC Credit Card",
                 "Credit Card",
                 "Debit Card",

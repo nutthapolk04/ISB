@@ -23,7 +23,10 @@ export const PAYMENT_METHOD_LABEL_FALLBACKS: Record<PaymentMethodLabelKey, strin
   campus_card: "Campus Card",
   cash: "Cash",
   thai_qr: "Thai QR",
-  edc_qr: "EDC QR",
+  // EDC only offers card now — the QR sub-mode button is disabled, so this key
+  // (still resolved when there's no card fee/masked PAN yet) reads the same as
+  // edc_credit_card rather than a QR label nobody can trigger anymore.
+  edc_qr: "EDC Credit Card",
   edc_credit_card: "EDC Credit Card",
   edc_debit_card: "EDC Debit Card",
   credit_card: "Credit Card",
@@ -36,7 +39,7 @@ const PAYMENT_METHOD_LABEL_FALLBACKS_TH: Record<PaymentMethodLabelKey, string> =
   campus_card: "Campus Card",
   cash: "เงินสด",
   thai_qr: "Thai QR",
-  edc_qr: "EDC QR",
+  edc_qr: "EDC Credit Card",
   edc_credit_card: "EDC Credit Card",
   edc_debit_card: "EDC Debit Card",
   credit_card: "บัตรเครดิต",

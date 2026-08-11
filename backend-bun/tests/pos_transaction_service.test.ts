@@ -15,6 +15,8 @@ import { confirmPosQrSale, cancelPosQrIntent } from "@/services/pos_qr_service";
 import type { AccessTokenPayload } from "@/utils/AuthUtils";
 import {
     startTransaction,
+    startEdcAttempt,
+    markTransactionCancelledByRefCode,
     listTransactions,
     getTransactionIdByRefCode,
     getTransactionDetail,
@@ -282,6 +284,129 @@ describe("pos_checkout_transactions — QR lifecycle (linked by ref_code)", () =
                 await db.delete(posCheckoutTransactions).where(eq(posCheckoutTransactions.refCode, refCode));
                 await db.delete(paymentIntents).where(eq(paymentIntents.refCode, refCode));
                 await deleteTestShopProduct(product.shopProductId);
+            }
+        },
+        30_000,
+    );
+});
+
+describe("pos_checkout_transactions — EDC lifecycle (linked by ref_code, like QR)", () => {
+    it.if(HAS_DB)(
+        "startEdcAttempt logs a pending row the instant EDC is picked, before the terminal answers",
+        async () => {
+            if (!dbOk) return;
+            const shopId = `POSTXN-EDC-START-${tag()}`;
+            const refCode = `TEST-POSTXN-EDC-${tag()}`;
+            try {
+                const result = await startEdcAttempt({
+                    refCode,
+                    shopId,
+                    cashierUserId,
+                    itemsCount: 1,
+                    amount: 100,
+                    items: [{ product_variant_id: 1, quantity: 1, unit_price: 100 }],
+                });
+                expect(result.refCode).toBe(refCode);
+
+                const rows = await getTxnByRefCode(refCode);
+                expect(rows.length).toBe(1);
+                expect(rows[0].status).toBe("pending");
+                expect(rows[0].paymentMethod).toBe("edc");
+                expect(rows[0].receiptId).toBeNull();
+            } finally {
+                await db.delete(posCheckoutTransactions).where(eq(posCheckoutTransactions.shopId, shopId));
+            }
+        },
+        30_000,
+    );
+
+    it.if(HAS_DB)(
+        "checkout() with linkToTransactionRefCode updates the SAME row an EDC attempt logged, not a second one",
+        async () => {
+            if (!dbOk) return;
+            const product = await createTestShopProduct(`POSTXN-EDC-LINK-${tag()}`);
+            const refCode = `TEST-POSTXN-EDC-LINK-${tag()}`;
+            let receiptId: number | null = null;
+            try {
+                // What EdcPaymentModal does the instant EDC is selected, before
+                // the terminal has replied at all.
+                const started = await startEdcAttempt({
+                    refCode,
+                    shopId: product.shopId,
+                    cashierUserId,
+                    itemsCount: 1,
+                    amount: product.unitPrice,
+                    items: [{ product_variant_id: product.shopProductId, quantity: 1, unit_price: product.unitPrice }],
+                });
+                expect(started.refCode).toBe(refCode);
+
+                const rowsBefore = await getTxnByRefCode(refCode);
+                expect(rowsBefore.length).toBe(1);
+                expect(rowsBefore[0].status).toBe("pending");
+                const seededTxnId = rowsBefore[0].id;
+
+                // What PosController.checkout does once the terminal approves and
+                // the frontend sends edc_pending_ref back.
+                const input: CheckoutInput = {
+                    payment_method: "edc",
+                    shop_id: product.shopId,
+                    userId: cashierUserId,
+                    edc_approval_code: "TEST-APPR",
+                    items: [
+                        {
+                            product_variant_id: product.shopProductId,
+                            quantity: 1,
+                            unit_price: product.unitPrice,
+                            discount: 0,
+                        },
+                    ],
+                };
+                const receipt = await checkout(input, { linkToTransactionRefCode: refCode });
+                receiptId = receipt.id;
+
+                const rowsAfter = await getTxnByRefCode(refCode);
+                // Still exactly one row for this ref_code — checkout() updated it
+                // in place instead of logging a second attempt.
+                expect(rowsAfter.length).toBe(1);
+                expect(rowsAfter[0].id).toBe(seededTxnId);
+                expect(rowsAfter[0].status).toBe("success");
+                expect(rowsAfter[0].receiptId).toBe(receiptId);
+            } finally {
+                await db.delete(posCheckoutTransactions).where(eq(posCheckoutTransactions.refCode, refCode));
+                if (receiptId != null) {
+                    await db.delete(receiptItems).where(eq(receiptItems.receiptId, receiptId));
+                    await db.delete(receipts).where(eq(receipts.id, receiptId));
+                }
+                await deleteTestShopProduct(product.shopProductId);
+            }
+        },
+        30_000,
+    );
+
+    it.if(HAS_DB)(
+        "an EDC attempt with no buildCartPayload (or a bridge error before any result) can be abandoned by ref_code",
+        async () => {
+            if (!dbOk) return;
+            const shopId = `POSTXN-EDC-ABANDON-${tag()}`;
+            const refCode = `TEST-POSTXN-EDC-ABANDON-${tag()}`;
+            try {
+                await startEdcAttempt({
+                    refCode,
+                    shopId,
+                    cashierUserId,
+                    itemsCount: 1,
+                    amount: 50,
+                    items: [{ product_variant_id: 1, quantity: 1, unit_price: 50 }],
+                });
+
+                await markTransactionCancelledByRefCode(refCode);
+
+                const rows = await getTxnByRefCode(refCode);
+                expect(rows.length).toBe(1);
+                expect(rows[0].status).toBe("cancelled");
+                expect(rows[0].resolvedAt).toBeTruthy();
+            } finally {
+                await db.delete(posCheckoutTransactions).where(eq(posCheckoutTransactions.shopId, shopId));
             }
         },
         30_000,

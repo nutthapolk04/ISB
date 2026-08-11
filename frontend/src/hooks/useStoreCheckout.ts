@@ -47,7 +47,13 @@ interface CheckoutCtx {
     payer?: WalletPayer;
     deptId?: number;
     empCode?: string | null;
-    edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string; mode?: "qr" | "card" };
+    edcRefs?: {
+        approval_code: string;
+        terminal_ref?: string;
+        masked_card?: string;
+        mode?: "qr" | "card";
+        edc_pending_ref?: string | null;
+    };
     cashReceived?: number;
 }
 
@@ -292,6 +298,27 @@ export function useStoreCheckout({
         total,
     });
 
+    /** Checkout-shaped cart (matches what /pos/checkout expects) — used to log
+     *  the pending Transactions-tab row the instant an EDC attempt starts.
+     *  Unlike buildEdcCartSnapshot above (a display snapshot for the EDC
+     *  telemetry table), this must use real product_variant_id/unit_price so
+     *  the Transactions tab's detail view can resolve item names the same way
+     *  a real checkout's cart_snapshot does. No payer — EDC doesn't collect
+     *  one before the terminal responds, same as the QR intent's cart. */
+    const buildEdcCheckoutCartPayload = () => ({
+        transaction_mode: priceMode === "internal" ? "internal_issue" : "sale",
+        payer_kind: "customer",
+        shop_id: shopId ?? undefined,
+        discount: billDiscountAmount,
+        notes: receiptNote.trim() || undefined,
+        items: cart.map((item) =>
+            buildCheckoutItem(item, {
+                unitPrice: priceMode === "internal" ? (item.internalPrice ?? item.price) : item.price,
+                discount: getItemDiscountAmount(item),
+            }),
+        ),
+    });
+
     // ── Live-broadcast cart to the customer display ─────────────────────────────
     // Mirrors the Canteen behaviour: as the cashier builds the cart or picks a
     // member, the second screen previews the order before any payment modal opens.
@@ -429,6 +456,7 @@ export function useStoreCheckout({
                 edc_approval_code: ctx.edcRefs?.approval_code,
                 edc_masked_card: ctx.edcRefs?.masked_card,
                 edc_mode: ctx.edcRefs?.mode,
+                edc_pending_ref: ctx.edcRefs?.edc_pending_ref ?? undefined,
                 // Empty only if a caller reached checkout without going through
                 // handleOpenPayment; the backend treats a blank key as "no key"
                 // and behaves exactly as it did before.
@@ -764,7 +792,13 @@ export function useStoreCheckout({
     };
     const handleConfirmDept = (deptId: number, empCode: string | null) =>
         doCheckout("department", { deptId, empCode });
-    const handleConfirmEdc = (refs: { approval_code: string; terminal_ref?: string; masked_card?: string; mode: "qr" | "card" }) =>
+    const handleConfirmEdc = (refs: {
+        approval_code: string;
+        terminal_ref?: string;
+        masked_card?: string;
+        mode: "qr" | "card";
+        edc_pending_ref?: string | null;
+    }) =>
         doCheckout("edc", { edcRefs: refs });
 
     // ── Available payment methods ───────────────────────────────────────────
@@ -835,6 +869,7 @@ export function useStoreCheckout({
         handleConfirmDept,
         handleConfirmEdc,
         buildEdcCartSnapshot,
+        buildEdcCheckoutCartPayload,
         availableMethods,
     };
 }

@@ -4,7 +4,13 @@ import ResponseStatus from "@/constants/ResponseStatus";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { hasRole } from "@/middleware/AuthMiddleware";
 import { listReceipts, getReceipt, voidReceipt } from "@/services/pos_service";
-import { listTransactions, getTransactionDetail, markTransactionCancelledByRefCode } from "@/services/pos_transaction_service";
+import {
+	listTransactions,
+	getTransactionDetail,
+	markTransactionCancelledByRefCode,
+	startEdcAttempt,
+	type StartTransactionInput,
+} from "@/services/pos_transaction_service";
 import { checkout, type CheckoutInput } from "@/services/pos_checkout_service";
 import {
 	createPosQrIntent,
@@ -133,7 +139,13 @@ export const PosController = {
 		}
 		try {
 			logger.info(`[${reqContext.requestId} (PC-03)] PosController.checkout() calling checkout().`);
-			const result = await checkout({ ...(body as Omit<CheckoutInput, "userId">), userId: Number(user.sub) });
+			const { edc_pending_ref, ...checkoutBody } = body as Omit<CheckoutInput, "userId"> & {
+				edc_pending_ref?: string | null;
+			};
+			const result = await checkout(
+				{ ...checkoutBody, userId: Number(user.sub) },
+				edc_pending_ref ? { linkToTransactionRefCode: edc_pending_ref } : undefined,
+			);
 			logger.info(`[${reqContext.requestId} (PC-03)] PosController.checkout() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
@@ -358,6 +370,65 @@ export const PosController = {
 		}
 		await markTransactionCancelledByRefCode(params.refCode);
 		logger.info(`[${reqContext.requestId} (PC-12)] PosController.abandonQrIntent() completed.`);
+		return successResponse(reqContext, { ok: true }, ResponseStatus.OK);
+	},
+
+	/**
+	 * Log a pending Transactions-tab row the instant the cashier picks EDC —
+	 * before the terminal has replied. Without this, an attempt where the
+	 * bridge never answers (terminal offline, "Failed to fetch") leaves zero
+	 * trace in the Transactions tab, since checkout() is only ever called
+	 * after the terminal returns an approval code. Never fails the request:
+	 * startEdcAttempt swallows its own logging errors and returns a null
+	 * ref_code, and the frontend just skips linking in that case.
+	 */
+	startEdcAttempt: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { body } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-14)] PosController.startEdcAttempt() called.`);
+		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-14)] PosController.startEdcAttempt() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		const cart = body.cart as {
+			transaction_mode?: string | null;
+			shop_id?: string | null;
+			payer_kind?: string | null;
+			customer_id?: number | null;
+			payer_user_id?: number | null;
+			payer_department_id?: number | null;
+			items: unknown[];
+		};
+		const result = await startEdcAttempt({
+			refCode: body.ref_code,
+			transactionMode: cart.transaction_mode ?? null,
+			shopId: cart.shop_id ?? null,
+			cashierUserId: Number(user.sub),
+			payerKind: cart.payer_kind ?? null,
+			payerId: cart.customer_id ?? cart.payer_user_id ?? cart.payer_department_id ?? null,
+			itemsCount: cart.items.length,
+			amount: body.amount,
+			items: cart.items as StartTransactionInput["items"],
+		});
+		logger.info(`[${reqContext.requestId} (PC-14)] PosController.startEdcAttempt() completed.`);
+		return successResponse(reqContext, result, ResponseStatus.OK);
+	},
+
+	/**
+	 * Cashier backed out of the EDC modal (Back / closed) before the terminal
+	 * ever answered. Marks only the Transactions-tab row cancelled — mirrors
+	 * abandonQrIntent above.
+	 */
+	abandonEdcAttempt: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-15)] PosController.abandonEdcAttempt() called.`);
+		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-15)] PosController.abandonEdcAttempt() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		await markTransactionCancelledByRefCode(params.refCode);
+		logger.info(`[${reqContext.requestId} (PC-15)] PosController.abandonEdcAttempt() completed.`);
 		return successResponse(reqContext, { ok: true }, ResponseStatus.OK);
 	},
 

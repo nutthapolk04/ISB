@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2, ChevronLeft, CreditCard, Loader2, Nfc, QrCode, XCircle } from "lucide-react";
+import { api } from "@/lib/api";
 import { getEdcClient, readyEdc } from "@/lib/paywire/edcClient";
 import { logEdcEvent } from "@/lib/paywire/edcTelemetry";
 import {
@@ -25,6 +26,10 @@ interface EdcRefs {
     masked_card?: string;
     /** Drives the 3% card-swipe surcharge server-side — never applied for "qr". */
     mode: EdcMode;
+    /** ref_code of the pending Transactions-tab row logged when this attempt
+     *  started (see POST /pos/edc-intent) — lets checkout() update that row
+     *  instead of creating a second one. Null if logging it failed. */
+    edc_pending_ref?: string | null;
 }
 
 /** Which way the customer pays on the terminal — drives qrSale vs sale. */
@@ -43,6 +48,14 @@ interface EdcPaymentModalProps {
     onBack: () => void;
     onConfirm: (refs: EdcRefs) => Promise<void>;
     confirming: boolean;
+    /**
+     * Builds the checkout-shaped cart (same shape /pos/checkout expects) used
+     * to log a pending Transactions-tab row the instant an attempt starts —
+     * see POST /pos/edc-intent. Optional so existing call sites keep working
+     * unchanged; without it, an EDC attempt only shows up in the Transactions
+     * tab once/if checkout() itself is reached, same as before.
+     */
+    buildCartPayload?: () => Record<string, unknown>;
     /**
      * Where this modal is mounted, for the server-side EDC event log. The
      * bridge runs on the cashier's own machine, so without this the backend has
@@ -78,6 +91,7 @@ export function EdcPaymentModal({
     onBack,
     onConfirm,
     confirming,
+    buildCartPayload,
     telemetry,
 }: EdcPaymentModalProps) {
     const { t } = useTranslation();
@@ -121,6 +135,9 @@ export function EdcPaymentModal({
         terminalRef: string;
         maskedCard: string;
         responseCode: string;
+        /** ref_code of this attempt's pending Transactions-tab row, if one was
+         *  logged — threaded through to onConfirm when recovery finishes it. */
+        pendingRefCode: string | null;
     } | null>(null);
 
     // Guards against setState after the modal is closed/unmounted mid-transaction —
@@ -235,6 +252,7 @@ export function EdcPaymentModal({
                 terminal_ref: last.terminalRef || undefined,
                 masked_card: last.maskedCard || undefined,
                 mode: last.mode,
+                edc_pending_ref: last.pendingRefCode,
             });
         } catch (err) {
             console.error("[EDC] recovery confirm failed", err);
@@ -286,6 +304,7 @@ export function EdcPaymentModal({
                     // one EDC method now), straight out to the POS's own
                     // payment-method picker.
                     console.log(`[EDC] query recovery confirmed not charged (${ev.responseCode}) — back to payment picker`);
+                    void abandonPendingRef(last.pendingRefCode);
                     resetAttemptState();
                     onBack();
                     return;
@@ -304,15 +323,61 @@ export function EdcPaymentModal({
         }
     };
 
+    /**
+     * Best-effort — a failure here must never surface to the cashier. Marks
+     * the pending Transactions-tab row 'cancelled' once an attempt's outcome
+     * is definitely known to be "no sale" (bank decline, cancelled at
+     * terminal, or QUERY-confirmed not charged). Deliberately NOT called for
+     * an unknown outcome (bridge error, QR timeout, approved-no-code) — same
+     * reasoning as QR's abandon endpoint: leave it pending so a manual
+     * recovery that finishes the sale can still flip it to 'success'.
+     */
+    const abandonPendingRef = async (refCode: string | null | undefined) => {
+        if (!refCode) return;
+        try {
+            await api.post(`/pos/edc-intent/${refCode}/abandon`, {});
+        } catch {
+            // Transactions tab may show "pending" a bit longer — acceptable.
+        }
+    };
+
     const runAttempt = async (mode: EdcMode) => {
         const attemptId = ++attemptRef.current;
         const isCurrent = () => attemptRef.current === attemptId;
 
         idempotencyKeyRef.current = crypto.randomUUID();
+        const posRef = posRefFromIdempotencyKey(idempotencyKeyRef.current);
         setEdcMode(mode);
         resetAttemptState();
         setStep("processing");
         console.log(`[EDC] attempt #${attemptId} start`, { mode, idempotencyKey: idempotencyKeyRef.current, total });
+
+        // Card swipe/tap carries a 3% surcharge the customer pays on top of
+        // the goods total — QR never does. Backend recomputes and stores
+        // this independently; this is what's actually charged at the terminal.
+        const cardFee = mode === "card" ? Math.round(total * EDC_CARD_FEE_RATE * 100) / 100 : 0;
+        const chargeAmount = total + cardFee;
+
+        // Log a `pending` Transactions-tab row for this attempt BEFORE
+        // touching the bridge at all — deliberately ahead of readyEdc()
+        // below, not after. This is what "Failed to fetch" (bridge
+        // unreachable, 2026-08-10) looks like: readyEdc() throws before a
+        // single terminal byte moves, straight into the catch block. Placing
+        // this after readyEdc() would mean that exact failure — the one this
+        // feature exists for — never gets logged at all. Fired in parallel
+        // with the terminal call below (never awaited here) so it can't add
+        // latency to the card read; resolved just before onConfirm/abandon
+        // need it.
+        const pendingTxnPromise: Promise<string | null> = buildCartPayload
+            ? api
+                .post<{ ref_code: string | null }>("/pos/edc-intent", {
+                    ref_code: posRef,
+                    amount: chargeAmount,
+                    cart: buildCartPayload(),
+                })
+                .then((r) => r.ref_code)
+                .catch(() => null)
+            : Promise.resolve(null);
 
         try {
             await readyEdc();
@@ -320,11 +385,6 @@ export function EdcPaymentModal({
             console.log(`[EDC] attempt #${attemptId} bridge ready`);
 
             const edc = getEdcClient();
-            // Card swipe/tap carries a 3% surcharge the customer pays on top of
-            // the goods total — QR never does. Backend recomputes and stores
-            // this independently; this is what's actually charged at the terminal.
-            const cardFee = mode === "card" ? Math.round(total * EDC_CARD_FEE_RATE * 100) / 100 : 0;
-            const chargeAmount = total + cardFee;
             const satang = Math.round(chargeAmount * 100);
 
             // Bookend for the worst case: a terminal that charges the card and
@@ -335,7 +395,7 @@ export function EdcPaymentModal({
                 context: telemetry?.context ?? "unknown",
                 shop_id: telemetry?.shopId ?? null,
                 idempotency_key: idempotencyKeyRef.current,
-                pos_ref: posRefFromIdempotencyKey(idempotencyKeyRef.current),
+                pos_ref: posRef,
                 edc_mode: mode,
                 amount: chargeAmount,
                 checkout_attempted: false,
@@ -419,6 +479,7 @@ export function EdcPaymentModal({
                             terminalRef: nextTerminalRef.trim(),
                             maskedCard: nextMaskedCard.trim(),
                             responseCode: "TO",
+                            pendingRefCode: await pendingTxnPromise,
                         };
                         setConnectionLost(true);
                         setDeclineInfo({
@@ -451,6 +512,7 @@ export function EdcPaymentModal({
                                             terminal_ref: nextTerminalRef.trim() || undefined,
                                             masked_card: nextMaskedCard.trim() || undefined,
                                             mode,
+                                            edc_pending_ref: await pendingTxnPromise,
                                         });
                                         console.log(`[EDC] attempt #${attemptId} onConfirm recorded`);
                                     } catch (err) {
@@ -497,6 +559,7 @@ export function EdcPaymentModal({
                                     terminalRef: nextTerminalRef.trim(),
                                     maskedCard: nextMaskedCard.trim(),
                                     responseCode: String(ev.responseCode),
+                                    pendingRefCode: await pendingTxnPromise,
                                 };
                                 setApprovedNoRecord(true);
                                 setDeclineInfo({
@@ -518,10 +581,12 @@ export function EdcPaymentModal({
                         // the decline card AND the single-button card choice screen —
                         // straight back out to the POS's own payment-method picker.
                         console.log(`[EDC] attempt #${attemptId} cancelled at terminal — back to payment picker`, ev.responseCode);
+                        void pendingTxnPromise.then(abandonPendingRef);
                         resetAttemptState();
                         onBack();
                     } else {
                         console.log(`[EDC] attempt #${attemptId} declined`, ev.responseCode, ev.responseMessage);
+                        void pendingTxnPromise.then(abandonPendingRef);
                         setDeclineInfo({
                             code: String(ev.responseCode),
                             message: ev.responseMessage ?? "",
@@ -560,6 +625,7 @@ export function EdcPaymentModal({
                 terminalRef: "",
                 maskedCard: "",
                 responseCode: "",
+                pendingRefCode: await pendingTxnPromise,
             };
             setConnectionLost(true);
             setDeclineInfo({

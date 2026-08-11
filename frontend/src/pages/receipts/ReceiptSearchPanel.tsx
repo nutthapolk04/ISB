@@ -108,7 +108,7 @@ export function ReceiptSearchPanel({
                 <SelectItem value="wallet">{t("common.paymentMethods.campus_card", "Campus Card")}</SelectItem>
                 <SelectItem value="cash">{t("common.paymentMethods.cash", "Cash")}</SelectItem>
                 <SelectItem value="qr_promptpay">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
-                <SelectItem value="edc">{t("common.paymentMethods.edc_qr", "EDC QR")}</SelectItem>
+                <SelectItem value="edc">{t("common.paymentMethods.edc_qr", "EDC Credit Card")}</SelectItem>
                 <SelectItem value="department">{t("common.paymentMethods.department", "Budget Deduction")}</SelectItem>
               </SelectContent>
             </Select>
