@@ -22,7 +22,6 @@ import {
     exportToExcel,
     buildDateFilterLine,
     sanitizeFilename,
-    type ReportColumn,
     type ReportPayload,
 } from "@/lib/reportExport";
 import { PaginationBar } from "@/components/PaginationBar";
@@ -30,6 +29,7 @@ import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { DEFAULT_DATE_TIME_SORT, toggleDateTimeSort, type DateTimeSortDir } from "@/lib/dateTimeSort";
 import { fmtDateTime, fmtDate } from "@/lib/dateFormat";
 import type { CanteenShop } from "./reportHelpers";
+import { buildReceiveStockColumns, buildReceiveStockGroupedRows, sumCostPerUnit } from "./receiveStockExport";
 
 const RS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -134,38 +134,44 @@ export function ReceiveStockReport({
         }
     };
 
+    /** Rows come from a single shop unless "All shops" is explicitly selected —
+     *  in that case a Shop column is needed to tell rows apart; otherwise the
+     *  shop reads once as a header line instead of repeating on every row. */
+    const showShopColumn = (): boolean => needsShopSelector && selectedStall === "all";
+
+    /** The one shop this export covers, or null when it spans multiple shops
+     *  (Shop column is shown instead). Falls back to the data itself for a
+     *  fixed single-shop login where there's no stall picker to read a name from. */
+    const singleShopLabel = (): string | null => {
+        if (showShopColumn() || !rsData) return null;
+        if (needsShopSelector && selectedStall !== "all") {
+            const stall = canteenStalls.find((s) => s.id === selectedStall);
+            return stall?.name ?? selectedStall;
+        }
+        const first = rsData.rows[0];
+        return first ? (first.shop_name ?? first.shop_id) : null;
+    };
+
     const buildReceiveStockFilterLines = (): string[] => {
         const lines: string[] = [];
+        const shopLabel = singleShopLabel();
+        if (shopLabel) lines.push(shopLabel);
         const dateLine = buildDateFilterLine("Date", rsDateFrom, rsDateTo);
-        if (dateLine) lines.push(dateLine);
+        if (dateLine) lines.push(`Filters: ${dateLine}`);
         if (rsProductSearch.trim()) lines.push(`Product: ${rsProductSearch.trim()}`);
         if (rsPoNumber.trim()) lines.push(`PO No.: ${rsPoNumber.trim()}`);
         if (rsInvoiceNumber.trim()) lines.push(`Invoice No.: ${rsInvoiceNumber.trim()}`);
-        if (needsShopSelector && selectedStall !== "all") {
-            const stall = canteenStalls.find((s) => s.id === selectedStall);
-            if (stall) lines.push(`Shop: ${stall.name}`);
-        }
         return lines;
     };
 
+    /**
+     * Grouped per-invoice layout (matches the printed layout the finance team
+     * already uses): rows are bucketed by invoice number regardless of their
+     * order in the result set, each group gets a header row + its own TOTAL
+     * row, and the grand total renders as the table's footer.
+     */
     const buildReceiveStockPayload = (): ReportPayload<Record<string, unknown>> | null => {
         if (!rsData) return null;
-
-        const columns: ReportColumn[] = [
-            { header: "Seq.", key: "seq", format: "number", align: "right", width: 32 },
-            { header: "Date/Time", key: "date", format: "datetime", width: 95 },
-            { header: "Received Date", key: "received_date", width: 70 },
-            { header: "Item NO.", key: "product_code", width: 70 },
-            { header: "Item Name", key: "product_name", width: 130 },
-            { header: "Shop", key: "shop_name", width: 70 },
-            { header: "Qty", key: "quantity", format: "number", align: "right", width: 45 },
-            { header: "Cost/Unit", key: "cost_per_unit", format: "currency", align: "right", width: 60 },
-            { header: "Total Cost", key: "total_cost", format: "currency", align: "right", width: 70 },
-            { header: "PO No.", key: "po_number", width: 65 },
-            { header: "Invoice No.", key: "invoice_number", width: 65 },
-            { header: "Note", key: "note", width: 90 },
-            { header: "Received By", key: "created_by_name", width: 75 },
-        ];
 
         return {
             meta: {
@@ -175,21 +181,12 @@ export function ReceiveStockReport({
                 reportId,
                 filters: buildReceiveStockFilterLines(),
             },
-            columns,
-            rows: rsData.rows.map((r) => ({
-                ...r,
-                // Pre-formatted as text (not format:"date") so the placeholder for
-                // rows with no delivery date matches what the web table shows,
-                // instead of a date formatter rendering its own dash.
-                received_date: r.received_date ? fmtDate(r.received_date) : "-",
-                shop_name: r.shop_name ?? r.shop_id,
-                po_number: r.po_number ?? "",
-                invoice_number: r.invoice_number ?? "",
-                note: r.note ?? "",
-                created_by_name: r.created_by_name ?? "",
-            })) as unknown as Record<string, unknown>[],
+            columns: buildReceiveStockColumns(showShopColumn()),
+            rows: buildReceiveStockGroupedRows(rsData.rows),
+            totalsLabel: "GRAND TOTAL",
             totals: {
                 quantity: rsData.totals.quantity,
+                cost_per_unit: sumCostPerUnit(rsData.rows),
                 total_cost: rsData.totals.total_cost,
             },
         };
