@@ -37,7 +37,7 @@ const resetTimeout = () => {
     if (timeoutId) clearTimeout(timeoutId);
     store.updateActivity();
 
-    if (route.name === 'welcome' || route.name === 'technician' || route.name === 'out-of-service') return;
+    if (route.name === 'welcome' || route.path.startsWith('/technician') || route.name === 'out-of-service') return;
     if (store.suppressGlobalIdleTimeout) return;
 
     timeoutId = window.setTimeout(handleTimeout, TIMEOUT_DEFAULT);

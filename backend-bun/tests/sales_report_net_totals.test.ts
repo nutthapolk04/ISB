@@ -29,8 +29,58 @@ import { describe, expect, it, beforeAll } from "bun:test";
 import { inArray } from "drizzle-orm";
 import { db, pingDb } from "@/db/client";
 import { receiptItems, receipts, shopProducts } from "@/db/schema";
-import { salesByItemReport, salesSummaryReport } from "@/services/report_service";
+import { allocateReceiptTotalToLines, salesByItemReport, salesSummaryReport } from "@/services/report_service";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
+
+// ── Pure: spreading a receipt-level amount over its lines ─────────────────
+
+describe("allocateReceiptTotalToLines", () => {
+    const sum = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) * 100) / 100;
+
+    it("splits a percentage discount cleanly", () => {
+        expect(allocateReceiptTotalToLines([10, 22, 51, 44], -25.4)).toEqual([8, 17.6, 40.8, 35.2]);
+    });
+
+    it("adds a card surcharge the same way", () => {
+        const out = allocateReceiptTotalToLines([100, 200], 9);
+        expect(sum(out)).toBe(309);
+    });
+
+    it("loses no satang on a flat discount that doesn't divide evenly", () => {
+        // ฿10 over three equal lines is 3.33 / 3.33 / 3.34 — the remainder has
+        // to land somewhere rather than rounding away.
+        const out = allocateReceiptTotalToLines([50, 50, 50], -10);
+        expect(sum(out)).toBe(140);
+        expect(out.every((v) => Number.isInteger(Math.round(v * 100)))).toBe(true);
+    });
+
+    it("never invents or drops a satang across awkward splits", () => {
+        for (const lines of [[1, 1, 1], [0.01, 99.99], [33.33, 33.33, 33.34], [7, 11, 13, 17, 19]]) {
+            for (const delta of [-0.01, -0.07, -1.99, 0.03, 5.55, -12.34]) {
+                const out = allocateReceiptTotalToLines(lines, delta);
+                expect(sum(out)).toBe(Math.round((sum(lines) + delta) * 100) / 100);
+            }
+        }
+    });
+
+    it("returns the lines untouched when there is nothing to spread", () => {
+        expect(allocateReceiptTotalToLines([25, 75], 0)).toEqual([25, 75]);
+        expect(allocateReceiptTotalToLines([], -5)).toEqual([]);
+    });
+
+    it("weights a refund line by size, not sign", () => {
+        // Store allows a negative line on a normal sale. Weighting by the raw
+        // value would hand it an inverted share and break the sum.
+        const out = allocateReceiptTotalToLines([100, -50], -15);
+        expect(sum(out)).toBe(35);
+        expect(out[0]).toBeLessThan(100);
+        expect(out[1]).toBeLessThan(0);
+    });
+
+    it("still balances when every line is worth zero", () => {
+        expect(sum(allocateReceiptTotalToLines([0, 0], -3))).toBe(-3);
+    });
+});
 
 const DB_URL = process.env.DATABASE_URL ?? "";
 const IS_LOCAL_DB = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(DB_URL);
@@ -43,6 +93,9 @@ const TAG = `snt-${Date.now().toString(36)}`;
 // A window of its own so other fixtures and real data can't leak into the
 // totals being asserted.
 const DAY = "2031-03-14";
+/** Outside the reported window on either side — for voids that cross days. */
+const PRIOR_DAY = "2031-03-11";
+const LATER_DAY = "2031-03-17";
 const adminUser = { sub: "1", roles: ["admin"], shop_id: null } as unknown as AccessTokenPayload;
 
 beforeAll(async () => {
@@ -84,6 +137,8 @@ async function seedReceipt(opts: {
     status?: "ACTIVE" | "VOIDED";
     voidedAt?: string | null;
     time?: string;
+    /** Sell it on a different day than the one being reported. */
+    dayOverride?: string;
 }): Promise<number> {
     const subtotal = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
     const discount = opts.discount ?? 0;
@@ -94,7 +149,7 @@ async function seedReceipt(opts: {
         .insert(receipts)
         .values({
             receiptNumber: `R-${TAG}-${opts.suffix}`,
-            transactionDate: `${DAY}T${opts.time ?? "10:00:00"}+07:00`,
+            transactionDate: `${opts.dayOverride ?? DAY}T${opts.time ?? "10:00:00"}+07:00`,
             transactionMode: "SALE",
             shopId: SHOP_ID,
             subtotal: subtotal.toFixed(2),
@@ -220,25 +275,110 @@ describe("salesByItemReport — netTotals", () => {
     );
 
     it.if(HAS_DB)(
-        "ignores a voided receipt's discount and fee, as it ignores its lines",
+        "shows a voided receipt as a sale leg plus a reversal, netting to zero",
         async () => {
             if (!dbOk) return;
             try {
                 const pid = await seedProduct(`${TAG}-E`);
-                await seedReceipt({ suffix: "E1", lines: [{ productId: pid, qty: 1, unitPrice: 100 }] });
+                await seedReceipt({ suffix: "E1", lines: [{ productId: pid, qty: 1, unitPrice: 100 }], time: "09:00:00" });
                 await seedReceipt({
                     suffix: "E2",
                     lines: [{ productId: pid, qty: 1, unitPrice: 500 }],
                     discount: 50,
                     status: "VOIDED",
                     voidedAt: `${DAY}T11:00:00+07:00`,
+                    time: "10:00:00",
                 });
 
                 const out = await report(true);
-                // Only the live receipt counts. Folding the voided receipt's
-                // discount in would push this to 50 and make the report show
-                // less than was actually sold.
+                const legs = out.rows.filter((r) => r.receipt_number === `R-${TAG}-E2`);
+
+                // Two legs, not one negative row: the sale as it happened, then
+                // the reversal dated when it was actually voided.
+                expect(legs).toHaveLength(2);
+                const sale = legs.find((r) => r.status === "ACTIVE")!;
+                const reversal = legs.find((r) => r.status === "VOIDED")!;
+                expect(sale.sales_amt).toBeCloseTo(450, 2);      // 500 − 50 discount
+                expect(reversal.sales_amt).toBeCloseTo(-450, 2);
+                expect(sale.sales_qty).toBe(1);
+                expect(reversal.sales_qty).toBe(-1);
+                expect(reversal.transaction_date).not.toBe(sale.transaction_date);
+
+                // They cancel, so only the live receipt is left in the total.
                 expect(out.totals.sales_amt).toBeCloseTo(100, 2);
+                expect(out.totals.sales_qty).toBe(1);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "counts the reversal of a receipt that was sold before the window",
+        async () => {
+            if (!dbOk) return;
+            // This is the ฿72.00 that left Sales Report high on 2026-08-10:
+            // sold 7 Aug, voided 10 Aug. Daily books the reversal on the 10th;
+            // Sales Report used to show nothing at all because it filtered on
+            // the sale date.
+            try {
+                const pid = await seedProduct(`${TAG}-H`);
+                await seedReceipt({ suffix: "H1", lines: [{ productId: pid, qty: 1, unitPrice: 200 }], time: "09:00:00" });
+                await seedReceipt({
+                    suffix: "H2",
+                    lines: [{ productId: pid, qty: 1, unitPrice: 72 }],
+                    status: "VOIDED",
+                    time: "10:00:00",
+                    dayOverride: PRIOR_DAY,               // sold three days earlier
+                    voidedAt: `${DAY}T10:49:00+07:00`,    // voided inside the window
+                });
+
+                const out = await report(true);
+                const legs = out.rows.filter((r) => r.receipt_number === `R-${TAG}-H2`);
+                expect(legs).toHaveLength(1);             // reversal only — no sale leg
+                expect(legs[0].status).toBe("VOIDED");
+                expect(legs[0].sales_amt).toBeCloseTo(-72, 2);
+
+                expect(out.totals.sales_amt).toBeCloseTo(128, 2); // 200 − 72
+
+                const summary = await salesSummaryReport({
+                    user: adminUser, dateFrom: DAY, dateTo: DAY, shopId: SHOP_ID,
+                });
+                expect(out.totals.sales_amt).toBeCloseTo(summary.totals.amt_billing, 2);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "keeps only the sale leg when the void happens after the window",
+        async () => {
+            if (!dbOk) return;
+            // Mirror of the case above. Daily books the sale on the day it was
+            // sold and the reversal on a later day, so a report for the sale day
+            // must still show the full sale.
+            try {
+                const pid = await seedProduct(`${TAG}-I`);
+                await seedReceipt({
+                    suffix: "I1",
+                    lines: [{ productId: pid, qty: 1, unitPrice: 90 }],
+                    status: "VOIDED",
+                    voidedAt: `${LATER_DAY}T08:00:00+07:00`,
+                });
+
+                const out = await report(true);
+                const legs = out.rows.filter((r) => r.receipt_number === `R-${TAG}-I1`);
+                expect(legs).toHaveLength(1);
+                expect(legs[0].status).toBe("ACTIVE");
+                expect(out.totals.sales_amt).toBeCloseTo(90, 2);
+
+                const summary = await salesSummaryReport({
+                    user: adminUser, dateFrom: DAY, dateTo: DAY, shopId: SHOP_ID,
+                });
+                expect(out.totals.sales_amt).toBeCloseTo(summary.totals.amt_billing, 2);
             } finally {
                 await cleanup();
             }
@@ -287,20 +427,105 @@ describe("salesByItemReport — netTotals", () => {
     );
 
     it.if(HAS_DB)(
-        "leaves rows and line_count untouched — only the total moves",
+        "prints a total you can reach by adding up the visible column",
+        async () => {
+            if (!dbOk) return;
+            // The complaint that started this: summing Sales AMT. in Excel gave
+            // ฿210,321.75 against a printed ฿210,245.55. Every row must count
+            // toward the total and every receipt-level figure must live on a
+            // row, or the two can never meet.
+            try {
+                const pid = await seedProduct(`${TAG}-J`);
+                await seedReceipt({ suffix: "J1", lines: [{ productId: pid, qty: 2, unitPrice: 50 }], discount: 20, time: "09:00:00" });
+                await seedReceipt({ suffix: "J2", lines: [{ productId: pid, qty: 1, unitPrice: 310 }], edcCardFee: 9.3, time: "10:00:00" });
+                await seedReceipt({
+                    suffix: "J3",
+                    lines: [{ productId: pid, qty: 1, unitPrice: 55 }, { productId: pid, qty: 1, unitPrice: 50 }],
+                    status: "VOIDED",
+                    voidedAt: `${DAY}T12:00:00+07:00`,
+                    time: "11:00:00",
+                });
+                await seedReceipt({
+                    suffix: "J4",
+                    lines: [{ productId: pid, qty: 1, unitPrice: 72 }],
+                    status: "VOIDED",
+                    dayOverride: PRIOR_DAY,
+                    voidedAt: `${DAY}T13:00:00+07:00`,
+                });
+
+                const out = await report(true);
+                const columnSum = out.rows.reduce((a, r) => a + r.sales_amt, 0);
+                expect(columnSum).toBeCloseTo(out.totals.sales_amt, 2);
+                expect(out.totals.sales_amt).toBeCloseTo(327.30, 2); // 80 + 319.30 + 0 − 72
+
+                const qtySum = out.rows.reduce((a, r) => a + r.sales_qty, 0);
+                expect(qtySum).toBe(out.totals.sales_qty);
+
+                const summary = await salesSummaryReport({
+                    user: adminUser, dateFrom: DAY, dateTo: DAY, shopId: SHOP_ID,
+                });
+                expect(out.totals.sales_amt).toBeCloseTo(summary.totals.amt_billing, 2);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "spreads a bill discount across the lines so they add up to the bill",
         async () => {
             if (!dbOk) return;
             try {
+                const pid = await seedProduct(`${TAG}-K`);
+                // 10 + 22 + 51 + 44 = 127 less 20% → 8.00 + 17.60 + 40.80 + 35.20
+                await seedReceipt({
+                    suffix: "K1",
+                    lines: [
+                        { productId: pid, qty: 1, unitPrice: 10 },
+                        { productId: pid, qty: 1, unitPrice: 22 },
+                        { productId: pid, qty: 1, unitPrice: 51 },
+                        { productId: pid, qty: 1, unitPrice: 44 },
+                    ],
+                    discount: 25.4,
+                });
+
+                const out = await report(true);
+                const amts = out.rows.map((r) => r.sales_amt).sort((a, b) => a - b);
+                expect(amts).toEqual([8, 17.6, 35.2, 40.8]);
+                expect(amts.reduce((a, b) => a + b, 0)).toBeCloseTo(101.6, 2);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "leaves Sales by Item Report alone — raw line amounts, voided rows dropped",
+        async () => {
+            if (!dbOk) return;
+            // The other report card shares this endpoint. It must keep showing
+            // what each item rang up at, with a voided receipt as a single
+            // negative row that the total ignores.
+            try {
                 const pid = await seedProduct(`${TAG}-G`);
-                await seedReceipt({ suffix: "G1", lines: [{ productId: pid, qty: 2, unitPrice: 50 }], discount: 20 });
+                await seedReceipt({ suffix: "G1", lines: [{ productId: pid, qty: 2, unitPrice: 50 }], discount: 20, time: "09:00:00" });
+                await seedReceipt({
+                    suffix: "G2",
+                    lines: [{ productId: pid, qty: 1, unitPrice: 40 }],
+                    status: "VOIDED",
+                    voidedAt: `${DAY}T11:00:00+07:00`,
+                    time: "10:00:00",
+                });
 
                 const off = await report(false);
-                const on = await report(true);
-
-                expect(on.rows).toEqual(off.rows);
-                expect(on.line_count).toBe(off.line_count);
-                expect(on.totals.sales_qty).toBe(off.totals.sales_qty);
-                expect(on.totals.sales_amt).not.toBeCloseTo(off.totals.sales_amt, 2);
+                expect(off.rows.filter((r) => r.receipt_number === `R-${TAG}-G1`).map((r) => r.sales_amt))
+                    .toEqual([100]);                       // gross, discount not applied to the row
+                const voided = off.rows.filter((r) => r.receipt_number === `R-${TAG}-G2`);
+                expect(voided).toHaveLength(1);            // one negative row, no sale leg
+                expect(voided[0].sales_amt).toBeCloseTo(-40, 2);
+                expect(off.totals.sales_amt).toBeCloseTo(100, 2); // voided row excluded
             } finally {
                 await cleanup();
             }

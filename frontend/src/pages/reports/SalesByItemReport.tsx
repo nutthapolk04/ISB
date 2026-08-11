@@ -75,12 +75,19 @@ interface GroupedItemRow {
     sales_amt: number;
 }
 
-/** Voided lines carry no real sales weight, so — like the ranking sort below
- * and the backend's own totals — they're excluded from grouped figures. */
-function groupRowsByItem(rows: SalesByItemRow[]): GroupedItemRow[] {
+/**
+ * Roll the line rows up per item.
+ *
+ * With `netTotals` (Sales Report) a voided receipt arrives as two rows — the
+ * sale and its reversal — that cancel out, so both have to be counted or the
+ * grouped figures keep the sale and lose the refund. Without it (Sales by Item
+ * Report) a voided receipt has only its negative row, which carries no real
+ * sales weight and is dropped, matching that report's own total.
+ */
+function groupRowsByItem(rows: SalesByItemRow[], netTotals = false): GroupedItemRow[] {
     const groups = new Map<string, GroupedItemRow>();
     for (const row of rows) {
-        if (row.status !== "ACTIVE") continue;
+        if (!netTotals && row.status !== "ACTIVE") continue;
         const key = row.item_no ?? row.item_name;
         const existing = groups.get(key);
         if (existing) {
@@ -156,7 +163,7 @@ export function SalesByItemReport({
     const [siPageSize, setSiPageSize] = useState(25);
     const [siDateTimeSort, setSiDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
 
-    const siGroupedRows = siData && siGroupByItem ? groupRowsByItem(siData.rows) : null;
+    const siGroupedRows = siData && siGroupByItem ? groupRowsByItem(siData.rows, netTotals) : null;
     const siRowCount = siGroupedRows ? siGroupedRows.length : (siData?.rows.length ?? 0);
     const siTotalPages = Math.max(1, Math.ceil(siRowCount / siPageSize));
 

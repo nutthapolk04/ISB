@@ -21,17 +21,17 @@ type KioskStore = ReturnType<typeof useKioskStore>;
 
 /** Drop any in-memory member session and return to welcome (unless technician). */
 export function resetKioskSession(store: KioskStore, router: Router): void {
-    const routeName = router.currentRoute.value.name;
-    const onTechnician = routeName === 'technician';
+    const routePath = router.currentRoute.value.path;
+    const onTechnician = routePath.startsWith('/technician');
     store.logout();
     if (onTechnician) return;
     if (isOutOfService()) {
-        if (routeName !== 'out-of-service') {
+        if (routePath !== '/out-of-service') {
             void router.replace('/out-of-service');
         }
         return;
     }
-    if (routeName !== 'welcome') {
+    if (routePath !== '/') {
         void router.replace('/');
     }
 }

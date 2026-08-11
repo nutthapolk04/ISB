@@ -9,6 +9,7 @@ import {
     type TopupStatus,
 } from '../lib/kioskAuditLog';
 import { retryTopupApi } from '../lib/topupApiRetry';
+import { recordStackedBill } from '../lib/kioskCashBox';
 
 const PENDING_KEY = 'kiosk-pending-cash-topup';
 
@@ -125,6 +126,7 @@ function handleBillEvent(event: BillEvent) {
         case 'stacked':
             if (event.billAmountThb === 100 || event.billAmountThb === 500 || event.billAmountThb === 1000) {
                 stackedBillAmounts.push(event.billAmountThb);
+                recordStackedBill(event.billAmountThb);
             }
             collectedThb.value = event.collectedThb ?? collectedThb.value;
             overpayPending.value = null;

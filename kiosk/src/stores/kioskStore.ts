@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { realApi, CardBlockedError, type KioskProfile } from '../api/realApi';
 import type { User, Transaction } from '../api/mockApi';
 import { initKioskLogs, logKioskEvent, setKioskDeviceName } from '../lib/kioskLog';
+import { initKioskCashBox } from '../lib/kioskCashBox';
 import { auditTap } from '../lib/kioskAuditLog';
 import { blockRfidAfterBoot } from '../lib/kioskSession';
 import { resolveMemberLogId } from '../lib/techLogMessage';
@@ -93,6 +94,7 @@ export const useKioskStore = defineStore('kiosk', () => {
         logout();
         try {
             await initKioskLogs();
+            await initKioskCashBox();
             await realApi.init();
             await Promise.all([fetchSchoolInfo(), fetchDeviceProfile()]);
             bootStatus.value = 'ready';
