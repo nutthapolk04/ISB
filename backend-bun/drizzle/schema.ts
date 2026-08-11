@@ -797,7 +797,16 @@ export const shopMovements = pgTable("shop_movements", {
 	stockBefore: integer("stock_before").notNull(),
 	stockAfter: integer("stock_after").notNull(),
 	costPerUnit: numeric("cost_per_unit", { precision: 10, scale:  4 }),
+	/** @deprecated Legacy single-value PO/Invoice field — receiveStock() used
+	 *  to store whichever one was given (PO preferred over invoice), losing
+	 *  the other. Still written for backward compat with balance_file_service
+	 *  and older rows; new writes on type='receive' also populate poNumber /
+	 *  invoiceNumber below so the two are no longer conflated. */
 	reference: varchar({ length: 100 }),
+	/** PO number — receive-type movements only, null everywhere else. */
+	poNumber: varchar("po_number", { length: 100 }),
+	/** Invoice number — receive-type movements only, null everywhere else. */
+	invoiceNumber: varchar("invoice_number", { length: 100 }),
 	note: varchar({ length: 500 }),
 	createdBy: integer("created_by"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),

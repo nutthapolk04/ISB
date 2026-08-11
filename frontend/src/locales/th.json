@@ -705,6 +705,8 @@
     "stockCardReportDesc": "ประวัติความเคลื่อนไหวสต็อคแยกตาม SKU พร้อมยอดเปิด-ปิด",
     "bundleReport": "รายงานสินค้าจัดกลุ่ม",
     "bundleReportDesc": "รายการสินค้าจัดกลุ่มพร้อมส่วนประกอบและจำนวนที่พร้อมขายในปัจจุบัน",
+    "receiveStockReport": "รายงานรับสินค้าเข้า",
+    "receiveStockReportDesc": "รายการรับสินค้าเข้าทั้งหมด — สินค้า, จำนวน, ต้นทุน, เลข PO/Invoice, และผู้บันทึก",
     "salesSummaryReport": "Daily Sales Report",
     "salesSummaryReportDesc": "Daily sales totals with payment method breakdown by receipt",
     "salesByItemReport": "Sales by Item",

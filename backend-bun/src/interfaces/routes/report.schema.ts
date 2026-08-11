@@ -98,6 +98,24 @@ export const bundleReport = {
     },
 };
 
+export const receiveStockReport = {
+    query: t.Object({
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        module: t.Optional(t.Nullable(t.String())),
+        product_search: t.Optional(t.String()),
+        category: t.Optional(t.String()),
+        po_number: t.Optional(t.String()),
+        invoice_number: t.Optional(t.String()),
+        sort_order: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: {
+        tags: ["Reports"],
+        summary: "Stock intake (Receive Stock) log — one row per receiving transaction",
+    },
+};
+
 export const internalUsedReport = {
     query: t.Object({
         date_from: t.Optional(t.Nullable(t.String())),

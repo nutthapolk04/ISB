@@ -90,6 +90,7 @@ import { Printer } from "lucide-react";
 import { SpendingLimitChip } from "@/components/SpendingLimitChip";
 import { useAutoPrint } from "@/hooks/useAutoPrint";
 import { useRecentColors } from "@/hooks/useRecentColors";
+import { useEdcTerminalStatus } from "@/hooks/useEdcTerminalStatus";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
 const DEFAULT_CANTEEN_SHOP_ID = "canteen";
@@ -157,6 +158,7 @@ export default function Canteen() {
     }, [user?.shopId]);
 
     const cart = useCanteenCart();
+    const edcStatus = useEdcTerminalStatus();
     /**
      * Idempotency key for the sale being paid for — minted once per press of
      * Charge, never per confirm click. Same contract as the Store POS; see
@@ -1265,6 +1267,7 @@ export default function Canteen() {
                 total={cart.total}
                 methods={["wallet", "cash", "qr", "edc"]}
                 onSelect={handleSelectMethod}
+                edcStatus={edcStatus}
             />
             <RfidPaymentModal
                 open={rfidOpen}

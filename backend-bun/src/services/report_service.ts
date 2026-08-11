@@ -1609,3 +1609,150 @@ export async function salesByItemReport(args: {
         line_count: rows.filter((r) => r.status === "ACTIVE").length,
     };
 }
+
+// ── /receive-stock ───────────────────────────────────────────────────────────
+
+export interface ReceiveStockRow {
+    seq: number;
+    /** Entry timestamp (when the intake was recorded) — always present. */
+    date: string;
+    /** Real delivery date, receive-specific and optional — "-" on the UI when absent. */
+    received_date: string | null;
+    product_code: string | null;
+    product_name: string;
+    shop_id: string;
+    shop_name: string | null;
+    quantity: number;
+    cost_per_unit: number;
+    total_cost: number;
+    /**
+     * Null for rows recorded before po_number/invoice_number existed as their
+     * own columns (2026-08-11) — those old rows only ever wrote the legacy
+     * combined `reference` field. Falls back to it as the PO value (receiveStock()
+     * used to prefer PO over invoice when merging the two), so old rows still
+     * show *something* rather than a blank PO with no explanation.
+     */
+    po_number: string | null;
+    invoice_number: string | null;
+    note: string | null;
+    created_by_name: string | null;
+}
+
+export interface ReceiveStockTotals {
+    quantity: number;
+    total_cost: number;
+}
+
+export interface ReceiveStockReport {
+    date_from: string | null;
+    date_to: string | null;
+    shop_id: string | null;
+    rows: ReceiveStockRow[];
+    totals: ReceiveStockTotals;
+    line_count: number;
+}
+
+export async function receiveStockReport(args: {
+    user: AccessTokenPayload;
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    shopId?: string;
+    module?: string;
+    productSearch?: string;
+    category?: string;
+    poNumber?: string;
+    invoiceNumber?: string;
+    sortOrder?: string | null;
+}): Promise<ReceiveStockReport> {
+    const sortOrder = parseSortOrder(args.sortOrder);
+    const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
+    const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
+
+    const conds: SQL[] = [eq(shopMovements.type, "receive")];
+    if (args.dateFrom) conds.push(gte(shopMovements.createdAt, `${args.dateFrom}T00:00:00+07:00`));
+    if (args.dateTo) conds.push(lte(shopMovements.createdAt, `${args.dateTo}T23:59:59.999999+07:00`));
+    if (effectiveShopId) {
+        conds.push(eq(shopMovements.shopId, effectiveShopId));
+    } else if (effMod) {
+        const ids = await moduleShopIds(effMod);
+        if (ids.length > 0) conds.push(inArray(shopMovements.shopId, ids));
+    }
+    if (args.productSearch) {
+        const pat = `%${args.productSearch}%`;
+        conds.push(or(ilike(shopMovements.productName, pat), ilike(shopProducts.productCode, pat))!);
+    }
+    if (args.category) conds.push(eq(shopProducts.category, args.category));
+    // Matches against the legacy `reference` column too, so a search for a PO
+    // typed before po_number/invoice_number existed still finds that row.
+    if (args.poNumber) {
+        const pat = `%${args.poNumber}%`;
+        conds.push(or(ilike(shopMovements.poNumber, pat), ilike(shopMovements.reference, pat))!);
+    }
+    if (args.invoiceNumber) {
+        const pat = `%${args.invoiceNumber}%`;
+        conds.push(or(ilike(shopMovements.invoiceNumber, pat), ilike(shopMovements.reference, pat))!);
+    }
+
+    const joined = await db
+        .select({
+            movement: shopMovements,
+            product: shopProducts,
+            shop: shops,
+            creator: users,
+        })
+        .from(shopMovements)
+        // LEFT — a receive row's product can have since been deleted
+        // (productId is SET NULL on delete); productName is denormalized on
+        // the movement row itself, so the row still displays fine either way.
+        .leftJoin(shopProducts, eq(shopProducts.id, shopMovements.productId))
+        .leftJoin(shops, eq(shops.id, shopMovements.shopId))
+        .leftJoin(users, eq(users.id, shopMovements.createdBy))
+        .where(and(...conds))
+        // Fixed fetch order — the user-facing sort_order (default oldest-first)
+        // is applied to `rows` below via compareDateTime, same as
+        // salesByItemReport(), so the sortable Date/Time column can flip
+        // direction without a second query.
+        .orderBy(asc(shopMovements.createdAt), asc(shopMovements.id));
+
+    const rows: ReceiveStockRow[] = [];
+    const totals: ReceiveStockTotals = { quantity: 0, total_cost: 0 };
+
+    joined.forEach(({ movement: m, product, shop, creator }, idx) => {
+        const cost = m.costPerUnit !== null ? pgNumber(m.costPerUnit) ?? 0 : 0;
+        const totalCost = Math.round(m.quantity * cost * 100) / 100;
+        rows.push({
+            seq: idx + 1,
+            date: pgToIso(m.createdAt)!,
+            received_date: m.receivedDate ?? null,
+            product_code: product?.productCode ?? null,
+            product_name: m.productName,
+            shop_id: m.shopId,
+            shop_name: shop?.name ?? null,
+            quantity: m.quantity,
+            cost_per_unit: cost,
+            total_cost: totalCost,
+            // Old rows (before po_number/invoice_number existed) only have the
+            // legacy combined `reference` — show it as PO, matching the
+            // priority receiveStock() used when it wrote that single column.
+            po_number: m.poNumber ?? (m.invoiceNumber ? null : m.reference ?? null),
+            invoice_number: m.invoiceNumber ?? null,
+            note: m.note ?? null,
+            created_by_name: creator?.fullName ?? null,
+        });
+        totals.quantity += m.quantity;
+        totals.total_cost += totalCost;
+    });
+    totals.total_cost = Math.round(totals.total_cost * 100) / 100;
+
+    rows.sort((a, b) => compareDateTime(a.date, b.date, sortOrder, a.seq, b.seq));
+    rows.forEach((r, idx) => { r.seq = idx + 1; });
+
+    return {
+        date_from: args.dateFrom ?? null,
+        date_to: args.dateTo ?? null,
+        shop_id: effectiveShopId,
+        rows,
+        totals,
+        line_count: rows.length,
+    };
+}

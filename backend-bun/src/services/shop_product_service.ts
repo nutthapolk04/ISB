@@ -491,11 +491,12 @@ export async function receiveStock(args: {
             await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity,
-           stock_before, stock_after, cost_per_unit, reference, note, created_by,
-           received_date)
+           stock_before, stock_after, cost_per_unit, reference, po_number,
+           invoice_number, note, created_by, received_date)
         VALUES (${today}, ${product.id}, ${product.name}, ${product.shop_id}, 'receive',
                 ${item.qty}, ${stockBefore}, ${newStock}, ${item.cost_per_unit},
-                ${item.po ?? item.invoice ?? null}, ${item.note ?? null}, ${args.userId},
+                ${item.po ?? item.invoice ?? null}, ${item.po ?? null},
+                ${item.invoice ?? null}, ${item.note ?? null}, ${args.userId},
                 ${receivedDate})
       `;
             updatedIds.push(product.id);
