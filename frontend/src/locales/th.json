@@ -130,6 +130,7 @@
     "cashReceived": "จำนวนเงินที่รับ",
     "change": "เงินทอน",
     "enterAmount": "กรอกจำนวนเงิน",
+    "quantityLabel": "จำนวน",
     "studentCardNumber": "เลขบัตรสมาชิก",
     "enterStudentCardNumber": "กรอกเลขบัตรสมาชิก",
     "departmentPlaceholder": "เลือกแผนก",
@@ -1893,7 +1894,8 @@
       "retailVsInternalDesc": "Retail = ราคาขายปกติสำหรับลูกค้า · Internal = ราคาพนักงาน/ครอบครัว/ใช้ภายในองค์กร",
       "setPrice": "กำหนดราคา",
       "enterPriceHint": "ใส่ราคาขาย",
-      "insufficientBalance": "ยอดเงินไม่เพียงพอ"
+      "insufficientBalance": "ยอดเงินไม่เพียงพอ",
+      "quantityLabel": "จำนวน"
     },
     "memberSearch": {
       "title": "ค้นหาสมาชิก",
@@ -2001,7 +2003,9 @@
     "select": "เลือก",
     "next": "ถัดไป",
     "prev": "ก่อนหน้า",
-    "showingOf": "แสดง {{from}}–{{to}} จาก {{total}} รายการ"
+    "showingOf": "แสดง {{from}}–{{to}} จาก {{total}} รายการ",
+    "clear": "ล้าง",
+    "backspace": "ลบ"
   },
   "errorBoundary": {
     "title": "เกิดข้อผิดพลาดในการแสดงหน้านี้",
@@ -2075,7 +2079,9 @@
     "todayRemaining": "วงเงินคงเหลือวันนี้",
     "todayUsedOf": "{{spent}} / {{limit}}",
     "dailyLimitReached": "ใช้วงเงินวันนี้ครบแล้ว",
-    "shopMissingGroup": "ร้านค้านี้ยังไม่ถูกกำหนดกลุ่มวงเงิน"
+    "shopMissingGroup": "ร้านค้านี้ยังไม่ถูกกำหนดกลุ่มวงเงิน",
+    "quantityDialogTitle": "กำหนดจำนวน",
+    "quantityDialogConfirm": "เพิ่ม {{qty}} ชิ้น"
   },
   "checkout": {
     "failed": "ชำระเงินไม่สำเร็จ",

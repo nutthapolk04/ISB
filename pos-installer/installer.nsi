@@ -4,7 +4,7 @@
 ; Components:
 ;   a. EDC card terminal USB driver (whql_Driver2020)
 ;   b. Paywire EDC bridge (paywire.exe, autostart)
-;   c. Chrome kiosk auto-start (https://isb.schooney.tech/login) + the
+;   c. Chrome kiosk auto-start (https://campuscard.isb.ac.th/login) + the
 ;      Local Network Access enterprise policy the EDC bridge needs
 ;
 ; RFID (ACR1252 bridge/NSSM service) was dropped from this installer —
@@ -113,22 +113,22 @@ SectionEnd
 ; ---------------------------------------------------------------------------
 ; Section: Chrome kiosk auto-start + Local Network Access policy
 ; ---------------------------------------------------------------------------
-Section "Chrome kiosk auto-start (isb.schooney.tech/login)" SecKiosk
-  ; Recent Chrome versions gate a public HTTPS page (isb.schooney.tech)
+Section "Chrome kiosk auto-start (campuscard.isb.ac.th/login)" SecKiosk
+  ; Recent Chrome versions gate a public HTTPS page (campuscard.isb.ac.th)
   ; reaching a local-network/loopback service (the EDC Paywire bridge on
   ; 127.0.0.1:7331) behind a "Local Network Access" permission prompt —
   ; with nobody there to click "Allow", the bridge connection silently
   ; fails. This enterprise policy auto-grants it for our origin. List-type
   ; Chrome policies are stored as one registry value per list item, named
   ; "1", "2", ... under a subkey named after the policy itself.
-  WriteRegStr HKLM "SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" "1" "isb.schooney.tech"
+  WriteRegStr HKLM "SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" "1" "campuscard.isb.ac.th"
 
   ; The customer-display popup (second monitor) is watched by a JS watchdog
   ; (frontend/src/lib/customerDisplayWindow.ts) that silently reopens it if it
   ; ever closes — but that reopen fires from a timer, not a click, so Chrome's
   ; popup blocker eats it by default. This policy allow-lists our origin for
   ; popups so the watchdog's window.open() actually goes through.
-  WriteRegStr HKLM "SOFTWARE\Policies\Google\Chrome\PopupsAllowedForUrls" "1" "isb.schooney.tech"
+  WriteRegStr HKLM "SOFTWARE\Policies\Google\Chrome\PopupsAllowedForUrls" "1" "campuscard.isb.ac.th"
 
   ; Resolve the installed Chrome's real path via its registered App Path
   ; instead of guessing a hardcoded Program Files location (differs between
@@ -139,11 +139,17 @@ Section "Chrome kiosk auto-start (isb.schooney.tech/login)" SecKiosk
   ${Else}
     SetShellVarContext all
     CreateDirectory "$SMSTARTUP"
-    CreateShortcut "$SMSTARTUP\ISB POS Kiosk.lnk" "$0" '--kiosk "https://isb.schooney.tech/login" --kiosk-printing --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+    ; --window-position=0,0 pins the kiosk window's origin to the primary
+    ; monitor before Chrome goes fullscreen there. Windows always places the
+    ; primary display's top-left at (0,0) regardless of how monitors are
+    ; arranged, so this is a reliable target — without it, Chrome reuses
+    ; whatever window bounds it last persisted to its profile, which can
+    ; drift to the second monitor after a crash or an odd sleep/resume.
+    CreateShortcut "$SMSTARTUP\ISB POS Kiosk.lnk" "$0" '--kiosk "https://campuscard.isb.ac.th/login" --window-position=0,0 --kiosk-printing --no-first-run --noerrdialogs --disable-session-crashed-bubble'
     SetShellVarContext current
 
     DetailPrint "Starting Chrome in kiosk mode..."
-    Exec '"$0" --kiosk "https://isb.schooney.tech/login" --kiosk-printing --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+    Exec '"$0" --kiosk "https://campuscard.isb.ac.th/login" --window-position=0,0 --kiosk-printing --no-first-run --noerrdialogs --disable-session-crashed-bubble'
   ${EndIf}
 SectionEnd
 
@@ -153,7 +159,7 @@ SectionEnd
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDriver} "Installs the EDC card terminal USB driver (whql_Driver2020). Unattended, ~30s — no wizard clicks needed."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecPaywire} "Installs the Paywire EDC bridge and sets it to run automatically at every login."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecKiosk} "Sets Chrome to auto-launch https://isb.schooney.tech/login in kiosk mode on every login, and allow-lists the EDC bridge for Chrome's Local Network Access check."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecKiosk} "Sets Chrome to auto-launch https://campuscard.isb.ac.th/login in kiosk mode on every login, and allow-lists the EDC bridge for Chrome's Local Network Access check."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ; ---------------------------------------------------------------------------

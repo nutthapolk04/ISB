@@ -148,10 +148,10 @@ export function useStoreCheckout({
         [activePanelId, panelPrices],
     );
 
-    const confirmSpecialItem = (product: Product, price: number) => {
+    const confirmSpecialItem = (product: Product, price: number, qty: number = 1) => {
         setCart((prev) => [
             ...prev,
-            { ...product, quantity: 1, priceOverride: price },
+            { ...product, quantity: qty, priceOverride: price },
         ]);
         setLastAddedId(product.id);
         setSpecialItemTarget(null);
@@ -173,6 +173,14 @@ export function useStoreCheckout({
                 })
                 .filter((item): item is CartItem => item !== null),
         );
+    };
+
+    /** Set a line's quantity to an exact value (numpad entry) rather than
+     *  nudging it by ±1 like updateQuantity. Silently ignores non-positive
+     *  input — the trash icon is the way to remove a line. */
+    const setItemQuantity = (id: number, qty: number) => {
+        if (!Number.isInteger(qty) || qty < 1) return;
+        setCart((prev) => prev.map((item) => (item.id === id ? { ...item, quantity: qty } : item)));
     };
 
     const removeFromCart = (id: number) => {
@@ -809,6 +817,7 @@ export function useStoreCheckout({
         lastAddedId,
         addToCart,
         updateQuantity,
+        setItemQuantity,
         removeFromCart,
         clearCart,
         setItemPriceOverride,

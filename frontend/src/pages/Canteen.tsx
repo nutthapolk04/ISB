@@ -453,9 +453,9 @@ export default function Canteen() {
         }
     };
 
-    const handleOptionsConfirmed = (groups: SelectedOptionGroup[]) => {
+    const handleOptionsConfirmed = (groups: SelectedOptionGroup[], qty: number) => {
         if (!optionTarget) return;
-        cart.addItemWithOptions(optionTarget, groups);
+        cart.addItemWithOptions(optionTarget, groups, qty);
         setOptionTarget(null);
     };
 
@@ -1480,8 +1480,8 @@ export default function Canteen() {
             <SpecialItemPriceDialog
                 product={specialItemTarget}
                 onOpenChange={(o) => { if (!o) setSpecialItemTarget(null); }}
-                onConfirm={(product, price) => {
-                    cart.addSpecialItem(product, price);
+                onConfirm={(product, price, qty) => {
+                    cart.addSpecialItem(product, price, qty);
                     setSpecialItemTarget(null);
                 }}
             />

@@ -10,23 +10,28 @@ import type { Product } from "./storeTypes";
 interface SpecialItemPriceDialogProps {
     product: Product | null;
     onOpenChange: (open: boolean) => void;
-    onConfirm: (product: Product, price: number) => void;
+    onConfirm: (product: Product, price: number, qty: number) => void;
 }
 
-/** Special item (price=0) — cashier must enter price before adding to the Store cart. */
+/** Special item (price=0) — cashier must enter price (and optionally quantity) before adding to the Store cart. */
 export function SpecialItemPriceDialog({ product, onOpenChange, onConfirm }: SpecialItemPriceDialogProps) {
     const { t } = useTranslation();
     const [price, setPrice] = useState("");
+    const [qty, setQty] = useState("1");
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setPrice("");
+        setQty("1");
     }, [product]);
+
+    const parsedQty = parseInt(qty, 10);
+    const qtyValid = Number.isInteger(parsedQty) && parsedQty >= 1;
 
     const confirm = () => {
         const parsed = parseFloat(price);
-        if (!isNaN(parsed) && parsed >= 0 && product) {
-            onConfirm(product, parsed);
+        if (!isNaN(parsed) && parsed >= 0 && qtyValid && product) {
+            onConfirm(product, parsed, parsedQty);
         }
     };
 
@@ -62,6 +67,21 @@ export function SpecialItemPriceDialog({ product, onOpenChange, onConfirm }: Spe
                         }}
                         className="text-lg text-right tabular-nums"
                     />
+                    <div className="space-y-1.5">
+                        <label className="text-xs text-muted-foreground">{t("store.quantityLabel", "Quantity")}</label>
+                        <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="1"
+                            step="1"
+                            value={qty}
+                            onChange={(e) => setQty(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") confirm();
+                            }}
+                            className="text-right tabular-nums"
+                        />
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -69,7 +89,7 @@ export function SpecialItemPriceDialog({ product, onOpenChange, onConfirm }: Spe
                     </Button>
                     <Button
                         onClick={confirm}
-                        disabled={isNaN(parseFloat(price)) || parseFloat(price) < 0}
+                        disabled={isNaN(parseFloat(price)) || parseFloat(price) < 0 || !qtyValid}
                         className="bg-gradient-to-r from-amber-500 to-orange-500 text-white"
                     >
                         {t("store.addToCart")}

@@ -644,6 +644,7 @@ const Store = () => {
                 lastAddedId={checkout.lastAddedId}
                 onClearCart={checkout.clearCart}
                 onUpdateQuantity={checkout.updateQuantity}
+                onSetQuantity={checkout.setItemQuantity}
                 onRemoveFromCart={checkout.removeFromCart}
                 onSetPriceOverride={checkout.setItemPriceOverride}
                 onItemDiscountChange={checkout.setItemDiscount}
@@ -688,6 +689,7 @@ const Store = () => {
                         lastAddedId={checkout.lastAddedId}
                         onClearCart={checkout.clearCart}
                         onUpdateQuantity={checkout.updateQuantity}
+                onSetQuantity={checkout.setItemQuantity}
                         onRemoveFromCart={checkout.removeFromCart}
                         onSetPriceOverride={checkout.setItemPriceOverride}
                         onItemDiscountChange={checkout.setItemDiscount}

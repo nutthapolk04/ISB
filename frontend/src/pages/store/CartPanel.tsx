@@ -14,6 +14,7 @@ import {
     Loader2,
     MessageSquare,
 } from "lucide-react";
+import { CartQuantityPopover } from "@/components/CartQuantityPopover";
 import { DiscountShortcutPopover } from "./DiscountShortcutPopover";
 import { BillDiscountPopover } from "./BillDiscountPopover";
 import { ReceiptNoteModal } from "./ReceiptNoteModal";
@@ -27,6 +28,8 @@ interface CartPanelProps {
     lastAddedId: number | null;
     onClearCart: () => void;
     onUpdateQuantity: (id: number, change: number) => void;
+    /** Set an item's quantity to an exact value (numpad entry). */
+    onSetQuantity: (id: number, qty: number) => void;
     onRemoveFromCart: (id: number) => void;
     onSetPriceOverride: (id: number, price: number | null) => void;
     onItemDiscountChange: (id: number, value: number | null, mode: DiscountMode) => void;
@@ -58,6 +61,7 @@ export function CartPanel({
     lastAddedId,
     onClearCart,
     onUpdateQuantity,
+    onSetQuantity,
     onRemoveFromCart,
     onSetPriceOverride,
     onItemDiscountChange,
@@ -227,12 +231,20 @@ export function CartPanel({
                                                 >
                                                     <Minus className="h-3 w-3" />
                                                 </IconButton>
-                                                <span className={cn(
-                                                    "w-7 text-center text-sm font-bold tabular-nums",
-                                                    item.quantity < 0 && "text-rose-600",
-                                                )}>
-                                                    {item.quantity}
-                                                </span>
+                                                <CartQuantityPopover
+                                                    quantity={item.quantity}
+                                                    onConfirm={(qty) => onSetQuantity(item.id, qty)}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className={cn(
+                                                            "min-w-9 h-7 px-1 text-center text-sm font-bold tabular-nums rounded hover:bg-muted",
+                                                            item.quantity < 0 && "text-rose-600",
+                                                        )}
+                                                    >
+                                                        {item.quantity}
+                                                    </button>
+                                                </CartQuantityPopover>
                                                 <IconButton
                                                     tooltip={t("store.tooltip.qtyInc")}
                                                     variant="outline"
