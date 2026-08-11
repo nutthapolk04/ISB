@@ -2,7 +2,7 @@
 
 ตัวติดตั้ง (`.exe`) สำหรับ provision เครื่อง POS ของ ISB บน Windows —
 รวม 3 component: driver เครื่องรูดบัตร EDC, Paywire bridge, และ Chrome
-kiosk auto-start (เปิด `https://isb.schooney.tech/login` อัตโนมัติทุกครั้งที่ล็อกอิน)
+kiosk auto-start (เปิด `https://campuscard.isb.ac.th/login` อัตโนมัติทุกครั้งที่ล็อกอิน)
 
 > **RFID bridge (ACR1252) ถูกตัดออกจาก installer ตัวนี้แล้ว** — build นี้
 > สำหรับเครื่อง POS ที่ใช้ EDC อย่างเดียว ถ้าเครื่องไหนยังต้องการ RFID ให้ใช้
@@ -46,10 +46,10 @@ prebuilt node_modules ที่เคยใช้สำหรับ RFID ออ�
    สร้าง shortcut ใน Startup (all users) + Desktop ชื่อ "Paywire Bridge"
    แล้วเปิดโปรแกรมทันทีหลังติดตั้งเสร็จ
 3. **Chrome kiosk auto-start** — ตั้ง Chrome enterprise policy
-   `LocalNetworkAccessAllowedForUrls = isb.schooney.tech` (ให้หน้าเว็บต่อ
+   `LocalNetworkAccessAllowedForUrls = campuscard.isb.ac.th` (ให้หน้าเว็บต่อ
    Paywire bridge ที่ `127.0.0.1:7331` ได้โดยไม่โดน permission prompt บล็อก)
    แล้วสร้าง shortcut ใน Startup (all users) ชื่อ "ISB POS Kiosk" ที่เปิด
-   Chrome แบบ `--kiosk https://isb.schooney.tech/login` ทุกครั้งที่ล็อกอิน
+   Chrome แบบ `--kiosk https://campuscard.isb.ac.th/login` ทุกครั้งที่ล็อกอิน
    และเปิดให้ทันทีหลังติดตั้งเสร็จเพื่อให้ operator เช็คได้เลย
 
 หลังติดตั้งเสร็จจะมี `C:\ISB\uninstall.exe` และรายการใน
@@ -127,7 +127,7 @@ Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\ISB PO
 ```
 chrome://policy
 ```
-ค้นหา `LocalNetworkAccessAllowedForUrls` — ต้องขึ้นสถานะ **OK** พร้อมค่า `isb.schooney.tech` ถ้าไม่เจอในลิสต์ หรือขึ้น error/ignored ให้เช็คตามนี้:
+ค้นหา `LocalNetworkAccessAllowedForUrls` — ต้องขึ้นสถานะ **OK** พร้อมค่า `campuscard.isb.ac.th` ถ้าไม่เจอในลิสต์ หรือขึ้น error/ignored ให้เช็คตามนี้:
 
 - **ไม่เจอเลย / ค่าไม่ขึ้น**: restart Chrome ไม่สุด (ต้องปิดทุกหน้าต่างจริงๆ ไม่ใช่แค่ปิด tab สุดท้าย — เช็คด้วย `Get-Process chrome` ต้องไม่มี process เหลือก่อนเปิดใหม่) หรือ registry ยังไม่ถูกเขียน (เช็ค `Get-ItemProperty "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls"`)
 - **ขึ้นเป็น "Ignored" หรือชื่อ policy ไม่ตรง**: Chrome เวอร์ชันนั้นอาจเปลี่ยนชื่อ/รูปแบบ policy นี้ไปแล้ว (ฟีเจอร์นี้เพิ่งเปิดตัวและเปลี่ยนชื่อมาหลายรอบ) — เช็คเวอร์ชัน Chrome จริงบนเครื่อง (`chrome://version`) แล้วค้นหาชื่อ policy ที่ตรงกับเวอร์ชันนั้นจาก [chromeenterprise.google/policies](https://chromeenterprise.google/policies/) ก่อนแก้ registry key ใน `installer.nsi`
@@ -135,7 +135,7 @@ chrome://policy
 ถ้าต้องตั้งเอง (fallback):
 ```powershell
 New-Item -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Force | Out-Null
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Name "1" -Value "isb.schooney.tech"
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Name "1" -Value "campuscard.isb.ac.th"
 ```
 
 ### 4. ทดสอบจริงจากหน้าเว็บ (end-to-end)

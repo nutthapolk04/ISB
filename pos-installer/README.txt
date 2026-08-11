@@ -16,9 +16,9 @@ C:\ISB (or the folder you chose during setup):
 
 3. Chrome kiosk auto-start
    - Startup shortcut (all users) named "ISB POS Kiosk" launches Chrome
-     with --kiosk against https://isb.schooney.tech/login on every login.
+     with --kiosk against https://campuscard.isb.ac.th/login on every login.
    - Also sets Chrome's LocalNetworkAccessAllowedForUrls enterprise
-     policy to isb.schooney.tech, so the page can reach the Paywire
+     policy to campuscard.isb.ac.th, so the page can reach the Paywire
      bridge on 127.0.0.1:7331 without a permission prompt blocking it.
      Fully restart Chrome once after install for this to take effect.
 
@@ -73,7 +73,7 @@ do these in order; later checks depend on earlier ones passing.
    Should be True.
 
    Verify at chrome://policy -- search "LocalNetworkAccessAllowedForUrls",
-   should show status OK with value isb.schooney.tech.
+   should show status OK with value campuscard.isb.ac.th.
 
    If it's missing or shows Ignored:
    - Not fully restarted: Get-Process chrome must show NO process
@@ -87,7 +87,7 @@ do these in order; later checks depend on earlier ones passing.
 
    Fallback to set it by hand:
      New-Item -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Force
-     Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Name "1" -Value "isb.schooney.tech"
+     Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls" -Name "1" -Value "campuscard.isb.ac.th"
 
 4) End-to-end test on the actual web app
    - Open the POS payment screen in Chrome (hard refresh: Ctrl+Shift+R,

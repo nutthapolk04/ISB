@@ -376,10 +376,10 @@
         <tr>
           <td><strong>3. Chrome kiosk auto-start</strong></td>
           <td>ตั้ง Chrome enterprise policy
-            <code>LocalNetworkAccessAllowedForUrls = isb.schooney.tech</code>
+            <code>LocalNetworkAccessAllowedForUrls = campuscard.isb.ac.th</code>
             (ให้หน้าเว็บต่อ Paywire bridge ได้โดยไม่โดน permission prompt บล็อก)
             แล้วสร้าง shortcut "ISB POS Kiosk" ใน Startup (all users) ที่เปิด
-            Chrome แบบ <code>--kiosk https://isb.schooney.tech/login</code>
+            Chrome แบบ <code>--kiosk https://campuscard.isb.ac.th/login</code>
             ทุกครั้งที่ล็อกอิน และเปิดให้ทันทีหลังติดตั้งเสร็จ</td>
         </tr>
       </tbody>
@@ -482,7 +482,7 @@ powershell -ExecutionPolicy Bypass -File check-pos.ps1</code></pre>
       ต้องได้ <code>True</code> — ลอง log out แล้ว log in ใหม่ (หรือ restart เครื่อง) ควรเห็น Chrome เปิดหน้า login ของ ISB POS อัตโนมัติ
     </li>
     <li>
-      <strong>ปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้งก่อน</strong> (ให้ Chrome policy ที่ installer ตั้งไว้มีผล) แล้วเปิด <code>https://isb.schooney.tech</code> → หน้า canteen แล้วทดสอบ:
+      <strong>ปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้งก่อน</strong> (ให้ Chrome policy ที่ installer ตั้งไว้มีผล) แล้วเปิด <code>https://campuscard.isb.ac.th</code> → หน้า canteen แล้วทดสอบ:
       <ul>
         <li><strong>EDC:</strong> กดชำระเงิน → เลือกจ่ายด้วย EDC — ต้องเห็น pill สีเขียว <span class="pill green">● EDC connected</span></li>
         <li>กดปุ่ม <strong>QR CODE</strong> — ยอดเงิน + QR ต้องขึ้นบนจอเครื่อง EDC</li>
@@ -499,7 +499,7 @@ powershell -ExecutionPolicy Bypass -File check-pos.ps1</code></pre>
       <li><strong>ห้ามลบ/ย้ายโฟลเดอร์ <code>C:\ISB</code></strong> หลังติดตั้ง — shortcut ของ Paywire ชี้ path นี้ตรง ๆ</li>
       <li><strong>ติดตั้งซ้ำได้ปลอดภัย</strong> (idempotent) — รัน exe ซ้ำเพื่อซ่อมเครื่องที่มีปัญหาได้เลย</li>
       <li>ถอนการติดตั้ง<strong>จะไม่ถอน EDC driver หรือ Chrome เอง</strong> — ทั้งสองยังอยู่บนเครื่องตามปกติ</li>
-      <li>CSP ของเว็บ <code>isb.schooney.tech</code> อนุญาต <code>pos.local.bridge.schooney.tech:7331</code> แล้ว (แก้เมื่อ 2026-07-16) — <strong>เครื่องใหม่ไม่ต้องตั้งค่าฝั่งเว็บเพิ่ม</strong></li>
+      <li>CSP ของเว็บ <code>campuscard.isb.ac.th</code> อนุญาต <code>pos.local.bridge.schooney.tech:7331</code> แล้ว (แก้เมื่อ 2026-07-16) — <strong>เครื่องใหม่ไม่ต้องตั้งค่าฝั่งเว็บเพิ่ม</strong></li>
       <li>ตัวติดตั้งตั้งค่า <strong>Chrome Local Network Access policy</strong> (registry <code>HKLM\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls</code>) ให้อัตโนมัติ — เป็นคนละชั้นกับ CSP (Chrome เช็คแยกก่อนอนุญาตเว็บ public ต่อ local network) แต่ <strong>ต้องปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่หลังติดตั้งเสมอ</strong> ไม่งั้น policy จะยังไม่มีผลและ EDC bridge จะต่อไม่ติด</li>
       <li>ฟีเจอร์ Local Network Access ของ Chrome ยังค่อนข้างใหม่และเคยเปลี่ยนชื่อ/รูปแบบ policy มาแล้วหลายรอบ — ถ้า <code>chrome://policy</code> ไม่แสดง <code>LocalNetworkAccessAllowedForUrls</code> เป็น OK เลย ให้เช็คเวอร์ชัน Chrome จริงที่ <code>chrome://version</code> แล้วเทียบชื่อ policy ที่ถูกต้องกับเวอร์ชันนั้นก่อนแก้ <code>installer.nsi</code></li>
     </ul>
@@ -526,7 +526,7 @@ powershell -ExecutionPolicy Bypass -File fix-edc-driver.ps1</code></pre>
         </tr>
         <tr>
           <td>F12 → Console ขึ้น <code>ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS</code></td>
-          <td>Chrome policy ยังไม่มีผล — ปิด Chrome <strong>ทุกหน้าต่าง</strong>แล้วเปิดใหม่ แล้วเช็คที่ <code>chrome://policy</code> ว่า <code>LocalNetworkAccessAllowedForUrls</code> ขึ้น OK พร้อมค่า <code>isb.schooney.tech</code> — ถ้ายังไม่มีให้ตั้งเองด้วย PowerShell (ดู README.md หัวข้อ Chrome Local Network Access policy) แล้วรีสตาร์ท Chrome ใหม่ — ถ้าตั้งแล้วยัง Ignored ให้เช็คว่า Chrome เวอร์ชันนี้เปลี่ยนชื่อ policy ไปหรือยัง</td>
+          <td>Chrome policy ยังไม่มีผล — ปิด Chrome <strong>ทุกหน้าต่าง</strong>แล้วเปิดใหม่ แล้วเช็คที่ <code>chrome://policy</code> ว่า <code>LocalNetworkAccessAllowedForUrls</code> ขึ้น OK พร้อมค่า <code>campuscard.isb.ac.th</code> — ถ้ายังไม่มีให้ตั้งเองด้วย PowerShell (ดู README.md หัวข้อ Chrome Local Network Access policy) แล้วรีสตาร์ท Chrome ใหม่ — ถ้าตั้งแล้วยัง Ignored ให้เช็คว่า Chrome เวอร์ชันนี้เปลี่ยนชื่อ policy ไปหรือยัง</td>
         </tr>
         <tr>
           <td>EDC pill ขึ้นแดง (not connected)</td>

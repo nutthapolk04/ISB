@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ขั้นตอนแก้ไขปัญหา POS — จอ 2 ไม่ปิดตาม / Paywire รันซ้อน</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Sarabun", "Noto Sans Thai", "Helvetica Neue", Arial, sans-serif;
+    color: #1a1a1a;
+    line-height: 1.65;
+    font-size: 13px;
+    max-width: 820px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 4px 0;
+    color: #0f172a;
+  }
+  .subtitle {
+    color: #64748b;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  .meta {
+    color: #94a3b8;
+    font-size: 11px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 14px;
+  }
+  h2 {
+    font-size: 17px;
+    color: #0f172a;
+    margin-top: 28px;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: #f1f5f9;
+    border-left: 4px solid #2563eb;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 14px;
+    color: #1e293b;
+    margin-top: 18px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+  p { margin: 6px 0; }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .badge.high { background: #fee2e2; color: #b91c1c; }
+  .badge.med { background: #fef3c7; color: #92400e; }
+  .cause-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 8px 0;
+  }
+  .fix-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 8px 0;
+  }
+  .cause-box .label, .fix-box .label {
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .cause-box .label { color: #b91c1c; }
+  .fix-box .label { color: #15803d; }
+  code, .mono {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    background: #f1f5f9;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #0f172a;
+  }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    overflow-x: auto;
+    line-height: 1.5;
+    page-break-inside: avoid;
+  }
+  ol, ul { margin: 6px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 12px;
+  }
+  th, td {
+    border: 1px solid #e2e8f0;
+    padding: 6px 10px;
+    text-align: left;
+  }
+  th { background: #f8fafc; font-weight: 700; }
+  .file-ref { color: #2563eb; font-weight: 600; }
+  .checklist-item {
+    display: flex;
+    gap: 8px;
+    margin: 6px 0;
+    align-items: flex-start;
+  }
+  .checklist-item .box {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid #64748b;
+    border-radius: 3px;
+    margin-top: 2px;
+  }
+  .note {
+    font-size: 11.5px;
+    color: #64748b;
+    font-style: italic;
+  }
+  .section-divider {
+    page-break-before: always;
+  }
+  .footer-note {
+    margin-top: 30px;
+    padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 11px;
+    color: #94a3b8;
+  }
+</style>
+</head>
+<body>
+
+<h1>ขั้นตอนแก้ไขปัญหา POS</h1>
+<div class="subtitle">จอ 2 (Customer Display) ไม่ปิดตามจอหลัก + Paywire EDC Bridge รันซ้อน</div>
+<div class="meta">ระบบ: ISB POS Kiosk (campuscard.isb.ac.th) &nbsp;|&nbsp; อัปเดต: 2026-08-11 &nbsp;|&nbsp; เอกสารภายในทีมเทคนิค</div>
+
+<h2>สรุปภาพรวม</h2>
+<p>เอกสารนี้รวบรวม 3 ประเด็นที่พบระหว่างทดสอบเครื่อง POS จริง พร้อมสาเหตุที่ยืนยันจากโค้ด และขั้นตอนแก้ไขทั้งฝั่งพัฒนา (แก้โค้ด/installer) และฝั่งหน้างาน (เครื่องที่ติดตั้งไปแล้ว)</p>
+<table>
+  <tr><th>ปัญหา</th><th>ผลกระทบ</th><th>สถานะการแก้ไข</th></tr>
+  <tr>
+    <td>1. จอ 2 ไม่ปิดตามจอ 1 / จอหลักสลับตำแหน่งตอนเปิดใหม่</td>
+    <td>รบกวนการปิด-เปิดเครื่องประจำวัน</td>
+    <td>แก้โค้ดแล้ว — รอ deploy frontend</td>
+  </tr>
+  <tr>
+    <td>2. Paywire EDC bridge รันซ้อน 2 instance ทุกครั้งที่ boot</td>
+    <td>รูดบัตรไม่ผ่าน/bridge ไม่ตอบสนองแบบสุ่ม</td>
+    <td>แก้ installer + check-pos.ps1 แล้ว — รอ rollout เครื่องที่ติดตั้งแล้ว</td>
+  </tr>
+  <tr>
+    <td>3. โดเมน kiosk เปลี่ยนเป็น campuscard.isb.ac.th</td>
+    <td>เครื่องใหม่เปิดผิดโดเมน / Chrome policy allow-list ผิดตัว</td>
+    <td>แก้ installer + check-pos.ps1 + docs แล้ว — รอเช็ค nginx/SSL บนเซิร์ฟเวอร์แยกต่างหาก</td>
+  </tr>
+</table>
+
+<h2>ปัญหา 1 — จอ 2 ไม่ปิดตามจอหลัก <span class="badge med">MEDIUM</span></h2>
+<p><strong>อาการ:</strong> กดปิดเบราว์เซอร์ (จอหลัก/จอ 1) แล้วจอลูกค้า (จอ 2) ยังค้างอยู่ พอเปิด kiosk ใหม่ หน้าต่างหลักไปโผล่ที่จอ 2 แทนจอ 1</p>
+
+<h3>สาเหตุที่ 1.1 — จอ 2 ไม่ปิดตาม</h3>
+<div class="cause-box">
+  <span class="label">สาเหตุ</span>
+  ระบบไม่ใช่ Electron แต่เป็น Chrome kiosk (<code>--kiosk</code>) เปิดจอ 2 ด้วย <code>window.open()</code> ธรรมดา ถูกออกแบบให้จอ 2 <strong>ทนต่อการปิดโดยไม่ตั้งใจ</strong> (กัน Ctrl+W พลาด, watchdog reopen อัตโนมัติทุก 3 วิ) แต่ไม่เคยมี logic cascade-close จากจอ 1 มาจอ 2 เลย
+  <div class="mono" style="margin-top:6px">frontend/src/pages/CustomerDisplay.tsx:69-76 (beforeunload guard)<br>frontend/src/lib/customerDisplayWindow.ts:69-81 (watchdog reopen)</div>
+</div>
+<div class="fix-box">
+  <span class="label">การแก้ไข</span>
+  เพิ่ม effect ใน <span class="file-ref">CustomerDisplay.tsx</span> ที่ poll <code>window.opener.closed</code> ทุก 1 วิ — ค่านี้เป็น <code>true</code> เฉพาะตอนหน้าต่างหลักถูกปิดจริง (ไม่ใช่ reload/alt-tab เพราะ browsing context ยังอยู่ตอน reload) เมื่อตรวจพบจะปลด beforeunload guard แล้วสั่ง <code>window.close()</code> ปิดจอ 2 ตามอัตโนมัติ — ไม่กระทบพฤติกรรมเดิมตอน reload/alt-tab
+</div>
+
+<h3>สาเหตุที่ 1.2 — จอหลักสลับไปโผล่จอ 2 ตอนเปิดใหม่</h3>
+<div class="cause-box">
+  <span class="label">สาเหตุ</span>
+  Chrome kiosk ถูกเปิดด้วย <code>--kiosk</code> เฉยๆ ไม่มี flag ระบุตำแหน่ง/จอ ตำแหน่งจึงขึ้นกับที่ Chrome profile จำ window bounds ล่าสุดไว้เอง — ถ้าครั้งก่อนหน้าต่างไปเลื่อน/ค้างอยู่จอ 2 (จาก crash หรือ sleep/resume) ครั้งถัดไปก็เปิดซ้ำตำแหน่งเดิม
+  <div class="mono" style="margin-top:6px">pos-installer/installer.nsi (Chrome kiosk launch shortcut)</div>
+</div>
+<div class="fix-box">
+  <span class="label">การแก้ไข</span>
+  เพิ่ม flag <code>--window-position=0,0</code> ใน shortcut/Exec ที่เปิด Chrome kiosk — (0,0) คือมุมซ้ายบนของจอ primary เสมอตาม convention ของ Windows ไม่ว่าจะจัดวางจอยังไง บังคับให้ Chrome origin ที่จอ primary ก่อนเข้าโหมด fullscreen ทุกครั้ง
+</div>
+
+<h3>ขั้นตอน Deploy</h3>
+<ol>
+  <li>Deploy โค้ด frontend ที่แก้ไข (<code>frontend/src/pages/CustomerDisplay.tsx</code>) ขึ้น production ที่ campuscard.isb.ac.th — <span class="note">จำเป็น เพราะเป็นโค้ดฝั่งเว็บที่ kiosk โหลดจาก URL จริง</span></li>
+  <li>เครื่องที่ติดตั้ง <strong>ใหม่</strong>: ใช้ installer ตัวล่าสุด (<code>ISB-POS-Setup-1.0.0.exe</code> ที่ build ใหม่แล้ว มี <code>--window-position=0,0</code> ติดมาด้วย)</li>
+  <li>เครื่องที่ติดตั้ง <strong>ไปแล้ว</strong>: รัน <code>check-pos.ps1</code> เวอร์ชันล่าสุด (ดูขั้นตอนใน "Rollout เครื่องที่ติดตั้งแล้ว" ด้านล่าง) — จะซ่อม kiosk shortcut ให้มี flag นี้โดยอัตโนมัติ</li>
+</ol>
+
+<h3>Checklist ทดสอบ</h3>
+<div class="checklist-item"><div class="box"></div><div>ปิดจอ 1 (Alt+F4 / ปิดเบราว์เซอร์จริง) → จอ 2 ปิดตามภายใน ~1 วินาที</div></div>
+<div class="checklist-item"><div class="box"></div><div>กด F5 (reload) หรือ alt-tab บนจอ 1 → จอ 2 <strong>ยังอยู่ปกติ</strong> ไม่ปิดตาม</div></div>
+<div class="checklist-item"><div class="box"></div><div>รีสตาร์ทเครื่อง/เปิด kiosk ใหม่ → จอหลักเปิดที่จอ primary ถูกต้องทุกครั้ง</div></div>
+
+<div class="section-divider"></div>
+
+<h2>ปัญหา 2 — Paywire EDC Bridge รันซ้อน 2 instance <span class="badge high">HIGH</span></h2>
+<p><strong>อาการ:</strong> เปิดเครื่อง/login ตามปกติ (ไม่ได้รัน installer หรือ script เอง) แล้วพบ <code>paywire.exe</code> รันอยู่ 2 process พร้อมกันใน Task Manager</p>
+
+<h3>สาเหตุที่เป็นไปได้</h3>
+<div class="cause-box">
+  <span class="label">สาเหตุ (รอผล diagnostic ยืนยัน)</span>
+  มี autostart entry ชี้ไป <code>paywire.exe</code> ซ้อนกันมากกว่า 1 จุด ทั้งสองยิงตอน login พร้อมกัน — installer ตั้งใจสร้างแค่ Startup shortcut แบบ all-users จุดเดียว (<code>installer.nsi:100-102</code>) จุดที่อาจซ้ำได้แก่:
+  <ul>
+    <li>Startup shortcut ที่ current-user scope (เหลือจากติดตั้งเวอร์ชัน/รอบก่อนหน้า)</li>
+    <li>Registry Run key (HKCU หรือ HKLM) — บางซอฟต์แวร์ POS/EDC bridge self-register auto-start ไว้ในตัวเอง</li>
+    <li>Scheduled Task ที่ชี้ไปที่ paywire.exe</li>
+  </ul>
+</div>
+<div class="cause-box">
+  <span class="label">ผลกระทบที่แท้จริง</span>
+  ไม่กระทบเรื่องเงินโดยตรง (USB device แบบ exclusive lock ทำให้รูดบัตร 1 ครั้งไม่มีทางตัดเงินซ้ำ 2 รอบ) แต่ทั้ง 2 instance แย่งกัน bind port 7331 และแย่งสิทธิ์คุมเครื่อง EDC — ตัวที่แพ้จะทำให้เกิดอาการ <strong>"รูดบัตรไม่ผ่าน / bridge ไม่ตอบสนอง" แบบสุ่มทุกครั้งที่ boot</strong>
+</div>
+<div class="fix-box">
+  <span class="label">การแก้ไข</span>
+  อัปเดต <span class="file-ref">check-pos.ps1</span> ให้ self-heal อัตโนมัติทุกครั้งที่รัน:
+  <ul>
+    <li>ลบ Startup shortcut ซ้ำที่ current-user scope</li>
+    <li>ลบ Run key ใน registry (HKCU/HKLM) ที่มีคำว่า "paywire"</li>
+    <li>ลบ Scheduled Task ที่ชี้ไป paywire.exe</li>
+    <li>ถ้าพบ process รันซ้อนมากกว่า 1 → kill ทั้งหมดแล้วเปิดใหม่ให้เหลือตัวเดียว</li>
+    <li>สร้าง Startup shortcut มาตรฐาน (all-users) ใหม่ถ้าหายไป</li>
+  </ul>
+</div>
+
+<h3>Rollout — เครื่องที่ติดตั้งไปแล้ว</h3>
+<p>ไม่ต้อง reinstall ทั้งชุด (เสี่ยงกว่า ต้องรัน driver installer ซ้ำ) — copy ไฟล์เดียวพอ:</p>
+<ol>
+  <li>Copy ไฟล์ <code>pos-installer/check-pos.ps1</code> (เวอร์ชันล่าสุด) ไปทับที่ <code>C:\ISB\check-pos.ps1</code> บนเครื่อง POS</li>
+  <li>เปิด PowerShell แบบ Administrator แล้วรัน:
+    <pre>cd C:\ISB
+powershell -ExecutionPolicy Bypass -File check-pos.ps1</pre>
+  </li>
+  <li>อ่าน log ที่ script พิมพ์ออกมา — จะบอกชัดเจนว่าลบ/แก้อะไรไปบ้าง</li>
+  <li>ทำซ้ำกับทุกเครื่อง POS ที่ deploy ไปแล้วในสนาม</li>
+</ol>
+
+<h3>Rollout — เครื่องติดตั้งใหม่</h3>
+<p>ใช้ <code>ISB-POS-Setup-1.0.0.exe</code> ตัวล่าสุดที่ build จาก <code>pos-installer/build.sh</code> — มี fix นี้รวมอยู่แล้วตั้งแต่ครั้งแรกที่ติดตั้ง ไม่ต้องรัน check-pos.ps1 เพิ่ม</p>
+
+<h3>Checklist ทดสอบ</h3>
+<div class="checklist-item"><div class="box"></div><div>รัน check-pos.ps1 แล้ว log แสดงผลลัพธ์ครบทุกหัวข้อเป็น <code>OK</code></div></div>
+<div class="checklist-item"><div class="box"></div><div>Task Manager เห็น <code>paywire.exe</code> เหลือ <strong>1 process</strong> เท่านั้น</div></div>
+<div class="checklist-item"><div class="box"></div><div>รีสตาร์ทเครื่อง 2-3 รอบติดกัน → เช็คซ้ำว่ายังเหลือ 1 process เสมอ (ไม่กลับมาซ้อนอีก)</div></div>
+<div class="checklist-item"><div class="box"></div><div>ทดสอบรูดบัตรจริงผ่าน EDC → ผ่านปกติ ไม่มี "bridge ไม่ตอบสนอง"</div></div>
+
+<div class="section-divider"></div>
+
+<h2>ปัญหา 3 — โดเมน kiosk เปลี่ยน (campuscard.isb.ac.th) <span class="badge med">MEDIUM</span></h2>
+<p><strong>อาการ:</strong> kiosk ต้องเปิดไปที่ <code>https://campuscard.isb.ac.th/login</code> แต่ installer/สคริปต์เดิมยังชี้ไปที่โดเมนเก่า <code>isb.schooney.tech</code></p>
+
+<div class="cause-box">
+  <span class="label">สาเหตุ</span>
+  ย้ายโดเมนแล้ว (DNS/proxy เปลี่ยนมาชี้ <code>campuscard.isb.ac.th</code>) แต่เซิร์ฟเวอร์/CSP เบื้องหลังยังเป็นตัวเดียวกับ <code>isb.schooney.tech</code> เดิม — ไฟล์ installer, check-pos.ps1 และเอกสารประกอบยังฝัง URL/policy เดิมไว้ ทำให้เครื่องที่ติดตั้งใหม่เปิด kiosk ผิดโดเมน และ Chrome policy (<code>LocalNetworkAccessAllowedForUrls</code> / <code>PopupsAllowedForUrls</code>) ก็ allow-list โดเมนผิดตัวด้วย
+</div>
+<div class="fix-box">
+  <span class="label">การแก้ไข</span>
+  แทนที่ <code>isb.schooney.tech</code> ด้วย <code>campuscard.isb.ac.th</code> ในไฟล์ operational ทั้งหมด — <span class="file-ref">installer.nsi</span> (kiosk launch URL + ทั้ง 2 Chrome policy), <span class="file-ref">check-pos.ps1</span> (kiosk shortcut check/repair + policy check), <span class="file-ref">README.md</span>, <span class="file-ref">README.txt</span>, <span class="file-ref">INSTALL-GUIDE.html</span>
+  <p class="note" style="margin-top:8px">จงใจไม่แตะ <code>pos.local.bridge.schooney.tech:7331</code> (loopback hostname ของตัว Paywire bridge เอง คนละตัวกับโดเมนแอปหลัก ไม่เกี่ยวกับการย้ายโดเมนนี้) และไม่แตะ <code>docs/edc/FIX-CSP-EDC-BRIDGE.md</code> กับ <code>EDC-CONNECT-GUIDE.html</code> เพราะเป็น incident log ที่ลงวันที่/quote curl response ไว้ ณ ตอนเกิดเหตุ (16 ก.ค. 2026) — แก้ย้อนหลังจะทำให้บันทึกประวัติศาสตร์ผิดเพี้ยน</p>
+</div>
+
+<h3>สิ่งที่ต้องเช็คเพิ่มนอกเหนือจากโค้ดในนี้</h3>
+<p class="note">เป็น domain migration ของ DNS/proxy ที่ชี้เซิร์ฟเวอร์เดิม — nginx config และ CSP header เองไม่ได้อยู่ใน repo นี้ ต้องเข้าไปเช็คบนเซิร์ฟเวอร์จริงแยกต่างหาก:</p>
+<div class="checklist-item"><div class="box"></div><div>nginx <code>server_name</code> ครอบคลุม <code>campuscard.isb.ac.th</code> แล้ว</div></div>
+<div class="checklist-item"><div class="box"></div><div>SSL certificate ครอบคลุมโดเมนใหม่ (ไม่ขึ้นเตือน self-signed/expired ตอนเปิด kiosk)</div></div>
+
+<h3>Checklist ทดสอบ</h3>
+<div class="checklist-item"><div class="box"></div><div>เปิด kiosk บนเครื่องที่ใช้ installer/check-pos.ps1 ตัวใหม่ → landing ที่ <code>https://campuscard.isb.ac.th/login</code> ถูกต้อง</div></div>
+<div class="checklist-item"><div class="box"></div><div><code>chrome://policy</code> แสดง <code>LocalNetworkAccessAllowedForUrls</code> และ <code>PopupsAllowedForUrls</code> เป็น <code>campuscard.isb.ac.th</code></div></div>
+<div class="checklist-item"><div class="box"></div><div>ทดสอบ EDC bridge เชื่อมได้ปกติ (ไม่ถูก CSP บล็อก) หลังเปลี่ยนโดเมน</div></div>
+
+<div class="section-divider"></div>
+
+<h2>ไฟล์อ้างอิง</h2>
+<table>
+  <tr><th>ไฟล์</th><th>เกี่ยวข้องกับ</th></tr>
+  <tr><td class="mono">frontend/src/pages/CustomerDisplay.tsx</td><td>cascade-close จอ 2 เมื่อจอ 1 ปิดจริง</td></tr>
+  <tr><td class="mono">frontend/src/lib/customerDisplayWindow.ts</td><td>logic เปิด/watchdog จอ 2 (ของเดิม ไม่ได้แก้)</td></tr>
+  <tr><td class="mono">pos-installer/installer.nsi</td><td>เพิ่ม --window-position=0,0 + โดเมนใหม่ให้ kiosk shortcut/policy</td></tr>
+  <tr><td class="mono">pos-installer/check-pos.ps1</td><td>self-heal paywire duplicate + kiosk shortcut repair + โดเมนใหม่</td></tr>
+  <tr><td class="mono">pos-installer/README.md, README.txt, INSTALL-GUIDE.html</td><td>อัปเดตโดเมนใน docs ประกอบ</td></tr>
+  <tr><td class="mono">pos-installer/build.sh</td><td>build installer ใหม่ (รันบน macOS)</td></tr>
+</table>
+
+<div class="footer-note">
+  เอกสารนี้สร้างจากการวิเคราะห์โค้ดจริงในระบบ ณ วันที่ระบุด้านบน — หากมีการแก้ไขโค้ดเพิ่มเติมภายหลัง ให้ยึดโค้ดปัจจุบันเป็นหลัก
+</div>
+
+</body>
+</html>
