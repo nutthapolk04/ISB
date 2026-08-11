@@ -108,47 +108,26 @@ async function submitPin() {
                 <h2 class="pin-title">{{ t.title }}</h2>
 
                 <div class="pin-dots" :class="{ shake }">
-                    <span
-                        v-for="i in passcodeLength"
-                        :key="i"
-                        class="pin-dot"
-                        :class="{ filled: i <= pin.length }"
-                    />
+                    <span v-for="i in passcodeLength" :key="i" class="pin-dot" :class="{ filled: i <= pin.length }" />
                 </div>
 
                 <p v-if="errorMessage" class="pin-error">{{ errorMessage }}</p>
 
                 <div class="pin-keypad">
                     <div v-for="(row, rowIndex) in keypadRows" :key="rowIndex" class="pin-row">
-                        <button
-                            v-for="key in row"
-                            :key="key.digit"
-                            type="button"
-                            class="pin-key"
-                            :disabled="exiting"
-                            @click="appendDigit(key.digit)"
-                        >
+                        <button v-for="key in row" :key="key.digit" type="button" class="pin-key" :disabled="exiting"
+                            @click="appendDigit(key.digit)">
                             <span class="pin-key-digit">{{ key.digit }}</span>
                             <span v-if="key.letters" class="pin-key-letters">{{ key.letters }}</span>
                         </button>
                     </div>
                     <div class="pin-row">
                         <div class="pin-key pin-key-spacer" aria-hidden="true" />
-                        <button
-                            type="button"
-                            class="pin-key"
-                            :disabled="exiting"
-                            @click="appendDigit('0')"
-                        >
+                        <button type="button" class="pin-key" :disabled="exiting" @click="appendDigit('0')">
                             <span class="pin-key-digit">0</span>
                         </button>
-                        <button
-                            type="button"
-                            class="pin-key pin-key-delete"
-                            :disabled="exiting || pin.length === 0"
-                            aria-label="Delete"
-                            @click="deleteDigit"
-                        >
+                        <button type="button" class="pin-key pin-key-delete" :disabled="exiting || pin.length === 0"
+                            aria-label="Delete" @click="deleteDigit">
                             <Delete :size="28" stroke-width="2" />
                         </button>
                     </div>
@@ -243,6 +222,7 @@ async function submitPin() {
     min-height: 4.25rem;
     border: none;
     border-radius: 50%;
+    aspect-ratio: 1 / 1;
     background: rgba(118, 118, 128, 0.12);
     color: #1c1c1e;
     cursor: pointer;
@@ -302,10 +282,26 @@ async function submitPin() {
 }
 
 @keyframes pin-shake {
-    0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-8px); }
-    40% { transform: translateX(8px); }
-    60% { transform: translateX(-6px); }
-    80% { transform: translateX(6px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-8px);
+    }
+
+    40% {
+        transform: translateX(8px);
+    }
+
+    60% {
+        transform: translateX(-6px);
+    }
+
+    80% {
+        transform: translateX(6px);
+    }
 }
 </style>

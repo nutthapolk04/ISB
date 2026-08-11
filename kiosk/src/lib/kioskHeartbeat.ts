@@ -3,15 +3,16 @@
  * network (see backend-bun/src/services/kiosk_monitoring_service.ts).
  */
 import { realApi } from '../api/realApi';
-import { auditPingFailed } from './kioskAuditLog';
+import { onHeartbeatFailure, onHeartbeatSuccess } from './kioskPingAudit';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000; // 1 minute
 
 async function sendHeartbeat(): Promise<void> {
     try {
         await realApi.sendHeartbeat();
+        onHeartbeatSuccess();
     } catch (e) {
-        auditPingFailed(e instanceof Error ? e.message : String(e));
+        onHeartbeatFailure(e instanceof Error ? e.message : String(e));
     }
 }
 

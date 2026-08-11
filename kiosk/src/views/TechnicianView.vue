@@ -20,7 +20,6 @@ import {
     Bug,
     Download,
     RefreshCw,
-    Trash2,
 } from 'lucide-vue-next';
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
@@ -31,7 +30,6 @@ import {
     TECHNICIAN_SESSION_KEY,
 } from '../lib/technicianPassword';
 import {
-    clearAllKioskLogs,
     exportKioskLogsText,
     getKioskLogStorageStats,
     getKioskLogsForDay,
@@ -55,7 +53,6 @@ const locationInput = ref('');
 const savingLocation = ref(false);
 const saveMessage = ref('');
 const copyMessage = ref('');
-const clearMessage = ref('');
 const searchQuery = ref('');
 
 const billPollLoading = ref(false);
@@ -173,9 +170,6 @@ const t = computed(() => ({
         updateNoDownload: 'No download URL for this device',
         updateOpened: 'Download started — complete install from the system prompt',
         storageUsed: 'Local storage',
-        clearLogs: 'Clear logs',
-        clearLogsConfirm: 'Delete all on-device event logs? Uploaded copies remain on the server.',
-        clearLogsDone: 'Local logs cleared',
     },
     TH: {
         console: 'ผู้ดูแลเครื่อง',
@@ -235,9 +229,6 @@ const t = computed(() => ({
         updateNoDownload: 'ไม่พบลิงก์ดาวน์โหลดสำหรับเครื่องนี้',
         updateOpened: 'เริ่มดาวน์โหลดแล้ว — ติดตั้งต่อจากระบบ',
         storageUsed: 'พื้นที่ log บนเครื่อง',
-        clearLogs: 'ล้าง log',
-        clearLogsConfirm: 'ลบ log ทั้งหมดบนเครื่อง? สำเนาที่อัปโหลดแล้วยังอยู่บน server',
-        clearLogsDone: 'ล้าง log บนเครื่องแล้ว',
     },
 }[store.language]));
 
@@ -374,15 +365,6 @@ async function copyLogs() {
     } catch {
         copyMessage.value = t.value.copyFailed;
     }
-}
-
-async function clearLogs() {
-    if (!window.confirm(t.value.clearLogsConfirm)) return;
-    await clearAllKioskLogs();
-    selectedDay.value = new Date().toISOString().slice(0, 10);
-    await refreshLogView();
-    clearMessage.value = t.value.clearLogsDone;
-    setTimeout(() => { clearMessage.value = ''; }, 2500);
 }
 
 function goBack() {
@@ -673,15 +655,10 @@ async function runBillPoll() {
                                 <Copy :size="14" />
                                 {{ t.copy }}
                             </button>
-                            <button class="btn-outline btn-outline-danger" type="button" @click="clearLogs">
-                                <Trash2 :size="14" />
-                                {{ t.clearLogs }}
-                            </button>
                         </div>
                     </div>
 
                     <p v-if="copyMessage" class="copy-banner">{{ copyMessage }}</p>
-                    <p v-if="clearMessage" class="copy-banner">{{ clearMessage }}</p>
 
                     <div class="logs-toolbar">
                         <div class="search-wrap">

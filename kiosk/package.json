@@ -12,7 +12,8 @@
     "release": "node scripts/build-release.mjs",
     "release:patch": "node scripts/build-release.mjs --bump patch",
     "release:minor": "node scripts/build-release.mjs --bump minor",
-    "release:major": "node scripts/build-release.mjs --bump major"
+    "release:major": "node scripts/build-release.mjs --bump major",
+    "test": "bun test tests"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",

@@ -46,6 +46,11 @@ describe("kiosk log ingest constraints", () => {
         expect(msg.slice(0, MAX_MESSAGE_LENGTH).length).toBe(1000);
     });
 
+    test("sample PING recovered line fits within 1000 chars", () => {
+        const line = "2026-08-10 11:13:57+07:00 [PING] status=recovered";
+        expect(line.length).toBeLessThanOrEqual(1000);
+    });
+
     test("sample TOPUP failed line fits within 1000 chars", () => {
         const reason = escapeReason("connection reset");
         const line = [

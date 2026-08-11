@@ -96,6 +96,10 @@ export function auditPingFailed(error?: string): void {
     });
 }
 
+export function auditPingRecovered(): void {
+    writeAudit('PING', 'info', { status: 'recovered' });
+}
+
 export function auditTap(isbId: string): void {
     writeAudit('TAP', 'info', { isb_id: isbId });
 }
