@@ -1463,6 +1463,16 @@ export async function salesByItemReport(args: {
     shopId?: string;
     module?: string;
     sortOrder?: string | null;
+    /**
+     * Fold the two bill-level figures — the discount taken off the whole bill
+     * and the EDC card surcharge — into `totals.sales_amt`, so it lands on
+     * `receipts.total` and ties to Daily Sales Report's Amt Billing.
+     *
+     * Off by default. The rows are per line item and neither figure belongs to
+     * any one line, so this changes the total only; Sales by Item Report, which
+     * shares this endpoint, must keep reporting the raw line sum.
+     */
+    netTotals?: boolean;
 }): Promise<SalesByItemReport> {
     const sortOrder = parseSortOrder(args.sortOrder);
     const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
@@ -1564,6 +1574,28 @@ export async function salesByItemReport(args: {
             totals.sales_amt += amt;
         }
     });
+
+    // `totals.sales_amt` is a sum of line totals, which is the bill BEFORE its
+    // discount and WITHOUT the card surcharge — checkout stores
+    // `receipts.total = SUM(line_total) - discount + edc_card_fee`
+    // (pos_checkout_service.ts). Applying the same two adjustments here is what
+    // makes this figure equal Daily Sales Report's Amt Billing.
+    //
+    // Both live on the receipt, and a receipt appears once per line item in
+    // `joined`, so each is taken once per receipt — not once per row, which
+    // would multiply the discount by the basket size.
+    if (args.netTotals) {
+        const counted = new Set<number>();
+        let adjustment = 0;
+        for (const { receipt: r } of joined) {
+            // Voided receipts contribute nothing to sales_amt above, so their
+            // discount and fee must not be folded in either.
+            if (r.status !== "ACTIVE" || counted.has(r.id)) continue;
+            counted.add(r.id);
+            adjustment += (pgNumber(r.edcCardFee) ?? 0) - (pgNumber(r.discount) ?? 0);
+        }
+        totals.sales_amt = Math.round((totals.sales_amt + adjustment) * 100) / 100;
+    }
 
     rows.sort((a, b) => compareDateTime(a.transaction_date, b.transaction_date, sortOrder, a.seq, b.seq));
     rows.forEach((r, idx) => { r.seq = idx + 1; });

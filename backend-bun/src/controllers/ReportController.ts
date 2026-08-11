@@ -195,6 +195,7 @@ export const ReportController = {
 				shopId: query.shop_id ?? undefined,
 				module: query.module ?? undefined,
 				sortOrder: query.sort_order ?? null,
+				netTotals: query.net_totals === "1" || query.net_totals === "true",
 			});
 			logger.info(`[${reqContext.requestId} (RP-07)] ReportController.salesByItem() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

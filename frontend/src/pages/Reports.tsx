@@ -603,6 +603,7 @@ const Reports = () => {
                     title={t("reports.salesReport")}
                     filenamePrefix="SalesReport"
                     rankByBestSelling={false}
+                    netTotals
                 />
             )}
 

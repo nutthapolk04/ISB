@@ -77,7 +77,13 @@ export const salesSummaryReport = {
 };
 
 export const salesByItemReport = {
-    query: t.Object(salesFilterQuery),
+    query: t.Object({
+        ...salesFilterQuery,
+        /** "1" folds bill discount and EDC card fee into totals.sales_amt so it
+         *  ties to Daily Sales Report. Sales Report sends it; Sales by Item
+         *  Report, which shares this endpoint, does not. */
+        net_totals: t.Optional(t.Nullable(t.String())),
+    }),
     detail: { tags: ["Reports"], summary: "Per-receipt-item sales breakdown with totals" },
 };
 

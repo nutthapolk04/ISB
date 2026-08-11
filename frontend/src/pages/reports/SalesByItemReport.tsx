@@ -121,6 +121,10 @@ interface SalesByItemReportProps {
      * instead — oldest first, latest at the bottom. Defaults to the
      * original ranking behavior so Sales by Item Report is unaffected. */
     rankByBestSelling?: boolean;
+    /** "Sales Report" has to reconcile against Daily Sales Report, so its total
+     * is the net bill amount — line totals less the bill discount, plus the EDC
+     * card surcharge. Sales by Item Report keeps the raw line sum. */
+    netTotals?: boolean;
 }
 
 export function SalesByItemReport({
@@ -133,6 +137,7 @@ export function SalesByItemReport({
     title = "Sales by Item Report",
     filenamePrefix = "SalesByItem",
     rankByBestSelling = true,
+    netTotals = false,
 }: SalesByItemReportProps) {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -172,6 +177,7 @@ export function SalesByItemReport({
         if (siItemNoFrom.trim()) params.set("item_no_from", siItemNoFrom.trim());
         if (siItemNoTo.trim()) params.set("item_no_to", siItemNoTo.trim());
         if (!rankByBestSelling) params.set("sort_order", sort);
+        if (netTotals) params.set("net_totals", "1");
         if (needsShopSelector) {
             if (selectedStall === "all") params.set("module", isCanteenReportsPage ? "canteen" : "store");
             else params.set("shop_id", selectedStall);
