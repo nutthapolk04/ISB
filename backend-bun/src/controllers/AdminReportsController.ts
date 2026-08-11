@@ -8,6 +8,44 @@ import { errorFromService, errorResponse, successResponse } from "@/utils/Respon
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { logger } from "@/logger";
 
+/**
+ * Hard stop for `page_size=all`. Beyond this the browser building the file is
+ * what falls over, so refuse loudly — a silently short export is the failure
+ * mode this whole mechanism exists to remove.
+ */
+export const EXPORT_ROW_CEILING = 100_000;
+
+/**
+ * Resolve `page_size` for a paginated report.
+ *
+ * `page_size=all` returns the entire filtered result set in one call. The
+ * exports need every row, and each of these services already builds the whole
+ * set in memory before slicing a page out of it, so fetching page by page would
+ * re-run the same query once per page for no benefit.
+ *
+ * It requires an explicit date range: without one, "all" means the entire
+ * history of the school.
+ */
+export function resolvePageSize(
+    query: Record<string, string | undefined>,
+    opts: { cap: number; fallback: number },
+): { pageSize: number; unlimited: true } | { pageSize: number; unlimited: false } | { error: string } {
+    const raw = (query.page_size ?? "").trim().toLowerCase();
+    if (raw === "all") {
+        if (!query.date_from || !query.date_to) {
+            return { error: "page_size=all requires both date_from and date_to." };
+        }
+        return { pageSize: EXPORT_ROW_CEILING, unlimited: true };
+    }
+    if (!raw) return { pageSize: opts.fallback, unlimited: false };
+    return { pageSize: Math.min(Math.max(Number(raw), 1), opts.cap), unlimited: false };
+}
+
+/** The message a caller sees when an unlimited export would exceed the ceiling. */
+function overCeiling(total: number): string {
+    return `This export would contain ${total.toLocaleString("en-US")} rows, over the ${EXPORT_ROW_CEILING.toLocaleString("en-US")} limit. Narrow the date range and try again.`;
+}
+
 export const AdminReportsController = {
     adjustmentReport: async (ctx: any) => {
         const { reqContext, user } = authedCtx(ctx);
@@ -18,7 +56,8 @@ export const AdminReportsController = {
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
         const page = query.page ? Math.max(Number(query.page), 1) : 1;
-        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 20;
+        const ps = resolvePageSize(query, { cap: 5000, fallback: 20 });
+        if ("error" in ps) return errorResponse(reqContext, ps.error, ResponseStatus.BAD_REQUEST);
         try {
             logger.info(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() calling adjustmentReport().`);
             const result = await adjustmentReport({
@@ -27,9 +66,12 @@ export const AdminReportsController = {
                 direction: query.direction ?? null,
                 typeFilter: query.type ?? null,
                 sortOrder: query.sort_order ?? null,
-                page,
-                pageSize,
+                page: ps.unlimited ? 1 : page,
+                pageSize: ps.pageSize,
             });
+            if (ps.unlimited && result.total > EXPORT_ROW_CEILING) {
+                return errorResponse(reqContext, overCeiling(result.total), ResponseStatus.BAD_REQUEST);
+            }
             logger.info(`[${reqContext.requestId} (AR-01)] AdminReportsController.adjustmentReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
@@ -47,7 +89,10 @@ export const AdminReportsController = {
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
         const page = query.page ? Math.max(Number(query.page), 1) : 1;
-        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 200) : 20;
+        // Was capped at 200 — low enough that a busy month's export lost rows
+        // silently. Same ceiling as the other reports now, plus page_size=all.
+        const ps = resolvePageSize(query, { cap: 5000, fallback: 20 });
+        if ("error" in ps) return errorResponse(reqContext, ps.error, ResponseStatus.BAD_REQUEST);
         try {
             logger.info(`[${reqContext.requestId} (AR-02)] AdminReportsController.transferReport() calling transferReport().`);
             const result = await transferReport({
@@ -57,9 +102,12 @@ export const AdminReportsController = {
                 amountMin: query.amount_min ? Number(query.amount_min) : null,
                 amountMax: query.amount_max ? Number(query.amount_max) : null,
                 sortOrder: query.sort_order ?? null,
-                page,
-                pageSize,
+                page: ps.unlimited ? 1 : page,
+                pageSize: ps.pageSize,
             });
+            if (ps.unlimited && result.total > EXPORT_ROW_CEILING) {
+                return errorResponse(reqContext, overCeiling(result.total), ResponseStatus.BAD_REQUEST);
+            }
             logger.info(`[${reqContext.requestId} (AR-02)] AdminReportsController.transferReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
@@ -77,7 +125,8 @@ export const AdminReportsController = {
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
         const page = query.page ? Math.max(Number(query.page), 1) : 1;
-        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 50;
+        const ps = resolvePageSize(query, { cap: 5000, fallback: 50 });
+        if ("error" in ps) return errorResponse(reqContext, ps.error, ResponseStatus.BAD_REQUEST);
         try {
             const result = await topupReport({
                 dateFrom: query.date_from ?? null,
@@ -88,9 +137,12 @@ export const AdminReportsController = {
                 recipientUserId: query.recipient_user_id ? Number(query.recipient_user_id) : null,
                 recipientCustomerId: query.recipient_customer_id ? Number(query.recipient_customer_id) : null,
                 sortOrder: query.sort_order ?? null,
-                page,
-                pageSize,
+                page: ps.unlimited ? 1 : page,
+                pageSize: ps.pageSize,
             });
+            if (ps.unlimited && result.total > EXPORT_ROW_CEILING) {
+                return errorResponse(reqContext, overCeiling(result.total), ResponseStatus.BAD_REQUEST);
+            }
             logger.info(`[${reqContext.requestId} (AR-03)] AdminReportsController.topupReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
@@ -108,7 +160,8 @@ export const AdminReportsController = {
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
         const page = query.page ? Math.max(Number(query.page), 1) : 1;
-        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 50;
+        const ps = resolvePageSize(query, { cap: 5000, fallback: 50 });
+        if ("error" in ps) return errorResponse(reqContext, ps.error, ResponseStatus.BAD_REQUEST);
         try {
             const result = await transactionReport({
                 dateFrom: query.date_from ?? null,
@@ -121,9 +174,12 @@ export const AdminReportsController = {
                 type: query.type ?? null,
                 cashierRole: query.cashier_role ?? null,
                 sortOrder: query.sort_order ?? null,
-                page,
-                pageSize,
+                page: ps.unlimited ? 1 : page,
+                pageSize: ps.pageSize,
             });
+            if (ps.unlimited && result.total > EXPORT_ROW_CEILING) {
+                return errorResponse(reqContext, overCeiling(result.total), ResponseStatus.BAD_REQUEST);
+            }
             logger.info(`[${reqContext.requestId} (AR-04)] AdminReportsController.transactionReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
@@ -167,7 +223,8 @@ export const AdminReportsController = {
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
         const page = query.page ? Math.max(Number(query.page), 1) : 1;
-        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 50;
+        const ps = resolvePageSize(query, { cap: 5000, fallback: 50 });
+        if ("error" in ps) return errorResponse(reqContext, ps.error, ResponseStatus.BAD_REQUEST);
         try {
             const result = await kioskLogReport({
                 kioskUserId: query.kiosk_user_id ? Number(query.kiosk_user_id) : null,
@@ -176,9 +233,12 @@ export const AdminReportsController = {
                 level: query.level ?? null,
                 category: query.category ?? null,
                 sortOrder: query.sort_order ?? null,
-                page,
-                pageSize,
+                page: ps.unlimited ? 1 : page,
+                pageSize: ps.pageSize,
             });
+            if (ps.unlimited && result.total > EXPORT_ROW_CEILING) {
+                return errorResponse(reqContext, overCeiling(result.total), ResponseStatus.BAD_REQUEST);
+            }
             logger.info(`[${reqContext.requestId} (AR-05)] AdminReportsController.kioskLogReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
@@ -196,16 +256,20 @@ export const AdminReportsController = {
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
         const page = query.page ? Math.max(Number(query.page), 1) : 1;
-        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 200) : 10;
+        const ps = resolvePageSize(query, { cap: 5000, fallback: 10 });
+        if ("error" in ps) return errorResponse(reqContext, ps.error, ResponseStatus.BAD_REQUEST);
         try {
             const result = await lowBalanceAlertReport({
                 dateFrom: query.date_from ?? null,
                 dateTo: query.date_to ?? null,
                 status: query.status ?? null,
                 sortOrder: query.sort_order ?? null,
-                page,
-                pageSize,
+                page: ps.unlimited ? 1 : page,
+                pageSize: ps.pageSize,
             });
+            if (ps.unlimited && result.total > EXPORT_ROW_CEILING) {
+                return errorResponse(reqContext, overCeiling(result.total), ResponseStatus.BAD_REQUEST);
+            }
             logger.info(`[${reqContext.requestId} (AR-06)] AdminReportsController.lowBalanceAlertReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
@@ -244,7 +308,8 @@ export const AdminReportsController = {
             return errorResponse(reqContext, "Admin only", ResponseStatus.FORBIDDEN);
         }
         const page = query.page ? Math.max(Number(query.page), 1) : 1;
-        const pageSize = query.page_size ? Math.min(Math.max(Number(query.page_size), 1), 5000) : 50;
+        const ps = resolvePageSize(query, { cap: 5000, fallback: 50 });
+        if ("error" in ps) return errorResponse(reqContext, ps.error, ResponseStatus.BAD_REQUEST);
         try {
             logger.info(`[${reqContext.requestId} (AR-07)] AdminReportsController.balanceReport() calling balanceReport().`);
             const result = await balanceReport({
@@ -254,13 +319,17 @@ export const AdminReportsController = {
                 role: query.role ?? null,
                 externalId: query.external_id ?? null,
                 sortOrder: query.sort_order ?? null,
-                page,
-                pageSize,
+                page: ps.unlimited ? 1 : page,
+                pageSize: ps.pageSize,
             });
+            if (ps.unlimited && result.total > EXPORT_ROW_CEILING) {
+                return errorResponse(reqContext, overCeiling(result.total), ResponseStatus.BAD_REQUEST);
+            }
             logger.info(`[${reqContext.requestId} (AR-07)] AdminReportsController.balanceReport() completed.`);
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (AR-07)] AdminReportsController.balanceReport() error:`, e);
+            return errorFromService(reqContext, e);
         }
     }
 };

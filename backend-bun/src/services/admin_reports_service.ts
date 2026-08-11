@@ -2,7 +2,7 @@
  * Admin reports — mirrors /admin/adjustment-report + /admin/transfer-report
  * in FastAPI app/api/v1/wallets.py.
  */
-import { and, asc, desc, eq, gte, ilike, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, lt, lte, not, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import {
@@ -150,8 +150,14 @@ export async function adjustmentReport(args: {
     // anything future that reuses the type), then drop cash top-ups in the loop
     // via classifyWalletTxKind — the shared classifier wallet_tx_classify.ts
     // documents as mandatory for any code displaying a wallet_transactions row.
+    //
+    // Transaction type is deliberately NOT constrained: undoing an adjustment
+    // writes the reversal as TOPUP/DEDUCTION under the same
+    // reference_type='admin_adjustment', and filtering to 'ADJUSTMENT' hid
+    // those reversals here while the Transaction Report showed them — so the
+    // two reports could never be reconciled. The classifier below still keeps
+    // cash top-ups out.
     const conds = [
-        eq(walletTransactions.transactionType, "ADJUSTMENT"),
         eq(walletTransactions.referenceType, "admin_adjustment"),
         isNull(wallets.departmentId),
     ];
@@ -899,12 +905,22 @@ export interface TransactionReportRow {
     topped_up_to_external_id?: string | null;
 }
 
+/** One row's worth of "what does this Type add up to". */
+export interface TransactionReportKindTotal {
+    kind: TransactionReportRow["kind"];
+    count: number;
+    amount: number;
+}
+
 export interface TransactionReportResponseDTO {
     items: TransactionReportRow[];
     total: number;
-    /** Sum of Amount column across all filtered rows (top-ups, sales, etc.).
-     * When type=sale, only ACTIVE POS-sale receipts are summed. */
+    /** Exactly the Amount column added up — no kind is excluded and no filter
+     * changes the rule, so the printed figure always foots to the rows. */
     amount_total: number;
+    /** Subtotal per kind, present only for the kinds actually in the result.
+     * Each one is what reconciles against that kind's own report. */
+    totals_by_kind: TransactionReportKindTotal[];
     /** Sum of amounts where payment method resolves to cash (kiosk report). */
     cash_total: number;
     /** Sum of amounts where payment method resolves to Thai QR (kiosk report). */
@@ -974,22 +990,29 @@ export async function transactionReport(args: {
     const includeOther = args.status !== "VOIDED"
         && (typeFilter === "all" || typeFilter === "adjustment" || typeFilter === "topup" || typeFilter === "transfer");
 
-    // ── Sale rows (POS receipts) — unchanged from before this rewrite ──────
-    const saleConds = [sql`${receipts.status} IN ('ACTIVE', 'VOIDED')`];
-    if (dateFrom) saleConds.push(gte(receipts.transactionDate, bangkokRangeStart(dateFrom)));
-    if (dateTo) saleConds.push(lt(receipts.transactionDate, bangkokRangeEndExclusive(dateTo)));
-    if (args.status) saleConds.push(eq(receipts.status, args.status as "ACTIVE" | "VOIDED"));
-    if (args.paymentMethod) saleConds.push(eq(receipts.paymentMethod, args.paymentMethod as typeof receipts.$inferSelect["paymentMethod"]));
-    if (args.shopId) saleConds.push(eq(receipts.shopId, args.shopId));
+    // ── Sale rows (POS receipts) ───────────────────────────────────────────
+    // `status` is NOT pushed into SQL: a voided receipt still has a real sale
+    // leg, so filtering the receipt away would hide the sale that happened.
+    // The filter is applied per leg once the legs exist.
+    //
+    // The date filter is kept in its own list: the sale leg is dated by when
+    // the sale happened and the reversal leg by when the void happened, so the
+    // second query below needs every other filter but a different date bound.
+    const saleFilterConds: SQL[] = [sql`${receipts.status} IN ('ACTIVE', 'VOIDED')`];
+    const saleDateConds: SQL[] = [];
+    if (dateFrom) saleDateConds.push(gte(receipts.transactionDate, bangkokRangeStart(dateFrom)));
+    if (dateTo) saleDateConds.push(lt(receipts.transactionDate, bangkokRangeEndExclusive(dateTo)));
+    if (args.paymentMethod) saleFilterConds.push(eq(receipts.paymentMethod, args.paymentMethod as typeof receipts.$inferSelect["paymentMethod"]));
+    if (args.shopId) saleFilterConds.push(eq(receipts.shopId, args.shopId));
     if (args.cashierId != null) {
-        saleConds.push(eq(receipts.createdBy, args.cashierId));
+        saleFilterConds.push(eq(receipts.createdBy, args.cashierId));
     } else if (args.cashierRole) {
-        saleConds.push(inArray(receipts.createdBy, db.select({ id: users.id }).from(users).where(eq(users.role, args.cashierRole))));
+        saleFilterConds.push(inArray(receipts.createdBy, db.select({ id: users.id }).from(users).where(eq(users.role, args.cashierRole))));
     }
     const search = args.search?.trim();
     if (search) {
         const pat = `%${search}%`;
-        saleConds.push(or(
+        saleFilterConds.push(or(
             ilike(customers.name, pat),
             ilike(customers.studentCode, pat),
             ilike(customers.customerCode, pat),
@@ -1002,65 +1025,111 @@ export async function transactionReport(args: {
         )!);
     }
 
-    const saleRows = includeSale ? await db
-        .select({
-            id: receipts.id,
-            transactionDate: receipts.transactionDate,
-            paymentMethod: receipts.paymentMethod,
-            edcCardFee: receipts.edcCardFee,
-            edcMaskedCard: receipts.edcMaskedCard,
-            total: receipts.total,
-            receiptNumber: receipts.receiptNumber,
-            status: receipts.status,
-            createdBy: receipts.createdBy,
-            shopName: shops.name,
-            customerName: customers.name,
-            customerExternalId: customers.externalId,
-            payerFullName: users.fullName,
-            payerUsername: users.username,
-            payerExternalId: users.externalId,
-            departmentName: departments.departmentName,
-            departmentCode: departments.departmentCode,
-        })
+    const saleSelect = {
+        id: receipts.id,
+        transactionDate: receipts.transactionDate,
+        voidedAt: receipts.voidedAt,
+        paymentMethod: receipts.paymentMethod,
+        edcCardFee: receipts.edcCardFee,
+        edcMaskedCard: receipts.edcMaskedCard,
+        total: receipts.total,
+        receiptNumber: receipts.receiptNumber,
+        status: receipts.status,
+        createdBy: receipts.createdBy,
+        shopName: shops.name,
+        customerName: customers.name,
+        customerExternalId: customers.externalId,
+        payerFullName: users.fullName,
+        payerUsername: users.username,
+        payerExternalId: users.externalId,
+        departmentName: departments.departmentName,
+        departmentCode: departments.departmentCode,
+    };
+    const saleQuery = () => db
+        .select(saleSelect)
         .from(receipts)
         .leftJoin(shops, eq(shops.id, receipts.shopId))
         .leftJoin(customers, eq(customers.id, receipts.customerId))
         .leftJoin(users, eq(users.id, receipts.payerUserId))
-        .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
-        .where(and(...saleConds))
-        .orderBy(desc(receipts.transactionDate), desc(receipts.id)) : [];
+        .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId));
 
-    // Sale amount_total (ACTIVE sales only) — used when type=sale filter is set.
-    const saleAmountTotal = saleRows
-        .filter((r) => r.status === "ACTIVE")
-        .reduce((s, r) => s + (pgNumber(r.total) ?? 0), 0);
+    const saleRows = includeSale
+        ? await saleQuery()
+            .where(and(...saleFilterConds, ...saleDateConds))
+            .orderBy(desc(receipts.transactionDate), desc(receipts.id))
+        : [];
 
-    const saleItems: (TransactionReportRow & { _createdBy: number | null })[] = saleRows.map((r) => {
-        const payerName = r.customerName
-            ?? r.payerFullName
-            ?? r.payerUsername
-            ?? r.departmentName
-            ?? "—";
-        const payerId = resolvePayerId(r);
+    // Receipts voided INSIDE the window whose sale falls outside it — sold the
+    // 7th, voided the 10th. The reversal belongs to the day it happened, so a
+    // report for the 10th has to carry it; leaving it out is what made this
+    // report disagree with Daily Sales. Receipts already in `saleRows` decide
+    // their own reversal leg below, so this only needs the complement.
+    const hasSaleDateFilter = saleDateConds.length > 0;
+    let voidOnlyRows: typeof saleRows = [];
+    if (includeSale && hasSaleDateFilter) {
+        const voidDateConds: SQL[] = [];
+        if (dateFrom) voidDateConds.push(gte(receipts.voidedAt, bangkokRangeStart(dateFrom)));
+        if (dateTo) voidDateConds.push(lt(receipts.voidedAt, bangkokRangeEndExclusive(dateTo)));
+        voidOnlyRows = await saleQuery()
+            .where(and(
+                ...saleFilterConds,
+                eq(receipts.status, "VOIDED"),
+                ...voidDateConds,
+                not(and(...saleDateConds)!),
+            ))
+            .orderBy(desc(receipts.voidedAt), desc(receipts.id));
+    }
+
+    /** ISO of the reversal leg, or null when there's no reversal to show in
+     *  this window (never voided, or voided outside it). */
+    const voidLegAt = (r: (typeof saleRows)[number]): string | null => {
+        if (r.status !== "VOIDED" || !r.voidedAt) return null;
+        const iso = pgToIso(r.voidedAt)!;
+        if (!hasSaleDateFilter) return iso;
+        const t = new Date(iso).getTime();
+        if (dateFrom && t < new Date(bangkokRangeStart(dateFrom)).getTime()) return null;
+        if (dateTo && t >= new Date(bangkokRangeEndExclusive(dateTo)).getTime()) return null;
+        return iso;
+    };
+
+    // A voided receipt is TWO rows: the sale as it happened, then the reversal
+    // dated when it was actually voided. Both count, so they cancel out — the
+    // same net as dropping them, except now the Amount column adds up to the
+    // printed total. Matches salesSummaryReport()'s leg model exactly, which is
+    // what lets `type=sale` reconcile against Daily Sales Report row for row.
+    const buildSaleRow = (
+        r: (typeof saleRows)[number],
+        leg: "sale" | "void",
+    ): TransactionReportRow & { _createdBy: number | null } => {
+        const sign = leg === "sale" ? 1 : -1;
         return {
             id: r.id,
             kind: "sale" as const,
-            created_at: pgToIso(r.transactionDate)!,
-            payer_id: payerId,
-            payer_name: payerName,
+            created_at: pgToIso(leg === "sale" ? r.transactionDate : r.voidedAt!)!,
+            payer_id: resolvePayerId(r),
+            payer_name: r.customerName ?? r.payerFullName ?? r.payerUsername ?? r.departmentName ?? "—",
             payment_method: String(r.paymentMethod ?? ""),
-            edc_card_fee: pgNumber(r.edcCardFee) ?? 0,
+            edc_card_fee: (pgNumber(r.edcCardFee) ?? 0) * sign,
             edc_masked_card: r.edcMaskedCard ?? null,
             shop_name: r.shopName ?? "—",
-            // A voided sale shows as a negative amount — same convention as
-            // salesSummaryReport()/salesByPaymentReport()'s void leg.
-            amount: (pgNumber(r.total) ?? 0) * (r.status === "VOIDED" ? -1 : 1),
+            amount: (pgNumber(r.total) ?? 0) * sign,
             cashier_name: "—", // filled in below once cashier names are batch-resolved
             receipt_number: r.receiptNumber,
-            status: String(r.status ?? ""),
+            status: leg === "sale" ? "ACTIVE" : "VOIDED",
             _createdBy: r.createdBy,
         } as TransactionReportRow & { _createdBy: number | null };
-    });
+    };
+
+    let saleItems: (TransactionReportRow & { _createdBy: number | null })[] = [];
+    for (const r of saleRows) {
+        saleItems.push(buildSaleRow(r, "sale"));
+        if (voidLegAt(r)) saleItems.push(buildSaleRow(r, "void"));
+    }
+    for (const r of voidOnlyRows) saleItems.push(buildSaleRow(r, "void"));
+    // Applied per leg, not per receipt: asking for ACTIVE means "the sales that
+    // happened", which still includes the sale leg of a receipt that was voided
+    // later, and asking for VOIDED means the reversals alone.
+    if (args.status) saleItems = saleItems.filter((r) => r.status === args.status);
 
     // ── Every other kind (adjustment / cash+gateway top-up / transfer) ──────
     // Sourced directly from wallet_transactions — none of it lives in
@@ -1068,6 +1137,12 @@ export async function transactionReport(args: {
     let otherItems: (TransactionReportRow & { _createdBy: number | null })[] = [];
     if (includeOther) {
         const otherConds = [sql`(${walletTransactions.referenceType} IS NULL OR ${walletTransactions.referenceType} NOT IN ('receipt', 'receipt_void'))`];
+        // A family transfer writes two legs (DEDUCTION on the source wallet,
+        // TOPUP on the destination). Showing both counted one transfer twice —
+        // ฿19,600 of real movement read as ฿39,200. Keep the DEDUCTION leg
+        // only, which is also the leg Wallet Transfer Report reports, so the
+        // two agree row for row. The recipient is resolved onto that row below.
+        otherConds.push(sql`(${walletTransactions.referenceType} IS DISTINCT FROM 'family_transfer' OR ${walletTransactions.transactionType} = 'DEDUCTION')`);
         if (dateFrom) otherConds.push(gte(walletTransactions.createdAt, bangkokRangeStart(dateFrom)));
         if (dateTo) otherConds.push(lt(walletTransactions.createdAt, bangkokRangeEndExclusive(dateTo)));
         if (args.cashierId != null) {
@@ -1166,9 +1241,46 @@ export async function transactionReport(args: {
             : [];
         const intentMethodById = new Map(intentRows.map((p) => [p.id, p.paymentMethod] as const));
 
+        // The transfer row now carries only the sender's wallet, so resolve the
+        // other side to display "sender → recipient". Without it the row names
+        // one party and silently drops the other, and there'd be no way to line
+        // it up against Wallet Transfer Report's from/to columns.
+        const counterpartWalletIds = [...new Set(otherRows
+            .filter((r) => r.referenceType === "family_transfer" && r.referenceId !== null)
+            .map((r) => r.referenceId!))];
+        const counterpartWallets = counterpartWalletIds.length
+            ? await db.select().from(wallets).where(inArray(wallets.id, counterpartWalletIds))
+            : [];
+        const cpCustomerIds = counterpartWallets.filter((w) => w.customerId !== null).map((w) => w.customerId!);
+        const cpUserIds = counterpartWallets.filter((w) => w.userId !== null).map((w) => w.userId!);
+        const cpDeptIds = counterpartWallets.filter((w) => w.departmentId !== null).map((w) => w.departmentId!);
+        const [cpCustomers, cpUsers, cpDepts] = await Promise.all([
+            cpCustomerIds.length ? db.select().from(customers).where(inArray(customers.id, cpCustomerIds)) : Promise.resolve([] as Array<typeof customers.$inferSelect>),
+            cpUserIds.length ? db.select().from(users).where(inArray(users.id, cpUserIds)) : Promise.resolve([] as Array<typeof users.$inferSelect>),
+            cpDeptIds.length ? db.select().from(departments).where(inArray(departments.id, cpDeptIds)) : Promise.resolve([] as Array<typeof departments.$inferSelect>),
+        ]);
+        const cpCustomerById = new Map(cpCustomers.map((c) => [c.id, c] as const));
+        const cpUserById = new Map(cpUsers.map((u) => [u.id, u] as const));
+        const cpDeptById = new Map(cpDepts.map((d) => [d.id, d] as const));
+        const cpWalletById = new Map(counterpartWallets.map((w) => [w.id, w] as const));
+        const recipientNameOf = (walletId: number | null): string | null => {
+            if (walletId === null) return null;
+            const w = cpWalletById.get(walletId);
+            if (!w) return null;
+            if (w.customerId !== null) return cpCustomerById.get(w.customerId)?.name ?? null;
+            if (w.userId !== null) {
+                const u = cpUserById.get(w.userId);
+                return u ? (u.fullName || u.username) : null;
+            }
+            if (w.departmentId !== null) return cpDeptById.get(w.departmentId)?.departmentName ?? null;
+            return null;
+        };
+
         otherItems = otherRows.map((r) => {
             const kind = classifyWalletTxKind({ transactionType: r.transactionType, referenceType: r.referenceType, reason: r.reason });
-            const payerName = r.customerName ?? r.payerFullName ?? r.payerUsername ?? r.departmentName ?? "—";
+            const ownerName = r.customerName ?? r.payerFullName ?? r.payerUsername ?? r.departmentName ?? "—";
+            const recipient = kind === "transfer" ? recipientNameOf(r.referenceId) : null;
+            const payerName = recipient ? `${ownerName} → ${recipient}` : ownerName;
             const payerId = resolvePayerId(r);
             const toppedUpToExternalId = r.customerExternalId ?? r.payerExternalId ?? null;
             const creator = creatorById.get(r.createdBy);
@@ -1180,7 +1292,18 @@ export async function transactionReport(args: {
             const paymentMethod = kind === "topup"
                 ? (r.referenceType === "payment_intent" ? (intentMethodById.get(r.referenceId ?? -1) ?? "") : "CASH")
                 : "";
-            const amount = Math.abs((pgNumber(r.balanceAfter) ?? 0) - (pgNumber(r.balanceBefore) ?? 0));
+            // Signed by what actually happened to the balance: an adjustment
+            // that takes money off a wallet has to read negative, or it adds to
+            // the total instead of subtracting from it (the old Math.abs()
+            // turned every reversal into a second charge — ฿1,100 of undo rows
+            // showed as +฿2,200).
+            //
+            // Transfers are the exception: the amount moved is a magnitude and
+            // the direction is already in the name ("A → B"), which is also how
+            // Wallet Transfer Report reports it. Signing this leg negative would
+            // put the two reports permanently at odds.
+            const delta = (pgNumber(r.balanceAfter) ?? 0) - (pgNumber(r.balanceBefore) ?? 0);
+            const amount = kind === "transfer" ? Math.abs(delta) : delta;
 
             let toppedBy: string | null = null;
             let toppedByExternalId: string | null = null;
@@ -1253,25 +1376,36 @@ export async function transactionReport(args: {
     merged.sort((a, b) => compareDateTime(a.created_at, b.created_at, sortOrder, a.id, b.id));
 
     const total = merged.length;
-    // When viewing all kinds (kiosk top-ups, adjustments, …) sum the Amount
-    // column across every filtered row. Sale-only view keeps the legacy
-    // ACTIVE-sales total so voided receipts don't skew POS spending reports.
-    const amountTotal = typeFilter === "sale"
-        ? saleAmountTotal
-        : merged.reduce((s, r) => s + r.amount, 0);
-    const rowsForPaymentTotals = typeFilter === "sale"
-        ? merged.filter((r) => r.status === "ACTIVE")
-        : merged;
+    // One rule, whatever the filter: the total IS the Amount column added up.
+    // It used to switch to an ACTIVE-sales-only sum for `type=sale`, so the
+    // printed figure and the visible column disagreed on exactly the view most
+    // people export, and changing the Type filter silently changed the rule.
+    // Every row now carries its own sign, so a sale and its reversal cancel by
+    // themselves and there is nothing left to exclude.
+    const round2 = (v: number) => Math.round(v * 100) / 100;
+    const amountTotal = round2(merged.reduce((s, r) => s + r.amount, 0));
     const sumByPaymentLabel = (label: "cash" | "thai_qr") =>
-        rowsForPaymentTotals.reduce((s, r) => {
+        round2(merged.reduce((s, r) => {
             const key = resolvePaymentMethodLabelKey(r.payment_method, {
                 edcCardFee: r.edc_card_fee,
                 edcMaskedCard: r.edc_masked_card,
             });
             return key === label ? s + r.amount : s;
-        }, 0);
+        }, 0));
     const cashTotal = sumByPaymentLabel("cash");
     const qrTotal = sumByPaymentLabel("thai_qr");
+
+    // Per-kind subtotals. Sales, top-ups, transfers and corrections are
+    // different units of measure, so a single grand total across them says
+    // very little — these are what actually reconcile against Daily Sales /
+    // Top-up / Wallet Transfer / Wallet Adjustment.
+    const byKind: TransactionReportKindTotal[] = [];
+    for (const kind of ["sale", "topup", "transfer", "adjustment", "other"] as const) {
+        const rows = merged.filter((r) => r.kind === kind);
+        if (rows.length === 0) continue;
+        byKind.push({ kind, count: rows.length, amount: round2(rows.reduce((s, r) => s + r.amount, 0)) });
+    }
+
     const offset = (args.page - 1) * args.pageSize;
     const items: TransactionReportRow[] = merged
         .slice(offset, offset + args.pageSize)
@@ -1281,6 +1415,7 @@ export async function transactionReport(args: {
         items,
         total,
         amount_total: amountTotal,
+        totals_by_kind: byKind,
         cash_total: cashTotal,
         qr_total: qrTotal,
         page: args.page,

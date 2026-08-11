@@ -133,10 +133,19 @@ interface TopupReportData {
     pages: number;
 }
 
+interface TransactionKindTotal {
+    kind: TransactionKind;
+    count: number;
+    amount: number;
+}
+
 interface TransactionReportData {
     items: TransactionRow[];
     total: number;
     amount_total: number;
+    /** What each Type adds up to — the figure that reconciles against that
+     * type's own report (Daily Sales / Top-up / Transfer / Adjustment). */
+    totals_by_kind?: TransactionKindTotal[];
     cash_total: number;
     qr_total: number;
     page: number;
@@ -168,10 +177,19 @@ interface BalanceReportData {
 
 const TXN_PAGE_SIZE = 50;
 const BALANCE_PAGE_SIZE = 50;
-const BALANCE_EXPORT_PAGE_SIZE = 5000;
-/** Cap for the Export re-fetch — mirrors adjustmentReport/transferReport's
- * own page_size ceiling (backend-bun/src/controllers/AdminReportsController.ts). */
-const TXN_EXPORT_PAGE_SIZE = 5000;
+/**
+ * Export re-fetches ask for the whole filtered set, not a page of it.
+ *
+ * This used to be a literal 5000, and a day with more transactions than that
+ * produced a file that looked complete — every column filled, a TOTAL at the
+ * bottom computed over ALL the rows — while silently missing the rest. One
+ * export was ฿608,928.15 short on a ฿1.7M day.
+ *
+ * The backend serves `all` in a single query (these reports build the full set
+ * in memory before slicing anyway) and refuses with a readable error past its
+ * own ceiling, so an oversized export now fails visibly instead of truncating.
+ */
+const EXPORT_ALL = "all";
 
 const CHANNEL_LABEL: Record<string, string> = {
     kiosk: "Kiosk",
@@ -292,6 +310,7 @@ function TransactionTable({
     onToggleDateTimeSort: () => void;
 }) {
     const { t } = useTranslation();
+    const byKind = data.totals_by_kind ?? [];
     return (
         <div className="space-y-3">
             <div className="text-sm text-muted-foreground">
@@ -301,6 +320,23 @@ function TransactionTable({
                     ฿{data.amount_total.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                 </span>
             </div>
+            {byKind.length > 0 && (
+                // Shown even for a single type: this is the number to hold next
+                // to Daily Sales / Top-up / Transfer / Adjustment Report.
+                <div className="flex flex-wrap gap-2 text-xs">
+                    {byKind.map((k) => (
+                        <span key={k.kind} className="rounded-md border px-2 py-1">
+                            <span className={cn("mr-1.5 rounded px-1.5 py-0.5", TXN_KIND_COLORS[k.kind])}>
+                                {TXN_KIND_LABEL[k.kind]}
+                            </span>
+                            <span className="text-muted-foreground">{k.count} ·</span>{" "}
+                            <span className="font-mono font-semibold text-foreground">
+                                ฿{k.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            </span>
+                        </span>
+                    ))}
+                </div>
+            )}
             <div className="overflow-x-auto rounded-md border">
                 <table className="w-full text-xs">
                     <thead className="bg-muted/50 whitespace-nowrap">
@@ -637,7 +673,10 @@ export default function AdminReports() {
     const [txnPaymentMethod, setTxnPaymentMethod] = useState<string>("all");
     const [txnShopId, setTxnShopId] = useState<string | null>(null);
     const [txnShopName, setTxnShopName] = useState<string | null>(null);
-    const [txnType, setTxnType] = useState<string>("all");
+    // No default: sales, top-ups, transfers and corrections are different units
+    // of measure, so one list mixing them has no meaningful total. The Type has
+    // to be chosen before a search will run.
+    const [txnType, setTxnType] = useState<string>("");
     const [txnPage, setTxnPage] = useState(1);
 
     // Kiosk Report filters
@@ -707,7 +746,7 @@ export default function AdminReports() {
     /** Shared filter params for Transaction Report — page is separate since
      * the Search button and the pagination bar both need to build these but
      * start from a different page. */
-    const buildTxnParams = (page: number, pageSize: number, sort = dateTimeSort) => {
+    const buildTxnParams = (page: number, pageSize: number | string, sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
@@ -716,7 +755,7 @@ export default function AdminReports() {
         if (txnStatus !== "all") params.set("status", txnStatus);
         if (txnPaymentMethod !== "all") params.set("payment_method", txnPaymentMethod);
         if (txnShopId) params.set("shop_id", txnShopId);
-        if (txnType !== "all") params.set("type", txnType);
+        if (txnType) params.set("type", txnType);
         params.set("sort_order", sort);
         params.set("page", String(page));
         params.set("page_size", String(pageSize));
@@ -741,7 +780,7 @@ export default function AdminReports() {
 
     /** Kiosk Report — "Event log" view params. Reuses date range; kioskDevice
      * null means "all kiosks" (the endpoint just omits kiosk_user_id). */
-    const buildKioskEventParams = (page: number, pageSize: number, sort = dateTimeSort) => {
+    const buildKioskEventParams = (page: number, pageSize: number | string, sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
@@ -756,7 +795,7 @@ export default function AdminReports() {
      * cashier_id (exact match, same as the main Transaction Report); "All
      * kiosks" uses cashier_role=kiosk instead (backend-side subquery over
      * every kiosk-role user, see admin_reports_service.ts::transactionReport). */
-    const buildKioskTxnParams = (page: number, pageSize: number, sort = dateTimeSort) => {
+    const buildKioskTxnParams = (page: number, pageSize: number | string, sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
@@ -824,7 +863,7 @@ export default function AdminReports() {
     /** Shared filter params for Top-up Report — same page/pageSize split as
      * Transaction Report's buildTxnParams (Search resets to page 1; the
      * pagination bar keeps every other filter and just changes page). */
-    const buildTopupParams = (page: number, pageSize: number, sort = dateTimeSort) => {
+    const buildTopupParams = (page: number, pageSize: number | string, sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
@@ -897,6 +936,10 @@ export default function AdminReports() {
             return;
         }
         if (selected === "transaction") {
+            if (!txnType) {
+                toast.error(t("admin.adminReports.typeRequired", "Choose a Type before searching — each type reconciles against its own report."));
+                return;
+            }
             await loadTransactionPage(1);
             return;
         }
@@ -944,7 +987,7 @@ export default function AdminReports() {
             if (txnStatus !== "all") lines.push(`Status: ${txnStatus}`);
             if (txnPaymentMethod !== "all") lines.push(`Payment Type: ${txnPaymentMethod}`);
             if (txnShopName) lines.push(`Shop: ${txnShopName}`);
-            if (txnType !== "all") lines.push(`Type: ${TXN_KIND_LABEL[txnType as TransactionKind] ?? txnType}`);
+            if (txnType) lines.push(`Type: ${TXN_KIND_LABEL[txnType as TransactionKind] ?? txnType}`);
         }
         if (selected === "kiosk") {
             lines.push(`Kiosk: ${kioskDevice ? (kioskDevice.full_name || kioskDevice.username) : "All kiosks"}`);
@@ -958,7 +1001,7 @@ export default function AdminReports() {
         return lines;
     };
 
-    const buildBalanceParams = (page: number, pageSize: number, sort = dateTimeSort) => {
+    const buildBalanceParams = (page: number, pageSize: number | string, sort = dateTimeSort) => {
         const params = new URLSearchParams();
         if (dateFrom) params.set("date_from", dateFrom);
         if (dateTo) params.set("date_to", dateTo);
@@ -989,12 +1032,10 @@ export default function AdminReports() {
 
     /** Builds the export payload(s) — an array since the Kiosk Report can
      * have two independent sections on screen at once (Event log +
-     * Transaction), each becoming its own file. Top-up Report exports
-     * whatever is already on screen (never paginated). Transaction/Kiosk
-     * Reports are paginated on screen, so export re-fetches every row
-     * matching the current filters (capped at TXN_EXPORT_PAGE_SIZE) —
-     * otherwise exporting would silently only cover whichever page happened
-     * to be showing. */
+     * Transaction), each becoming its own file. Every paginated report
+     * re-fetches the ENTIRE filtered set for the export — exporting whatever
+     * page happened to be on screen, or a capped slice of it, produces a file
+     * that reads as complete and isn't. */
     const buildPayload = async (): Promise<AdminReportExport[] | null> => {
         const filters = buildFilterLines();
         const dateLabel = `_${dateFrom}_${dateTo}`;
@@ -1012,10 +1053,7 @@ export default function AdminReports() {
         ];
 
         if (selected === "topup" && topupData) {
-            // Paginated on screen — export re-fetches every row matching the
-            // current filters (capped at TXN_EXPORT_PAGE_SIZE), same reasoning
-            // as Transaction Report's export just below.
-            const params = buildTopupParams(1, TXN_EXPORT_PAGE_SIZE);
+            const params = buildTopupParams(1, EXPORT_ALL);
             const full = await api.get<TopupReportData>(`/wallets/admin/topup-report?${params.toString()}`);
             return [{
                 payload: {
@@ -1051,7 +1089,7 @@ export default function AdminReports() {
         }
 
         if (selected === "transaction" && txnData) {
-            const params = buildTxnParams(1, TXN_EXPORT_PAGE_SIZE);
+            const params = buildTxnParams(1, EXPORT_ALL);
             const full = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
             return [{
                 payload: {
@@ -1083,7 +1121,7 @@ export default function AdminReports() {
             const kioskLabel = kioskDevice ? (kioskDevice.full_name || kioskDevice.username) : "AllKiosks";
 
             if (kioskEventData) {
-                const params = buildKioskEventParams(1, TXN_EXPORT_PAGE_SIZE);
+                const params = buildKioskEventParams(1, EXPORT_ALL);
                 const full = await api.get<KioskLogReportData>(`/admin/kiosk-logs?${params.toString()}`);
                 exports.push({
                     payload: {
@@ -1110,7 +1148,7 @@ export default function AdminReports() {
             }
 
             if (kioskTxnData) {
-                const params = buildKioskTxnParams(1, TXN_EXPORT_PAGE_SIZE);
+                const params = buildKioskTxnParams(1, EXPORT_ALL);
                 const full = await api.get<TransactionReportData>(`/wallets/admin/transaction-report?${params.toString()}`);
                 const kioskTxnColumns = [
                     { header: t("admin.adminReports.colDateTime"), key: "created_at", format: "datetime" as const, width: 20 },
@@ -1205,7 +1243,7 @@ export default function AdminReports() {
         }
 
         if (selected === "balance" && balanceData) {
-            const params = buildBalanceParams(1, BALANCE_EXPORT_PAGE_SIZE);
+            const params = buildBalanceParams(1, EXPORT_ALL);
             const full = await api.get<BalanceReportData>(`/wallets/admin/balance-report?${params.toString()}`);
             return [{
                 payload: {
@@ -1444,9 +1482,10 @@ export default function AdminReports() {
                                         <div className="space-y-2">
                                             <Label>{t("admin.adminReports.typeFilter", "Type")}</Label>
                                             <Select value={txnType} onValueChange={setTxnType}>
-                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder={t("admin.adminReports.typeChoose", "Choose a type…")} />
+                                                </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="all">{t("admin.adminReports.typeAll", "All")}</SelectItem>
                                                     <SelectItem value="sale">{t("admin.adminReports.typeSale", "Sale")}</SelectItem>
                                                     <SelectItem value="adjustment">{t("admin.adminReports.typeAdjustment", "Adjustment")}</SelectItem>
                                                     <SelectItem value="topup">{t("admin.adminReports.typeTopup", "Top-up")}</SelectItem>

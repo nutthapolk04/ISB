@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
+import { toast } from "sonner";
 import { fmtDateTime, todayBangkok } from "@/lib/dateFormat";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -117,35 +118,65 @@ export default function WalletTransfer() {
 
   useEffect(() => { loadHistory(1); }, []);
 
+  /**
+   * Export the whole filtered history, not the page on screen.
+   *
+   * This used to export `txHistory` — the 20 rows currently displayed — under a
+   * label reading "TOTAL (350 records)" and a filter line saying "page 2". The
+   * file claimed a scope it didn't have and its total covered 20 rows out of
+   * 350. `page_size=all` fetches the lot in one call; the backend refuses with a
+   * readable error rather than truncating if the range is too wide.
+   */
+  const fetchAllTransfers = async (): Promise<TransferHistoryRow[] | null> => {
+    const params = new URLSearchParams({ page: "1", page_size: "all", sort_order: txDateTimeSort });
+    if (txDateFrom) params.set("date_from", txDateFrom);
+    if (txDateTo) params.set("date_to", txDateTo);
+    if (txQuery.trim()) params.set("q", txQuery.trim());
+    if (txAmountMin.trim()) params.set("amount_min", txAmountMin.trim());
+    if (txAmountMax.trim()) params.set("amount_max", txAmountMax.trim());
+    try {
+      const data = await api.get<TransferHistoryResponse>(
+        `/wallets/admin/transfer-report?${params.toString()}`
+      );
+      return data.items;
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.detail : t("admin.walletTransfer.exportFailed", "Export failed"));
+      return null;
+    }
+  };
+
   // One payload for both exporters so PDF and Excel can never drift apart.
   // The record count rides on totalsLabel rather than occupying a column: that
   // keeps every cell between the label and Amount empty, which lets the TOTAL
   // row merge into two clean blocks instead of a run of bordered blanks.
-  const buildTxPayload = () => ({
+  const buildTxPayload = (rows: TransferHistoryRow[]) => ({
     columns: TX_COLUMNS,
     columnGroups: TX_COLUMN_GROUPS,
-    rows: txHistory.map((r, i) => ({
-      ...r,
-      seq: (txPage - 1) * TX_PAGE_SIZE + i + 1,
-      note: r.note ?? "",
-    })),
-    totalsLabel: `TOTAL (${txTotal} records)`,
-    totals: { amount: txHistory.reduce((s, r) => s + r.amount, 0) },
+    rows: rows.map((r, i) => ({ ...r, seq: i + 1, note: r.note ?? "" })),
+    totalsLabel: `TOTAL (${rows.length} records)`,
+    totals: { amount: rows.reduce((s, r) => s + r.amount, 0) },
   });
 
-  const handleTxExcel = () => {
-    const today = todayBangkok();
+  const exportFilterLines = () => {
+    const range = txDateFrom || txDateTo ? `Date: ${txDateFrom || "…"} → ${txDateTo || "…"}` : "All transfers";
+    return txQuery.trim() ? [range, `Search: ${txQuery.trim()}`] : [range];
+  };
+
+  const handleTxExcel = async () => {
+    const rows = await fetchAllTransfers();
+    if (!rows) return;
     exportToExcel(
-      { meta: { title: "Wallet Transfer Report", schoolName: schoolInfo?.name ?? "ISB", filters: [`All transfers — page ${txPage}`] }, ...buildTxPayload() },
-      `WalletTransfers_${today}`,
+      { meta: { title: "Wallet Transfer Report", schoolName: schoolInfo?.name ?? "ISB", filters: exportFilterLines() }, ...buildTxPayload(rows) },
+      `WalletTransfers_${todayBangkok()}`,
     );
   };
 
-  const handleTxPdf = () => {
-    const today = todayBangkok();
+  const handleTxPdf = async () => {
+    const rows = await fetchAllTransfers();
+    if (!rows) return;
     exportToPDF(
-      { meta: { title: "Wallet Transfer Report", schoolName: schoolInfo?.name ?? "ISB", schoolLogoUrl: schoolInfo?.logoUrl || undefined, filters: [`All transfers — page ${txPage}`] }, ...buildTxPayload() },
-      `WalletTransfers_${today}.pdf`,
+      { meta: { title: "Wallet Transfer Report", schoolName: schoolInfo?.name ?? "ISB", schoolLogoUrl: schoolInfo?.logoUrl || undefined, filters: exportFilterLines() }, ...buildTxPayload(rows) },
+      `WalletTransfers_${todayBangkok()}.pdf`,
     );
   };
 
