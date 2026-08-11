@@ -913,6 +913,26 @@ export interface TransactionReportResponseDTO {
     pages: number;
 }
 
+/**
+ * The Transaction Report's ID column.
+ *
+ * One rule for every row, sale or not: the payer's ISB ID, or the department
+ * code when a budget paid. It used to fall through student_code → customer_code
+ * → username, which mixed three formats in one column — a staff purchase showed
+ * a login name like `phatthab`, which reconciles against nothing.
+ *
+ * No fallback on purpose. A payer with no external_id shows `—` rather than
+ * quietly reintroducing a second format; the blank is the signal that the
+ * record needs an ISB ID.
+ */
+function resolvePayerId(r: {
+    customerExternalId?: string | null;
+    payerExternalId?: string | null;
+    departmentCode?: string | null;
+}): string {
+    return r.customerExternalId ?? r.payerExternalId ?? r.departmentCode ?? "—";
+}
+
 export async function transactionReport(args: {
     dateFrom?: string | null;
     dateTo?: string | null;
@@ -995,10 +1015,10 @@ export async function transactionReport(args: {
             createdBy: receipts.createdBy,
             shopName: shops.name,
             customerName: customers.name,
-            studentCode: customers.studentCode,
-            customerCode: customers.customerCode,
+            customerExternalId: customers.externalId,
             payerFullName: users.fullName,
             payerUsername: users.username,
+            payerExternalId: users.externalId,
             departmentName: departments.departmentName,
             departmentCode: departments.departmentCode,
         })
@@ -1021,11 +1041,7 @@ export async function transactionReport(args: {
             ?? r.payerUsername
             ?? r.departmentName
             ?? "—";
-        const payerId = r.studentCode
-            ?? r.customerCode
-            ?? r.payerUsername
-            ?? r.departmentCode
-            ?? "—";
+        const payerId = resolvePayerId(r);
         return {
             id: r.id,
             kind: "sale" as const,
@@ -1091,12 +1107,10 @@ export async function transactionReport(args: {
                 walletUserId: wallets.userId,
                 walletDepartmentId: wallets.departmentId,
                 customerName: customers.name,
-                studentCode: customers.studentCode,
-                customerCode: customers.customerCode,
                 customerExternalId: customers.externalId,
                 payerFullName: users.fullName,
                 payerUsername: users.username,
-                walletUserExternalId: users.externalId,
+                payerExternalId: users.externalId,
                 departmentName: departments.departmentName,
                 departmentCode: departments.departmentCode,
             })
@@ -1155,8 +1169,8 @@ export async function transactionReport(args: {
         otherItems = otherRows.map((r) => {
             const kind = classifyWalletTxKind({ transactionType: r.transactionType, referenceType: r.referenceType, reason: r.reason });
             const payerName = r.customerName ?? r.payerFullName ?? r.payerUsername ?? r.departmentName ?? "—";
-            const payerId = r.studentCode ?? r.customerCode ?? r.payerUsername ?? r.departmentCode ?? "—";
-            const toppedUpToExternalId = r.customerExternalId ?? r.walletUserExternalId ?? null;
+            const payerId = resolvePayerId(r);
+            const toppedUpToExternalId = r.customerExternalId ?? r.payerExternalId ?? null;
             const creator = creatorById.get(r.createdBy);
             const creatorName = creator ? (creator.fullName || creator.username) : String(r.createdBy);
             const creatorShopId = creatorShopIdByUser.get(r.createdBy) ?? null;
