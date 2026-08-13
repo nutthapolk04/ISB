@@ -146,7 +146,7 @@ function AppShell() {
                       <span className="hidden sm:inline">{t('rolePicker.switchRole')}</span>
                     </Button>
                   )}
-                  {hasRole('cashier', 'manager', 'kitchen') && (
+                  {/* {hasRole('cashier', 'manager', 'kitchen') && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -155,7 +155,7 @@ function AppShell() {
                     >
                       <Wallet className="h-4 w-4" />
                     </Button>
-                  )}
+                  )} */}
                   {hasRole('cashier', 'manager') && (
                     <Button
                       variant="ghost"
