@@ -77,9 +77,10 @@ export function unlockOutOfService(): void {
             payer_id: state.snapshot.payer_id,
             receiver_id: state.snapshot.receiver_id,
             actual_amount: state.snapshot.actual_amount,
+            unsuccessful_transaction: true,
         });
     } else {
-        auditUnlock({});
+        auditUnlock({ unsuccessful_transaction: true });
     }
     writeState(null);
 }

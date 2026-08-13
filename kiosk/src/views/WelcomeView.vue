@@ -12,28 +12,40 @@ const router = useRouter();
 
 const store = useKioskStore();
 
-const EXIT_KIOSK_TAP_COUNT = 5;
-const EXIT_KIOSK_TAP_MAX_GAP_MS = 600;
+const SECRET_TAP_COUNT = 5;
+const SECRET_TAP_MAX_GAP_MS = 600;
 
 const showExitPin = ref(false);
 let exitTapCount = 0;
 let exitLastTapAt = 0;
+let techTapCount = 0;
+let techLastTapAt = 0;
 
 function onCardSecretTap() {
     const now = Date.now();
-    if (now - exitLastTapAt > EXIT_KIOSK_TAP_MAX_GAP_MS) {
+    if (now - exitLastTapAt > SECRET_TAP_MAX_GAP_MS) {
         exitTapCount = 0;
     }
     exitLastTapAt = now;
     exitTapCount += 1;
-    if (exitTapCount >= EXIT_KIOSK_TAP_COUNT) {
+    if (exitTapCount >= SECRET_TAP_COUNT) {
         exitTapCount = 0;
         showExitPin.value = true;
     }
 }
 
-function openTechnician() {
-    router.push('/technician');
+function onTechnicianSecretTap() {
+    if (store.isLoading) return;
+    const now = Date.now();
+    if (now - techLastTapAt > SECRET_TAP_MAX_GAP_MS) {
+        techTapCount = 0;
+    }
+    techLastTapAt = now;
+    techTapCount += 1;
+    if (techTapCount >= SECRET_TAP_COUNT) {
+        techTapCount = 0;
+        router.push('/technician');
+    }
 }
 
 const toggleLanguage = () => {
@@ -169,7 +181,7 @@ const t = {
         <KioskExitPinDialog :open="showExitPin" @close="showExitPin = false" />
 
         <div class="lang-switch-container">
-            <button class="tech-entry-btn" type="button" :disabled="store.isLoading" @click="openTechnician">
+            <button class="tech-entry-btn" type="button" :disabled="store.isLoading" @click="onTechnicianSecretTap">
                 <Wrench :size="28" />
                 <span>{{ currT.technician }}</span>
             </button>

@@ -160,7 +160,7 @@ const t = {
         reprint: 'Print again',
         recoveryTitle: 'Payment Received — Service Issue',
         recoverySubtitle: 'Your payment was received but could not be credited automatically.',
-        recoveryStaffMessage: 'Please bring this receipt to a staff member for assistance.',
+        recoveryStaffMessage: 'Please bring this receipt to Ed-Tech for assistance.',
         recoveryOosHint: 'This kiosk will stop service in {n}s…',
     },
     TH: {
@@ -939,7 +939,8 @@ const overpayExceedsCap = computed(() => {
 <template>
     <div class="kiosk-container topup-view">
         <!-- Header -->
-        <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail' && currentStep !== 'qr' && currentStep !== 'recovery-receipt'">
+        <div class="header-section"
+            v-if="currentStep !== 'success' && currentStep !== 'fail' && currentStep !== 'qr' && currentStep !== 'recovery-receipt'">
             <button v-if="!cashLocked" class="back-btn" @click="handleHeaderBack">
                 <ChevronLeft :size="32" />
                 <span>{{ currT.back }}</span>
@@ -1035,7 +1036,7 @@ const overpayExceedsCap = computed(() => {
                     <span>{{ currT.timeRemaining }}: </span>
                     <span class="timer-value">{{ Math.floor(qrTimeLeft / 60) }}:{{ (qrTimeLeft %
                         60).toString().padStart(2, '0')
-                        }}</span>
+                    }}</span>
                 </div>
 
                 <!-- Timer Progress Bar -->
@@ -1205,14 +1206,14 @@ const overpayExceedsCap = computed(() => {
                     {{ currT.printFailed }}
                     <span v-if="printer.lastPrinterError.value" class="print-error-detail">({{
                         printer.lastPrinterError.value
-                        }})</span>
+                    }})</span>
                 </p>
 
                 <button class="kiosk-btn btn-secondary print-receipt-btn" :disabled="printState === 'printing'"
                     @click="printReceipt">
                     <Printer :size="22" />
                     <span>{{ printState === 'done' || printState === 'error' ? currT.reprint : currT.printReceipt
-                        }}</span>
+                    }}</span>
                 </button>
             </div>
 

@@ -4,7 +4,7 @@ import type { TopupMethod } from './kioskAuditLog';
 
 export const RECOVERY_RECEIPT_DISPLAY_MS = 10_000;
 export const RECOVERY_STAFF_MESSAGE_EN =
-    'Please bring this receipt to a staff member for assistance.';
+    'Please bring this receipt to Ed-Tech for assistance.';
 
 export interface RecoveryTopupSnapshot {
     method: TopupMethod;

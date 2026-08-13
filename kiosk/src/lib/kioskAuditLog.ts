@@ -182,6 +182,8 @@ export interface LockAuditParams {
     payer_id?: string;
     receiver_id?: string;
     actual_amount?: number;
+    /** Set on UNLOCK after OOS — cash was taken but top-up did not credit. */
+    unsuccessful_transaction?: boolean;
 }
 
 export function auditLock(params: LockAuditParams = {}): void {

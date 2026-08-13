@@ -10,12 +10,14 @@ import { useKioskStore } from '../stores/kioskStore';
 const router = useRouter();
 const store = useKioskStore();
 
-const UNLOCK_TAP_COUNT = 5;
-const UNLOCK_TAP_MAX_GAP_MS = 600;
+const SECRET_TAP_COUNT = 5;
+const SECRET_TAP_MAX_GAP_MS = 600;
 
 const showUnlockPin = ref(false);
 let unlockTapCount = 0;
 let unlockLastTapAt = 0;
+let techTapCount = 0;
+let techLastTapAt = 0;
 
 const currT = computed(() => {
     const isTh = store.language === 'TH';
@@ -32,19 +34,28 @@ const currT = computed(() => {
 
 function onCenterSecretTap() {
     const now = Date.now();
-    if (now - unlockLastTapAt > UNLOCK_TAP_MAX_GAP_MS) {
+    if (now - unlockLastTapAt > SECRET_TAP_MAX_GAP_MS) {
         unlockTapCount = 0;
     }
     unlockLastTapAt = now;
     unlockTapCount += 1;
-    if (unlockTapCount >= UNLOCK_TAP_COUNT) {
+    if (unlockTapCount >= SECRET_TAP_COUNT) {
         unlockTapCount = 0;
         showUnlockPin.value = true;
     }
 }
 
-function openTechnician() {
-    router.push('/technician');
+function onTechnicianSecretTap() {
+    const now = Date.now();
+    if (now - techLastTapAt > SECRET_TAP_MAX_GAP_MS) {
+        techTapCount = 0;
+    }
+    techLastTapAt = now;
+    techTapCount += 1;
+    if (techTapCount >= SECRET_TAP_COUNT) {
+        techTapCount = 0;
+        router.push('/technician');
+    }
 }
 
 function handleUnlockSuccess() {
@@ -57,7 +68,7 @@ function handleUnlockSuccess() {
 
 <template>
     <div class="oos-view">
-        <button type="button" class="tech-entry-btn" aria-label="Technician" @click="openTechnician">
+        <button type="button" class="tech-entry-btn" aria-label="Technician" @click="onTechnicianSecretTap">
             <Wrench :size="20" />
         </button>
 
