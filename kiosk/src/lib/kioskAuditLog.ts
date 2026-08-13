@@ -27,8 +27,9 @@ const bangkokDateTimeFormatter = new Intl.DateTimeFormat('sv-SE', {
     hour12: false,
 });
 
+/** Bangkok wall clock without offset — logs are understood to be Thai time. */
 export function formatAuditTimestamp(date = new Date()): string {
-    return `${bangkokDateTimeFormatter.format(date).replace('T', ' ')}+07:00`;
+    return bangkokDateTimeFormatter.format(date).replace('T', ' ');
 }
 
 function escapeReason(reason: string): string {
