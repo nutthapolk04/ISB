@@ -80,6 +80,42 @@ function trackAndWatch(w: Window): void {
   }, 3000);
 }
 
+/**
+ * Claim the shared "isb-customer-display" window target without ever
+ * navigating a window that's already showing our page.
+ *
+ * `trackedWindow` is a module-level variable, so it's only good for the
+ * lifetime of the current tab's JS — it does NOT survive an F5/refresh of
+ * the cashier's main window. But a same-tab refresh does not close the
+ * popup, and the popup keeps answering to the same window *name* at the
+ * browser level regardless of which JS module instance is asking. So after
+ * a refresh, `trackedWindow` comes back null even though the real window is
+ * still open, and calling `window.open(url, WINDOW_NAME, ...)` again would
+ * reuse-and-navigate it — same spurious "Leave site?" prompt as the
+ * remount case above, just triggered by a full-page refresh instead.
+ *
+ * Passing an empty-string URL sidesteps that: per spec, `window.open("",
+ * name)` never navigates an existing same-name target, it only returns a
+ * reference to it (a brand-new target still gets the requested features
+ * applied, since there's nothing yet to preserve). So: if the returned
+ * window's pathname already matches our route, it's a survivor from before
+ * this module loaded — reuse in place. Otherwise it's genuinely fresh (or a
+ * blank window this very call just created) and needs an initial navigate.
+ */
+function claimDisplayWindow(features: string): { w: Window; alreadyOpen: boolean } | null {
+  const w = window.open("", WINDOW_NAME, features);
+  if (!w) return null;
+  let alreadyOpen: boolean;
+  try {
+    alreadyOpen = w.location.pathname === "/customer-display";
+  } catch {
+    // Cross-origin — can't be our own page, so it's the blank window this
+    // call just created.
+    alreadyOpen = false;
+  }
+  return { w, alreadyOpen };
+}
+
 /** Probe whether the host station has ≥2 monitors available. Returns false
  *  on Safari / Firefox (no API), when the permission is denied, or when
  *  only the primary screen is connected. */
@@ -104,10 +140,30 @@ async function hasSecondaryMonitor(): Promise<boolean> {
 export async function openCustomerDisplayWindow(): Promise<boolean> {
   if (typeof window === "undefined") return false;
 
+  // Already holding a live reference (e.g. the cashier navigated away from
+  // the POS page and back, re-triggering the auto-open effect) — just bring
+  // it forward. Calling window.open() again with the same WINDOW_NAME would
+  // reuse-and-navigate that existing window instead of opening a new one,
+  // which fires its beforeunload guard and pops a spurious "Leave site?"
+  // confirmation on screen 2.
+  if (trackedWindow && !trackedWindow.closed) {
+    try { trackedWindow.focus(); } catch { /* cross-origin — ignore */ }
+    return true;
+  }
+
   // Try Window Management API to place on the second monitor
+  let features = FALLBACK_FEATURES;
   try {
     if ("getScreenDetails" in window) {
       const screenDetails = await (window as any).getScreenDetails();
+      // Another concurrent call (e.g. AuthContext's post-login effect and
+      // Canteen's/Store's mount effect both firing in the same commit) may
+      // have already claimed and tracked the window while we were awaiting
+      // permission/screen info above — recheck before doing anything else.
+      if (trackedWindow && !trackedWindow.closed) {
+        try { trackedWindow.focus(); } catch { /* cross-origin — ignore */ }
+        return true;
+      }
       const screens: any[] = screenDetails.screens ?? [];
       // Prefer a non-primary screen; fall back to the current screen
       const target =
@@ -115,7 +171,7 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
         screenDetails.currentScreen ??
         screens[0];
       if (target) {
-        const features = [
+        features = [
           "popup=yes",
           "noopener=no",
           "fullscreen=yes",
@@ -124,25 +180,21 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
           `width=${target.availWidth}`,
           `height=${target.availHeight}`,
         ].join(",");
-        const w = window.open("/customer-display", WINDOW_NAME, features);
-        if (w) {
-          try { w.focus(); } catch { /* cross-origin — ignore */ }
-          tryFullscreenPopup(w);
-          trackAndWatch(w);
-          return true;
-        }
       }
     }
   } catch {
-    // API unavailable or permission denied — fall through to fallback
+    // API unavailable or permission denied — fall through with default features
   }
 
-  // Fallback: open at a fixed position (user can drag to second monitor)
   try {
-    const w = window.open("/customer-display", WINDOW_NAME, FALLBACK_FEATURES);
-    if (!w) return false;
-    try { w.focus(); } catch { /* ignore */ }
-    tryFullscreenPopup(w);
+    const claimed = claimDisplayWindow(features);
+    if (!claimed) return false;
+    const { w, alreadyOpen } = claimed;
+    if (!alreadyOpen) {
+      w.location.replace("/customer-display");
+      tryFullscreenPopup(w);
+    }
+    try { w.focus(); } catch { /* cross-origin — ignore */ }
     trackAndWatch(w);
     return true;
   } catch {
