@@ -327,7 +327,7 @@ export default function StoreRequisition() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 p-4 sm:p-6 h-full">
+    <div className="flex flex-col lg:flex-row gap-4 p-4 sm:p-6 h-full" style={{ backgroundColor: "#fffcf8" }}>
       {/* Product list */}
       <div className="flex-1 space-y-4 min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
