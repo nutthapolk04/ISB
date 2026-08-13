@@ -38,6 +38,7 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { Plus, Minus, Trash2, ShoppingCart, HandHelping, ScanBarcode, Check, ChevronsUpDown } from "lucide-react";
 import UserPicker, { type UserPickerHandle } from "@/components/UserPicker";
+import { CartQuantityPopover } from "@/components/CartQuantityPopover";
 import type { DepartmentOption } from "./DepartmentPaymentModal";
 import { useStoreRfidScanner } from "@/hooks/useStoreRfidScanner";
 import { useRfidListener } from "@/hooks/useRfidListener";
@@ -269,6 +270,13 @@ export default function StoreRequisition() {
     );
   };
 
+  // Exact-value entry from the numpad popover — same contract as POS Store's
+  // setItemQuantity: only accepts a positive integer, silently ignored otherwise.
+  const setQty = (id: number, qty: number) => {
+    if (!Number.isInteger(qty) || qty < 1) return;
+    setCart((prev) => prev.map((x) => (x.id === id ? { ...x, qty } : x)));
+  };
+
   const removeItem = (id: number) => setCart((prev) => prev.filter((x) => x.id !== id));
 
   const cartTotal = useMemo(
@@ -407,7 +415,17 @@ export default function StoreRequisition() {
                   <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.id, -1)}>
                     <Minus className="h-3 w-3" />
                   </Button>
-                  <span className="w-6 text-center text-sm">{item.qty}</span>
+                  <CartQuantityPopover quantity={item.qty} onConfirm={(qty) => setQty(item.id, qty)}>
+                    <button
+                      type="button"
+                      className={cn(
+                        "min-w-9 h-7 px-1 text-center text-sm font-bold tabular-nums rounded hover:bg-muted",
+                        item.qty < 0 && "text-rose-600",
+                      )}
+                    >
+                      {item.qty}
+                    </button>
+                  </CartQuantityPopover>
                   <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.id, 1)}>
                     <Plus className="h-3 w-3" />
                   </Button>
