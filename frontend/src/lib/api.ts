@@ -60,6 +60,56 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * A request that was abandoned client-side before any reply arrived.
+ *
+ * Deliberately NOT an ApiError: the request may well have been received and
+ * processed by the server, so the outcome is genuinely **unknown**. Callers on
+ * a money path must say "ตรวจสอบก่อน" rather than "failed" — telling a cashier
+ * a charge failed when it may have succeeded is how you get a double charge.
+ */
+export class RequestTimeoutError extends Error {
+  constructor(public path: string, public timeoutMs: number) {
+    super(`Request to ${path} timed out after ${timeoutMs}ms`);
+    this.name = "RequestTimeoutError";
+  }
+}
+
+/** Extra options this client understands on top of the standard fetch init. */
+export type ApiRequestInit = RequestInit & {
+  /**
+   * Abort the request after this many ms. Opt-in per call — there is no global
+   * default, because plenty of endpoints here (reports, exports, sync) are
+   * legitimately slow and a blanket timeout would break them.
+   */
+  timeoutMs?: number;
+};
+
+/**
+ * fetch(), plus an AbortController when the caller asked for a timeout.
+ *
+ * Without this a hung request never settles: the promise stays pending, the
+ * caller's `finally` never runs, and a POS modal can sit on "Recording
+ * receipt…" indefinitely with dismissal locked.
+ */
+async function fetchWithOptionalTimeout(url: string, init: ApiRequestInit): Promise<Response> {
+  const { timeoutMs, ...rest } = init;
+  if (!timeoutMs || timeoutMs <= 0) return fetch(url, rest);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...rest, signal: controller.signal });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new RequestTimeoutError(new URL(url).pathname, timeoutMs);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Token refresh — single-flight
 // ---------------------------------------------------------------------------
@@ -105,7 +155,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
 async function request<T>(
   path: string,
-  options: RequestInit = {},
+  options: ApiRequestInit = {},
   _retried = false,
 ): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
@@ -121,7 +171,7 @@ async function request<T>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetchWithOptionalTimeout(url, { ...options, headers });
 
   if (!res.ok) {
     let detail: string = res.statusText;
@@ -225,8 +275,8 @@ async function requestRaw<T>(path: string, options: RequestInit, _retried = fals
 export const api = {
   get: <T>(path: string) => request<T>(path),
 
-  post: <T>(path: string, body?: unknown) =>
-    request<T>(path, { method: "POST", body: JSON.stringify(body) }),
+  post: <T>(path: string, body?: unknown, opts?: { timeoutMs?: number }) =>
+    request<T>(path, { method: "POST", body: JSON.stringify(body), ...opts }),
 
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PUT", body: JSON.stringify(body) }),

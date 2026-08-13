@@ -90,6 +90,7 @@ import { Printer } from "lucide-react";
 import { SpendingLimitChip } from "@/components/SpendingLimitChip";
 import { useAutoPrint } from "@/hooks/useAutoPrint";
 import { useRecentColors } from "@/hooks/useRecentColors";
+import { useEdcTerminalStatus } from "@/hooks/useEdcTerminalStatus";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
 const DEFAULT_CANTEEN_SHOP_ID = "canteen";
@@ -157,6 +158,13 @@ export default function Canteen() {
     }, [user?.shopId]);
 
     const cart = useCanteenCart();
+    const edcStatus = useEdcTerminalStatus();
+    /**
+     * Idempotency key for the sale being paid for — minted once per press of
+     * Charge, never per confirm click. Same contract as the Store POS; see
+     * useStoreCheckout's checkoutKeyRef for why the scope matters.
+     */
+    const checkoutKeyRef = useRef<string>("");
     const [products, setProducts] = useState<CanteenProduct[]>([]);
 
     // ── Product color editing (palette popover on tile) ─────────────────────
@@ -445,9 +453,9 @@ export default function Canteen() {
         }
     };
 
-    const handleOptionsConfirmed = (groups: SelectedOptionGroup[]) => {
+    const handleOptionsConfirmed = (groups: SelectedOptionGroup[], qty: number) => {
         if (!optionTarget) return;
-        cart.addItemWithOptions(optionTarget, groups);
+        cart.addItemWithOptions(optionTarget, groups, qty);
         setOptionTarget(null);
     };
 
@@ -560,7 +568,13 @@ export default function Canteen() {
             | { kind: "department"; departmentId: number },
         extras?: {
             cashReceived?: number;
-            edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string; mode?: "qr" | "card" };
+            edcRefs?: {
+                approval_code: string;
+                terminal_ref?: string;
+                masked_card?: string;
+                mode?: "qr" | "card";
+                edc_pending_ref?: string | null;
+            };
         },
     ) => {
         setConfirming(true);
@@ -585,6 +599,7 @@ export default function Canteen() {
                 edc_terminal_ref: extras?.edcRefs?.terminal_ref,
                 edc_masked_card: extras?.edcRefs?.masked_card,
                 edc_mode: extras?.edcRefs?.mode,
+                edc_pending_ref: extras?.edcRefs?.edc_pending_ref ?? undefined,
                 shop_id: CANTEEN_SHOP_ID,
                 items: cart.items.map((i) => ({
                     product_variant_id: i.id,
@@ -607,6 +622,7 @@ export default function Canteen() {
                 })),
                 discount: cart.billDiscountAmount,
                 notes: receiptNote.trim() || undefined,
+                idempotency_key: checkoutKeyRef.current || undefined,
             };
             const res = await api.post<CheckoutResponse>("/pos/checkout", payload);
             return res;
@@ -822,7 +838,13 @@ export default function Canteen() {
     // calls back through `onPaid` once the webhook produces a receipt.
     // (Old handleConfirmQr removed; the modal owns the checkout side-effect.)
 
-    const handleConfirmEdc = async (refs: { approval_code: string; terminal_ref?: string; masked_card?: string; mode: "qr" | "card" }) => {
+    const handleConfirmEdc = async (refs: {
+        approval_code: string;
+        terminal_ref?: string;
+        masked_card?: string;
+        mode: "qr" | "card";
+        edc_pending_ref?: string | null;
+    }) => {
         setEdcOpen(false);
         const amount = cart.total;
         display.processing({
@@ -851,6 +873,7 @@ export default function Canteen() {
 
     // Handle charge button - if member is pre-selected, charge directly
     const handleCharge = async () => {
+        checkoutKeyRef.current = crypto.randomUUID();
         if (preSelectedMember) {
             // Direct charge for pre-selected member (wallet or department)
             const amount = cart.total;
@@ -1244,6 +1267,7 @@ export default function Canteen() {
                 total={cart.total}
                 methods={["wallet", "cash", "qr", "edc"]}
                 onSelect={handleSelectMethod}
+                edcStatus={edcStatus}
             />
             <RfidPaymentModal
                 open={rfidOpen}
@@ -1360,6 +1384,53 @@ export default function Canteen() {
                 onBack={() => { setEdcOpen(false); setMethodPickerOpen(true); }}
                 onConfirm={handleConfirmEdc}
                 confirming={confirming}
+                buildCartPayload={() => ({
+                    transaction_mode: cart.priceMode === "internal" ? "internal_issue" : "sale",
+                    payer_kind: "customer",
+                    shop_id: CANTEEN_SHOP_ID,
+                    discount: cart.billDiscountAmount,
+                    notes: receiptNote.trim() || undefined,
+                    items: cart.items.map((i) => ({
+                        product_variant_id: i.id,
+                        quantity: i.quantity,
+                        unit_price: cart.priceMode === "internal" ? i.internalPrice : i.price,
+                        price_override: i.priceOverride ?? null,
+                        discount: cart.lineDiscountAmountFor(i),
+                        options: i.selectedOptions.flatMap((g) =>
+                            g.options.map((o) => ({
+                                option_id: o.id,
+                                quantity: o.quantity,
+                            })),
+                        ),
+                    })),
+                })}
+                telemetry={{
+                    context: "canteen_pos",
+                    shopId: CANTEEN_SHOP_ID,
+                    // Same snapshot contract as the Store POS — see
+                    // useStoreCheckout.buildEdcCartSnapshot for why.
+                    getCartSnapshot: () => ({
+                        shop_id: CANTEEN_SHOP_ID,
+                        transaction_mode: "sale",
+                        payer: preSelectedMember
+                            ? {
+                                customer_id: preSelectedMember.user_id ? null : preSelectedMember.id,
+                                user_id: preSelectedMember.user_id ?? null,
+                                external_id: preSelectedMember.external_id ?? null,
+                            }
+                            : null,
+                        items: cart.items.map((i) => ({
+                            product_code: i.productCode,
+                            name: i.name,
+                            quantity: i.quantity,
+                            unit_price: cart.unitPriceFor(i),
+                            discount: cart.lineDiscountAmountFor(i),
+                            line_total: cart.unitPriceFor(i) * i.quantity - cart.lineDiscountAmountFor(i),
+                        })),
+                        discount: cart.billDiscountAmount,
+                        total: cart.total,
+                    }),
+                }}
             />
             <ReceiptSuccessModal
                 // The cashier dismissing the success modal frees the customer
@@ -1409,8 +1480,8 @@ export default function Canteen() {
             <SpecialItemPriceDialog
                 product={specialItemTarget}
                 onOpenChange={(o) => { if (!o) setSpecialItemTarget(null); }}
-                onConfirm={(product, price) => {
-                    cart.addSpecialItem(product, price);
+                onConfirm={(product, price, qty) => {
+                    cart.addSpecialItem(product, price, qty);
                     setSpecialItemTarget(null);
                 }}
             />

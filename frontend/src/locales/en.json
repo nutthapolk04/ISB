@@ -130,6 +130,7 @@
     "cashReceived": "Cash Received",
     "change": "Change",
     "enterAmount": "Enter amount",
+    "quantityLabel": "Quantity",
     "studentCardNumber": "Member Card Number",
     "enterStudentCardNumber": "Enter member card number",
     "departmentPlaceholder": "Select department",
@@ -505,6 +506,32 @@
     "receiptCount": "Receipt Count",
     "todaySales": "Today's Sales",
     "allReceipts": "All Receipts",
+    "tabReceipts": "Receipts",
+    "tabTransactions": "Transactions",
+    "transactions": {
+      "searchTitle": "Search Transactions",
+      "status": "Status",
+      "statusPending": "Pending",
+      "statusSuccess": "Success",
+      "statusFailed": "Failed",
+      "statusCancelled": "Cancelled",
+      "guideTitle": "What is this?",
+      "guideBody": "Every checkout attempt from the moment a payment method is picked — including ones still pending (e.g. a Thai QR sale waiting for bank confirmation) or that failed before a receipt was created.",
+      "all": "All Transactions",
+      "none": "No transactions found",
+      "result": "Result",
+      "startedAt": "Start Time",
+      "endedAt": "End Time",
+      "stillWaiting": "Still waiting…",
+      "bankRef": "Bank Ref. No.",
+      "actions": "Actions",
+      "details": "Transaction Details",
+      "receiptLoadFailed": "Could not load the receipt",
+      "itemsLoading": "Loading cart…",
+      "itemsNone": "No cart snapshot for this attempt",
+      "checkNow": "Check with Bank Now",
+      "checkFailed": "Could not check with the bank"
+    },
     "searchReceipt": "Search by receipt ID, name, amount, or date...",
     "searchPanel": {
       "title": "Search Receipt",
@@ -679,6 +706,8 @@
     "stockCardReportDesc": "Per-SKU movement history with opening and closing balance",
     "bundleReport": "Bundle Report",
     "bundleReportDesc": "Bundle products with component breakdown and current sellable quantity",
+    "receiveStockReport": "Receive Stock Report",
+    "receiveStockReportDesc": "Every stock intake transaction — product, quantity, cost, PO/invoice, and who recorded it",
     "salesSummaryReport": "Daily Sales Report",
     "salesSummaryReportDesc": "Daily sales totals with payment method breakdown by receipt",
     "salesByItemReport": "Sales by Item",
@@ -1806,7 +1835,7 @@
     "paymentMethod_qr": "Thai QR",
     "paymentMethod_qr_promptpay": "Thai QR",
     "paymentMethod_bay_qr": "Thai QR",
-    "paymentMethod_edc": "EDC QR",
+    "paymentMethod_edc": "EDC Credit Card",
     "paymentMethod_department": "Budget Deduction",
     "paymentWallet": "Wallet",
     "paymentCash": "Cash",
@@ -1865,7 +1894,8 @@
       "retailVsInternalDesc": "Retail = standard price for customers · Internal = staff/family rate for internal use",
       "setPrice": "Set Price",
       "enterPriceHint": "Enter selling price",
-      "insufficientBalance": "Insufficient Balance"
+      "insufficientBalance": "Insufficient Balance",
+      "quantityLabel": "Quantity"
     },
     "memberSearch": {
       "title": "Search Member",
@@ -1947,7 +1977,7 @@
       "campus_card": "Campus Card",
       "cash": "Cash",
       "thai_qr": "Thai QR",
-      "edc_qr": "EDC QR",
+      "edc_qr": "EDC Credit Card",
       "edc_credit_card": "EDC Credit Card",
       "edc_debit_card": "EDC Debit Card",
       "credit_card": "Credit Card",
@@ -1960,7 +1990,7 @@
       "qr_promptpay": "Thai QR",
       "bay_qr": "Thai QR",
       "bank_transfer": "Thai QR",
-      "edc": "EDC QR",
+      "edc": "EDC Credit Card",
       "bay_easypay": "Credit Card"
     },
     "optional": "Optional",
@@ -1973,7 +2003,9 @@
     "select": "Select",
     "next": "Next",
     "prev": "Prev",
-    "showingOf": "Showing {{from}}–{{to}} of {{total}}"
+    "showingOf": "Showing {{from}}–{{to}} of {{total}}",
+    "clear": "Clear",
+    "backspace": "Backspace"
   },
   "errorBoundary": {
     "title": "Something went wrong while loading this page",
@@ -2047,11 +2079,15 @@
     "todayRemaining": "Today's remaining",
     "todayUsedOf": "{{spent}} / {{limit}}",
     "dailyLimitReached": "Daily spending limit reached",
-    "shopMissingGroup": "This shop has no spending group assigned"
+    "shopMissingGroup": "This shop has no spending group assigned",
+    "quantityDialogTitle": "Set Quantity",
+    "quantityDialogConfirm": "Add {{qty}}"
   },
   "checkout": {
     "failed": "Checkout failed",
-    "failedHint": "Please try again or check your network connection."
+    "failedHint": "Please try again or check your network connection.",
+    "timeoutTitle": "Outcome unknown",
+    "timeoutHint": "Server did not respond — do not retry payment. Check the receipts list first to see if a receipt was already created."
   },
   "cashPay": {
     "title": "Cash Payment",
@@ -2191,7 +2227,20 @@
     "deptEmpVerify": "Verify employee (tap card or enter username)",
     "deptEmpPlaceholder": "Tap employee card or type username…",
     "change": "Change",
-    "empNotFound": "Employee not found"
+    "empNotFound": "Employee not found",
+    "edcRecoveryConfirmFailed": "Failed to save the receipt — please try again or contact your administrator",
+    "edcQueryApprovedNoCode": "Terminal confirms the transaction was approved, but no approval code was returned — enter it from the slip below",
+    "edcQueryNoAnswer": "Terminal did not respond — enter the code from the slip instead",
+    "edcQueryFailed": "Could not check with the terminal — enter the code from the slip instead",
+    "edcQrTimeoutChecking": "QR scan timed out on our side — the EDC terminal may still be processing (its own 3-minute window hasn't elapsed yet). Checking with the terminal automatically. Do not retry the transaction until the result is confirmed.",
+    "edcApprovedNoCode": "The terminal approved this transaction but did not return an approval code — do not retry (this may cause a duplicate charge). Please contact your administrator to record the receipt manually.",
+    "edcConnectionLost": "Connection to the EDC terminal was lost during the transaction — it may still be processing (e.g. the QR hasn't timed out yet). Do not retry until you've checked with the terminal.",
+    "edcUnknownOutcomeDesc": "The actual outcome of this transaction is not yet known.",
+    "edcCardFeeNote": "Includes 3% card fee: ฿{{fee}} (goods total ฿{{goods}})",
+    "edcConnectionLostTitle": "Transaction outcome unknown",
+    "edcQueryTerminal": "Check latest transaction with terminal",
+    "edcManualApprLabel": "Or enter APPR.CODE from the slip",
+    "edcRecordSale": "Record Sale"
   },
   "shopUsers": {
     "titleSuffix": "Users",
@@ -2454,7 +2503,8 @@
       "UPDATE_BALANCE": "Adjusted balance",
       "UPDATE_PRICE": "Updated price",
       "UPDATE_SETTING": "Updated setting",
-      "DELETE_PRODUCT": "Deleted product"
+      "DELETE_PRODUCT": "Deleted product",
+      "REJECT": "Failed"
     },
     "field": {
       "items": "Items",
@@ -2497,6 +2547,8 @@
     "summary": {
       "createReceipt": "Sold {{items}} items for ฿{{total}} via {{payment}}",
       "createReceiptNoPayment": "Issued receipt for {{items}} items, total ฿{{total}}",
+      "rejectReceipt": "Checkout failed ({{payment}}) — {{reason}}",
+      "rejectReceiptNoPayment": "Checkout failed — {{reason}}",
       "voidReceipt": "Voided receipt, refund ฿{{total}}",
       "updatePrice": "Price changed from ฿{{from}} to ฿{{to}}",
       "updateBalance": "Balance changed from ฿{{from}} to ฿{{to}}",

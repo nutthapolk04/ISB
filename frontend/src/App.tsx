@@ -46,6 +46,7 @@ import Transfer from './pages/parent/Transfer';
 import WalletAdjust from './pages/admin/WalletAdjust';
 import KioskMonitoring from './pages/admin/KioskMonitoring';
 import WalletTransfer from './pages/admin/WalletTransfer';
+import EdcEvents from './pages/dev/EdcEvents';
 import DepartmentAdjust from './pages/admin/DepartmentAdjust';
 import DepartmentDetail from './pages/admin/DepartmentDetail';
 import CustomerDetail from './pages/admin/CustomerDetail';
@@ -358,6 +359,10 @@ const App = () => {
                           <Route path="/admin/students" element={<Navigate to="/users?kind=student" replace />} />
                           <Route path="/admin/customer/:customerId" element={<CustomerDetail />} />
                           <Route path="/admin/department/:departmentId" element={<DepartmentDetail />} />
+                          {/* Internal diagnostics — intentionally absent from the
+                              sidebar, reached by typing the URL. Role-guarded here
+                              too: hiding a link is not access control. */}
+                          <Route path="/dev/edc-events" element={<EdcEvents />} />
                         </Route>
 
                         {/* Wallet reports — admin + finance */}

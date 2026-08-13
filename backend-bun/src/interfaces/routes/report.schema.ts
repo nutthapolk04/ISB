@@ -77,7 +77,13 @@ export const salesSummaryReport = {
 };
 
 export const salesByItemReport = {
-    query: t.Object(salesFilterQuery),
+    query: t.Object({
+        ...salesFilterQuery,
+        /** "1" folds bill discount and EDC card fee into totals.sales_amt so it
+         *  ties to Daily Sales Report. Sales Report sends it; Sales by Item
+         *  Report, which shares this endpoint, does not. */
+        net_totals: t.Optional(t.Nullable(t.String())),
+    }),
     detail: { tags: ["Reports"], summary: "Per-receipt-item sales breakdown with totals" },
 };
 
@@ -89,6 +95,24 @@ export const bundleReport = {
     detail: {
         tags: ["Reports"],
         summary: "Bundles with component breakdown and current sellable quantity",
+    },
+};
+
+export const receiveStockReport = {
+    query: t.Object({
+        date_from: t.Optional(t.Nullable(t.String())),
+        date_to: t.Optional(t.Nullable(t.String())),
+        shop_id: t.Optional(t.Nullable(t.String())),
+        module: t.Optional(t.Nullable(t.String())),
+        product_search: t.Optional(t.String()),
+        category: t.Optional(t.String()),
+        po_number: t.Optional(t.String()),
+        invoice_number: t.Optional(t.String()),
+        sort_order: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: {
+        tags: ["Reports"],
+        summary: "Stock intake (Receive Stock) log — one row per receiving transaction",
     },
 };
 

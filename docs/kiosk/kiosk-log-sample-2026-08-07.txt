@@ -1,0 +1,35 @@
+Kiosk device: Kiosk 2 (kiosk_service_2)
+Exported: 2026-08-07T17:00:00.000Z
+Day: 2026-08-07
+---
+Bootstrap failed: Network request failed
+2026-08-07 07:02:11+07:00 [PING] status=failed, reason="Network request failed"
+2026-08-07 07:03:11+07:00 [PING] status=failed, reason="Network request failed"
+2026-08-07 07:31:04+07:00 [TAP] isb_id=35001
+2026-08-07 07:31:22+07:00 [TOPUP] ref=7f3a1c1e-4b2d-4a91-9c10-2e6b8d4a71c1, method=CASH, payer_id=35001, receiver_id=35001, target_amount=500, status=begin
+2026-08-07 07:32:03+07:00 [TOPUP] ref=7f3a1c1e-4b2d-4a91-9c10-2e6b8d4a71c1, method=CASH, payer_id=35001, receiver_id=35001, target_amount=500, actual_amount=500, status=success, 500=1, transaction_id=904
+2026-08-07 08:05:12+07:00 [TAP] isb_id=35001
+2026-08-07 08:05:30+07:00 [TOPUP] ref=TOP-20260807-001-4f1a, method=QR, payer_id=35001, receiver_id=35002, target_amount=300, status=begin
+2026-08-07 08:06:58+07:00 [TOPUP] ref=TOP-20260807-001-4f1a, method=QR, payer_id=35001, receiver_id=35002, target_amount=300, actual_amount=300, status=success, transaction_id=905
+2026-08-07 08:41:37+07:00 [TAP] isb_id=35003
+2026-08-07 08:41:55+07:00 [TOPUP] ref=7f3a1c2e-4b2d-4a91-9c20-2e6b8d4a71c2, method=CASH, payer_id=35003, receiver_id=35003, target_amount=1000, status=begin
+2026-08-07 08:43:12+07:00 [TOPUP] ref=7f3a1c2e-4b2d-4a91-9c20-2e6b8d4a71c2, method=CASH, payer_id=35003, receiver_id=35003, target_amount=1000, actual_amount=100, status=cancelled, 100=1
+2026-08-07 09:15:02+07:00 [TAP] isb_id=35001
+2026-08-07 09:15:19+07:00 [TOPUP] ref=7f3a1c3e-4b2d-4a91-9c30-2e6b8d4a71c3, method=CASH, payer_id=35001, receiver_id=35001, target_amount=2000, status=begin
+2026-08-07 09:17:49+07:00 [TOPUP] ref=7f3a1c3e-4b2d-4a91-9c30-2e6b8d4a71c3, method=CASH, payer_id=35001, receiver_id=35001, target_amount=2000, actual_amount=1500, status=timeout, 1000=1,500=1
+2026-08-07 10:02:31+07:00 [TAP] isb_id=35002
+2026-08-07 10:02:44+07:00 [TOPUP] ref=7f3a1c4e-4b2d-4a91-9c40-2e6b8d4a71c4, method=CASH, payer_id=35002, receiver_id=35002, target_amount=700, status=begin
+2026-08-07 10:03:58+07:00 [TOPUP] ref=7f3a1c4e-4b2d-4a91-9c40-2e6b8d4a71c4, method=CASH, payer_id=35002, receiver_id=35002, target_amount=700, actual_amount=700, status=failed, 500=1,100=2, reason="Network request failed"
+2026-08-07 10:05:12+07:00 [TOPUP] ref=7f3a1c4e-4b2d-4a91-9c40-2e6b8d4a71c4, method=CASH, payer_id=35002, receiver_id=35002, target_amount=700, actual_amount=700, status=success, 500=1,100=2, transaction_id=906, retry=true
+2026-08-07 11:20:44+07:00 [TAP] isb_id=35003
+2026-08-07 11:20:58+07:00 [TOPUP] ref=TOP-20260807-002-9b73, method=QR, payer_id=35003, receiver_id=35003, target_amount=500, status=begin
+2026-08-07 11:25:58+07:00 [TOPUP] ref=TOP-20260807-002-9b73, method=QR, payer_id=35003, receiver_id=35003, target_amount=500, actual_amount=0, status=timeout
+2026-08-07 12:47:03+07:00 [TAP] isb_id=35001
+2026-08-07 12:47:21+07:00 [TOPUP] ref=TOP-20260807-003-c204, method=QR, payer_id=35001, receiver_id=35001, target_amount=200, status=begin
+2026-08-07 12:47:52+07:00 [TOPUP] ref=TOP-20260807-003-c204, method=QR, payer_id=35001, receiver_id=35001, target_amount=200, actual_amount=0, status=cancelled
+2026-08-07 13:30:16+07:00 [TAP] isb_id=35002
+2026-08-07 13:30:33+07:00 [TOPUP] ref=TOP-20260807-004-e18d, method=QR, payer_id=35002, receiver_id=35002, target_amount=1000, status=begin
+2026-08-07 13:31:47+07:00 [TOPUP] ref=TOP-20260807-004-e18d, method=QR, payer_id=35002, receiver_id=35002, target_amount=1000, actual_amount=0, status=failed, reason="Payment rejected by gateway (RC=14)"
+2026-08-07 16:40:05+07:00 [UNLOCK] 
+2026-08-07 16:41:38+07:00 [CLEAR-CASH-BOX] amount=2800, 1000=1,500=3,100=3
+2026-08-07 16:45:12+07:00 [LOCK] 

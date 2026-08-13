@@ -17,6 +17,105 @@
 const WINDOW_NAME = "isb-customer-display";
 const FALLBACK_FEATURES = "popup=yes,noopener=no,width=1280,height=800,left=200,top=100";
 
+/**
+ * Best-effort fullscreen for the just-opened/just-focused popup, called from
+ * the opener right after `window.open()` while the click that triggered it is
+ * still "fresh" — the browser can delegate the click's transient activation to
+ * a same-origin auxiliary browsing context for a short window, but that
+ * window is easy to miss once the popup's own bundle has to load, boot React,
+ * and mount before it can try for itself. Firing from here instead — as soon
+ * as the popup's `load` fires (or immediately, if we're just re-focusing an
+ * already-loaded window) — gets there sooner. Not a substitute for
+ * CustomerDisplay.tsx's own click-to-fullscreen fallback, since browsers are
+ * free to reject this regardless of timing; just improves the odds the
+ * cashier never has to tap the second screen at all.
+ */
+function tryFullscreenPopup(w: Window): void {
+  const attempt = () => {
+    try {
+      w.document.documentElement.requestFullscreen?.().catch(() => { });
+    } catch {
+      // Cross-origin or otherwise inaccessible — nothing we can do from here.
+    }
+  };
+  try {
+    if (w.document?.readyState === "complete") {
+      attempt();
+    } else {
+      w.addEventListener("load", attempt, { once: true });
+    }
+  } catch {
+    // Cross-origin — ignore, CustomerDisplay.tsx's own click fallback covers it.
+  }
+}
+
+// ── Watchdog: keep the display window alive no matter what happens on the
+// cashier's own screen ──────────────────────────────────────────────────────
+//
+// The cashier alt-tabbing / switching apps on the main monitor must never take
+// the customer display down with it — it's a second, independent top-level
+// window on its own monitor, so normal window-switching on screen 1 can't
+// touch it directly, but it CAN still end up closed by an accidental Ctrl+W,
+// a crash, or someone closing it on purpose without meaning to for the whole
+// shift. Track the last window we opened/focused and, once a watchdog timer
+// notices `.closed` flip true, silently reopen it — no cashier action needed.
+//
+// This self-heal only works if the reopen isn't eaten by the popup blocker:
+// window.open() calls outside a user gesture (which this is — it fires from
+// a timer, not a click) are blocked by default. The installer sets Chrome's
+// PopupsAllowedForUrls enterprise policy for our origin specifically so this
+// works in the field (see installer.nsi) — without that policy the watchdog
+// can detect the close but can't act on it.
+let trackedWindow: Window | null = null;
+let watchdogTimer: ReturnType<typeof setInterval> | null = null;
+
+function trackAndWatch(w: Window): void {
+  trackedWindow = w;
+  if (watchdogTimer) return;
+  watchdogTimer = setInterval(() => {
+    if (trackedWindow && trackedWindow.closed) {
+      trackedWindow = null;
+      void openCustomerDisplayWindow();
+    }
+  }, 3000);
+}
+
+/**
+ * Claim the shared "isb-customer-display" window target without ever
+ * navigating a window that's already showing our page.
+ *
+ * `trackedWindow` is a module-level variable, so it's only good for the
+ * lifetime of the current tab's JS — it does NOT survive an F5/refresh of
+ * the cashier's main window. But a same-tab refresh does not close the
+ * popup, and the popup keeps answering to the same window *name* at the
+ * browser level regardless of which JS module instance is asking. So after
+ * a refresh, `trackedWindow` comes back null even though the real window is
+ * still open, and calling `window.open(url, WINDOW_NAME, ...)` again would
+ * reuse-and-navigate it — same spurious "Leave site?" prompt as the
+ * remount case above, just triggered by a full-page refresh instead.
+ *
+ * Passing an empty-string URL sidesteps that: per spec, `window.open("",
+ * name)` never navigates an existing same-name target, it only returns a
+ * reference to it (a brand-new target still gets the requested features
+ * applied, since there's nothing yet to preserve). So: if the returned
+ * window's pathname already matches our route, it's a survivor from before
+ * this module loaded — reuse in place. Otherwise it's genuinely fresh (or a
+ * blank window this very call just created) and needs an initial navigate.
+ */
+function claimDisplayWindow(features: string): { w: Window; alreadyOpen: boolean } | null {
+  const w = window.open("", WINDOW_NAME, features);
+  if (!w) return null;
+  let alreadyOpen: boolean;
+  try {
+    alreadyOpen = w.location.pathname === "/customer-display";
+  } catch {
+    // Cross-origin — can't be our own page, so it's the blank window this
+    // call just created.
+    alreadyOpen = false;
+  }
+  return { w, alreadyOpen };
+}
+
 /** Probe whether the host station has ≥2 monitors available. Returns false
  *  on Safari / Firefox (no API), when the permission is denied, or when
  *  only the primary screen is connected. */
@@ -41,10 +140,30 @@ async function hasSecondaryMonitor(): Promise<boolean> {
 export async function openCustomerDisplayWindow(): Promise<boolean> {
   if (typeof window === "undefined") return false;
 
+  // Already holding a live reference (e.g. the cashier navigated away from
+  // the POS page and back, re-triggering the auto-open effect) — just bring
+  // it forward. Calling window.open() again with the same WINDOW_NAME would
+  // reuse-and-navigate that existing window instead of opening a new one,
+  // which fires its beforeunload guard and pops a spurious "Leave site?"
+  // confirmation on screen 2.
+  if (trackedWindow && !trackedWindow.closed) {
+    try { trackedWindow.focus(); } catch { /* cross-origin — ignore */ }
+    return true;
+  }
+
   // Try Window Management API to place on the second monitor
+  let features = FALLBACK_FEATURES;
   try {
     if ("getScreenDetails" in window) {
       const screenDetails = await (window as any).getScreenDetails();
+      // Another concurrent call (e.g. AuthContext's post-login effect and
+      // Canteen's/Store's mount effect both firing in the same commit) may
+      // have already claimed and tracked the window while we were awaiting
+      // permission/screen info above — recheck before doing anything else.
+      if (trackedWindow && !trackedWindow.closed) {
+        try { trackedWindow.focus(); } catch { /* cross-origin — ignore */ }
+        return true;
+      }
       const screens: any[] = screenDetails.screens ?? [];
       // Prefer a non-primary screen; fall back to the current screen
       const target =
@@ -52,7 +171,7 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
         screenDetails.currentScreen ??
         screens[0];
       if (target) {
-        const features = [
+        features = [
           "popup=yes",
           "noopener=no",
           "fullscreen=yes",
@@ -61,22 +180,22 @@ export async function openCustomerDisplayWindow(): Promise<boolean> {
           `width=${target.availWidth}`,
           `height=${target.availHeight}`,
         ].join(",");
-        const w = window.open("/customer-display", WINDOW_NAME, features);
-        if (w) {
-          try { w.focus(); } catch { /* cross-origin — ignore */ }
-          return true;
-        }
       }
     }
   } catch {
-    // API unavailable or permission denied — fall through to fallback
+    // API unavailable or permission denied — fall through with default features
   }
 
-  // Fallback: open at a fixed position (user can drag to second monitor)
   try {
-    const w = window.open("/customer-display", WINDOW_NAME, FALLBACK_FEATURES);
-    if (!w) return false;
-    try { w.focus(); } catch { /* ignore */ }
+    const claimed = claimDisplayWindow(features);
+    if (!claimed) return false;
+    const { w, alreadyOpen } = claimed;
+    if (!alreadyOpen) {
+      w.location.replace("/customer-display");
+      tryFullscreenPopup(w);
+    }
+    try { w.focus(); } catch { /* cross-origin — ignore */ }
+    trackAndWatch(w);
     return true;
   } catch {
     return false;

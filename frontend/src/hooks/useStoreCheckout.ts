@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "@/components/ui/sonner";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, RequestTimeoutError } from "@/lib/api";
 import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
 import {
     afterPaymentPayer,
@@ -17,12 +17,17 @@ import type { WalletPayer, StudentLookupResult } from "@/pages/canteen/RfidPayme
 import type { DepartmentOption } from "@/pages/store/DepartmentPaymentModal";
 import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
 import type { Product, CartItem, DiscountMode, LastReceipt } from "@/pages/store/storeTypes";
+import { buildCheckoutItem } from "@/pages/store/buildCheckoutItem";
 
 function storeSpendingLimit(s: { daily_limit_store?: number | null; spent_today_store?: number | null } | null): SpendingLimitData | null {
     if (!s || s.daily_limit_store == null) return null;
     const spent = s.spent_today_store ?? 0;
     return { daily_limit: s.daily_limit_store, spent_today: spent, remaining: Math.max(0, s.daily_limit_store - spent), group_name: "Daily Store Limit" };
 }
+
+/** Upper bound for a checkout round-trip. Production p100 is ~120ms, so this
+ *  only ever fires on a request that is genuinely stuck. */
+const CHECKOUT_TIMEOUT_MS = 30_000;
 
 interface UseStoreCheckoutArgs {
     shopId: string | null | undefined;
@@ -42,7 +47,13 @@ interface CheckoutCtx {
     payer?: WalletPayer;
     deptId?: number;
     empCode?: string | null;
-    edcRefs?: { approval_code: string; terminal_ref?: string; masked_card?: string; mode?: "qr" | "card" };
+    edcRefs?: {
+        approval_code: string;
+        terminal_ref?: string;
+        masked_card?: string;
+        mode?: "qr" | "card";
+        edc_pending_ref?: string | null;
+    };
     cashReceived?: number;
 }
 
@@ -94,6 +105,17 @@ export function useStoreCheckout({
     const [walletLimitError, setWalletLimitError] = useState<string | null>(null);
     // Pre-selected member from search (for direct wallet charge)
     const [preSelectedMember, setPreSelectedMember] = useState<StudentLookupResult | null>(null);
+    /**
+     * Idempotency key for the checkout currently being paid for.
+     *
+     * Minted once per entry into the payment flow — NOT per confirm click,
+     * which would defeat the point, and NOT once per session, which would be
+     * far worse: a stale key would make the second sale return the first
+     * sale's receipt and silently vanish. Scoping it to one press of "Charge"
+     * means repeat confirms within a payment collapse onto one receipt while
+     * two distinct sales can never share a key.
+     */
+    const checkoutKeyRef = useRef<string>("");
     // Increment after each successful checkout to refresh the SpendingLimitChip
     const [chipRefreshKey, setChipRefreshKey] = useState(0);
 
@@ -126,10 +148,10 @@ export function useStoreCheckout({
         [activePanelId, panelPrices],
     );
 
-    const confirmSpecialItem = (product: Product, price: number) => {
+    const confirmSpecialItem = (product: Product, price: number, qty: number = 1) => {
         setCart((prev) => [
             ...prev,
-            { ...product, quantity: 1, priceOverride: price },
+            { ...product, quantity: qty, priceOverride: price },
         ]);
         setLastAddedId(product.id);
         setSpecialItemTarget(null);
@@ -151,6 +173,14 @@ export function useStoreCheckout({
                 })
                 .filter((item): item is CartItem => item !== null),
         );
+    };
+
+    /** Set a line's quantity to an exact value (numpad entry) rather than
+     *  nudging it by ±1 like updateQuantity. Silently ignores non-positive
+     *  input — the trash icon is the way to remove a line. */
+    const setItemQuantity = (id: number, qty: number) => {
+        if (!Number.isInteger(qty) || qty < 1) return;
+        setCart((prev) => prev.map((item) => (item.id === id ? { ...item, quantity: qty } : item)));
     };
 
     const removeFromCart = (id: number) => {
@@ -236,6 +266,67 @@ export function useStoreCheckout({
     // the cashier owes that amount back to the customer.
     const total = subtotal - billDiscountAmount;
 
+    /**
+     * What the cart looked like at the moment the EDC terminal was asked to
+     * charge, for the server-side telemetry log.
+     *
+     * Sent once, on the `started` event, because that is the only point
+     * guaranteed to happen before anything can fail. When a terminal charge
+     * ends up unrecorded this is the only record of what left the shop — on
+     * 2026-08-06 there was an amount and a card, but no way to say which books
+     * the customer walked out with.
+     *
+     * A function rather than a value so it is evaluated at attempt time, not on
+     * every render, and so the modal never holds a stale cart.
+     *
+     * Identity is IDs only — no names, grades or photos. Product names ARE
+     * kept, since a snapshot that needs a live join to be readable is not a
+     * snapshot.
+     */
+    const buildEdcCartSnapshot = () => ({
+        shop_id: shopId ?? null,
+        transaction_mode: priceMode === "internal" ? "internal_issue" : "sale",
+        payer: preSelectedMember
+            ? {
+                customer_id: preSelectedMember.user_id ? null : preSelectedMember.id,
+                user_id: preSelectedMember.user_id ?? null,
+                external_id: preSelectedMember.external_id ?? null,
+            }
+            : null,
+        items: cart.map((item) => ({
+            product_code: item.productCode,
+            name: item.name,
+            quantity: item.quantity,
+            unit_price: getPriceForItem(item),
+            discount: getItemDiscountAmount(item),
+            line_total: getItemLineTotal(item),
+            ...(item.isBundle ? { is_bundle: true } : {}),
+        })),
+        discount: billDiscountAmount,
+        total,
+    });
+
+    /** Checkout-shaped cart (matches what /pos/checkout expects) — used to log
+     *  the pending Transactions-tab row the instant an EDC attempt starts.
+     *  Unlike buildEdcCartSnapshot above (a display snapshot for the EDC
+     *  telemetry table), this must use real product_variant_id/unit_price so
+     *  the Transactions tab's detail view can resolve item names the same way
+     *  a real checkout's cart_snapshot does. No payer — EDC doesn't collect
+     *  one before the terminal responds, same as the QR intent's cart. */
+    const buildEdcCheckoutCartPayload = () => ({
+        transaction_mode: priceMode === "internal" ? "internal_issue" : "sale",
+        payer_kind: "customer",
+        shop_id: shopId ?? undefined,
+        discount: billDiscountAmount,
+        notes: receiptNote.trim() || undefined,
+        items: cart.map((item) =>
+            buildCheckoutItem(item, {
+                unitPrice: priceMode === "internal" ? (item.internalPrice ?? item.price) : item.price,
+                discount: getItemDiscountAmount(item),
+            }),
+        ),
+    });
+
     // ── Live-broadcast cart to the customer display ─────────────────────────────
     // Mirrors the Canteen behaviour: as the cashier builds the cart or picks a
     // member, the second screen previews the order before any payment modal opens.
@@ -263,6 +354,7 @@ export function useStoreCheckout({
 
     // ── Checkout ────────────────────────────────────────────────────────────
     const doCheckout = async (method: CanteenPaymentMethod, ctx: CheckoutCtx = {}) => {
+        console.log(`[Store] checkout started — method=${method} items=${cart.length} total=${total}`);
         setConfirming(true);
         // Tell the customer display the payment is going through. Payer info
         // resolved best-effort so the screen can show the balance preview.
@@ -354,30 +446,13 @@ export function useStoreCheckout({
                     backendMethod === "cash" && ctx.cashReceived !== undefined && total > 0
                         ? ctx.cashReceived
                         : undefined,
-                items: cart.map((item) => {
-                    const catalogPrice =
-                        priceMode === "internal" ? (item.internalPrice ?? item.price) : item.price;
-                    if (item.isBundle && item.bundleId != null) {
-                        return {
-                            // product_variant_id is unused by the backend for bundle items,
-                            // but the field is required by the schema — send 0 as sentinel.
-                            product_variant_id: 0,
-                            quantity: item.quantity,
-                            unit_price: catalogPrice,
-                            price_override: item.priceOverride ?? null,
-                            discount: getItemDiscountAmount(item),
-                            is_bundle: true,
-                            bundle_id: item.bundleId,
-                        };
-                    }
-                    return {
-                        product_variant_id: item.id,
-                        quantity: item.quantity,
-                        unit_price: catalogPrice,
-                        price_override: item.priceOverride ?? null,
+                items: cart.map((item) =>
+                    buildCheckoutItem(item, {
+                        unitPrice:
+                            priceMode === "internal" ? (item.internalPrice ?? item.price) : item.price,
                         discount: getItemDiscountAmount(item),
-                    };
-                }),
+                    }),
+                ),
                 discount: billDiscountAmount,
                 notes: (() => {
                     const parts: string[] = [];
@@ -389,12 +464,25 @@ export function useStoreCheckout({
                 edc_approval_code: ctx.edcRefs?.approval_code,
                 edc_masked_card: ctx.edcRefs?.masked_card,
                 edc_mode: ctx.edcRefs?.mode,
+                edc_pending_ref: ctx.edcRefs?.edc_pending_ref ?? undefined,
+                // Empty only if a caller reached checkout without going through
+                // handleOpenPayment; the backend treats a blank key as "no key"
+                // and behaves exactly as it did before.
+                idempotency_key: checkoutKeyRef.current || undefined,
             };
 
+            // A checkout that has not answered in 30s is not going to. Without a
+            // bound the promise never settles, `confirming` stays true and the
+            // EDC modal sits on "Recording receipt…" with dismissal locked —
+            // exactly the dead end a cashier hit on 2026-08-06. 30s is far above
+            // the observed p100 (~120ms in production) so it can only fire on a
+            // genuinely stuck request.
             const receipt = await api.post<{ receipt_number: string; total: number }>(
                 "/pos/checkout",
                 payload,
+                { timeoutMs: CHECKOUT_TIMEOUT_MS },
             );
+            console.log(`[Store] checkout succeeded — receipt=${receipt.receipt_number} amount=${receipt.total}`);
 
             // Compute remaining balance for wallet payments to show in success modal
             let remaining: number | undefined;
@@ -421,6 +509,7 @@ export function useStoreCheckout({
             // requires Chromium launched with --kiosk-printing on the cashier station.
             // Skipped entirely when the per-station auto-print toggle is off.
             if (autoPrint) {
+                console.log(`[Store] auto-print firing for receipt=${receipt.receipt_number}`);
                 try {
                     printReceipt(
                         {
@@ -455,6 +544,7 @@ export function useStoreCheckout({
             );
 
             // Reset cart + close all payment modals + open success
+            console.log(`[Store] checkout done — resetting cart, closing payment modals, showing success`);
             setCart([]);
             setLastAddedId(null);
             setRequesterUserId(null);
@@ -480,7 +570,27 @@ export function useStoreCheckout({
                 receiptNumber: receipt.receipt_number,
             });
         } catch (err: any) {
-            if (err instanceof ApiError && err.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
+            // A request that never completed is the one case the server cannot
+            // log for itself — it never saw the call. Report it so the cart is
+            // not lost. Fire-and-forget: the cashier's error message must not
+            // wait on it. The server resolves the idempotency key against
+            // receipts, so a sale that actually landed is dropped rather than
+            // recorded as a phantom failure.
+            console.error(`[Store] checkout failed — method=${method}`, err);
+            if (err instanceof RequestTimeoutError) {
+                // The request may well have been processed — saying "failed"
+                // here is what makes a cashier charge the customer twice.
+                toast.error(
+                    t("checkout.timeoutTitle", "ไม่ทราบผลการบันทึก"),
+                    {
+                        description: t(
+                            "checkout.timeoutHint",
+                            "เซิร์ฟเวอร์ไม่ตอบกลับ — ห้ามชำระซ้ำ ตรวจสอบในรายการขายก่อนว่ามีใบเสร็จแล้วหรือยัง",
+                        ),
+                        duration: 15000,
+                    },
+                );
+            } else if (err instanceof ApiError && err.code?.startsWith("EXCEEDS_NEGATIVE_CREDIT_LIMIT")) {
                 setWalletLimitError(err.detail);
             } else {
                 const detail = err instanceof ApiError ? err.detail : err?.message ?? "";
@@ -508,6 +618,8 @@ export function useStoreCheckout({
             toast.error(t("store.pleaseAddProducts"));
             return;
         }
+        checkoutKeyRef.current = crypto.randomUUID();
+        console.log(`[Store] Charge pressed — items=${cart.length} total=${total} preSelectedMember=${preSelectedMember?.id ?? "none"}`);
 
         // Customer display: surface "Your Order" the moment the cashier moves
         // to the payment step (whether the picker opens or a fast-path wallet
@@ -535,6 +647,10 @@ export function useStoreCheckout({
         // billing, not a customer/user wallet deduction); everyone else pays
         // by wallet.
         if (preSelectedMember) {
+            console.log("[Store] pre-selected member — charging directly, skipping method picker", {
+                kind: preSelectedMember.customer_kind,
+                id: preSelectedMember.id,
+            });
             setConfirming(true);
             try {
                 if (preSelectedMember.customer_kind === "department") {
@@ -568,10 +684,12 @@ export function useStoreCheckout({
             return;
         }
 
+        console.log("[Store] opening payment method picker");
         setMethodPickerOpen(true);
     };
 
     const handlePickMethod = (method: CanteenPaymentMethod) => {
+        console.log("[Store] payment method selected:", method);
         setMethodPickerOpen(false);
         if (method === "wallet") setWalletOpen(true);
         else if (method === "cash") setCashOpen(true);
@@ -593,6 +711,7 @@ export function useStoreCheckout({
     };
 
     const handleBackToPicker = () => {
+        console.log("[Store] back to payment method picker");
         setWalletOpen(false);
         setCashOpen(false);
         setQrOpen(false);
@@ -613,6 +732,7 @@ export function useStoreCheckout({
     // notify the customer display. Without this, none of that ran — the cart
     // stayed populated and auto-print never fired after a QR payment.
     const handleQrConfirmed = async (info: { refCode: string; receiptId: number | null; receiptNumber: string | null }) => {
+        console.log("[Store] QR payment confirmed by BAY webhook", info);
         setQrOpen(false);
         const displayMethod = paymentMethodForDisplay("qr");
 
@@ -680,7 +800,13 @@ export function useStoreCheckout({
     };
     const handleConfirmDept = (deptId: number, empCode: string | null) =>
         doCheckout("department", { deptId, empCode });
-    const handleConfirmEdc = (refs: { approval_code: string; terminal_ref?: string; masked_card?: string; mode: "qr" | "card" }) =>
+    const handleConfirmEdc = (refs: {
+        approval_code: string;
+        terminal_ref?: string;
+        masked_card?: string;
+        mode: "qr" | "card";
+        edc_pending_ref?: string | null;
+    }) =>
         doCheckout("edc", { edcRefs: refs });
 
     // ── Available payment methods ───────────────────────────────────────────
@@ -691,6 +817,7 @@ export function useStoreCheckout({
         lastAddedId,
         addToCart,
         updateQuantity,
+        setItemQuantity,
         removeFromCart,
         clearCart,
         setItemPriceOverride,
@@ -750,6 +877,8 @@ export function useStoreCheckout({
         handleQrConfirmed,
         handleConfirmDept,
         handleConfirmEdc,
+        buildEdcCartSnapshot,
+        buildEdcCheckoutCartPayload,
         availableMethods,
     };
 }

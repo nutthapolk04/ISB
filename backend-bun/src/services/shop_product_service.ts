@@ -409,6 +409,23 @@ export interface ReceiveStockItemInput {
     po?: string | null;
     invoice?: string | null;
     note?: string | null;
+    /**
+     * When the goods physically arrived ("YYYY-MM-DD"). Defaults to today when
+     * omitted, which is what every caller did before this existed.
+     *
+     * Recorded for display only — nothing sorts, filters or values by it, so a
+     * backdated entry cannot move balances or average cost. See the column's
+     * comment in drizzle/schema.ts.
+     */
+    received_date?: string | null;
+}
+
+/** Accept only a plain calendar date; anything else falls back to today so a
+ *  malformed value can never land in the column. */
+function normaliseReceivedDate(value: string | null | undefined, fallback: string): string {
+    if (typeof value !== "string") return fallback;
+    const v = value.trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : fallback;
 }
 
 export async function receiveStock(args: {
@@ -466,13 +483,21 @@ export async function receiveStock(args: {
             internal_price = CASE WHEN ${avgChanged} AND NOT ${isFifo} THEN ${newAvgRounded} ELSE internal_price END,
             updated_at = NOW()
         WHERE id = ${product.id}`;
+            // `date` stays the entry date — it is what balance_file_service,
+            // monthly_stock_service and the period-close backdate check all read,
+            // and none of them should shift because someone recorded a late
+            // delivery. `received_date` carries the real arrival date alongside it.
+            const receivedDate = normaliseReceivedDate(item.received_date, today);
             await sqlTx`
         INSERT INTO shop_movements
           (date, product_id, product_name, shop_id, type, quantity,
-           stock_before, stock_after, cost_per_unit, reference, note, created_by)
+           stock_before, stock_after, cost_per_unit, reference, po_number,
+           invoice_number, note, created_by, received_date)
         VALUES (${today}, ${product.id}, ${product.name}, ${product.shop_id}, 'receive',
                 ${item.qty}, ${stockBefore}, ${newStock}, ${item.cost_per_unit},
-                ${item.po ?? item.invoice ?? null}, ${item.note ?? null}, ${args.userId})
+                ${item.po ?? item.invoice ?? null}, ${item.po ?? null},
+                ${item.invoice ?? null}, ${item.note ?? null}, ${args.userId},
+                ${receivedDate})
       `;
             updatedIds.push(product.id);
         }

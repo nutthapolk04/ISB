@@ -73,6 +73,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { calcFifoAvgCost, calcNewAvgCost, type FifoLot } from "@/lib/fifo";
 import { useBatchQueue } from "@/hooks/useBatchQueue";
+import { todayBangkok } from "@/lib/dateFormat";
 import RequisitionDialog from "./store/RequisitionDialog";
 import MonthlyStockReport from "./store/MonthlyStockReport";
 import BalanceFileReport from "./store/BalanceFileReport";
@@ -146,6 +147,10 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
     const [intakePO, setIntakePO] = useState("");
     const [intakeInvoice, setIntakeInvoice] = useState("");
     const [intakeNote, setIntakeNote] = useState("");
+    // When the goods physically arrived — can be earlier than today if the
+    // delivery sat before anyone keyed it in. Display-only downstream: it never
+    // moves a balance or an average cost, so no validation beyond "is a date".
+    const [intakeReceivedDate, setIntakeReceivedDate] = useState(todayBangkok);
     const [intakeSearch, setIntakeSearch] = useState("");
     const [intakeCostMode, setIntakeCostMode] = useState<"unit" | "total">("unit");
     const [isIntakeProductPickerOpen, setIsIntakeProductPickerOpen] = useState(false);
@@ -422,6 +427,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
         setIntakeCost("");
         setIntakePO("");
         setIntakeInvoice("");
+        setIntakeReceivedDate(todayBangkok());
         setIntakeNote("");
         setIntakeSearch("");
     };
@@ -442,6 +448,7 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
             cost: intakeUnitCost.toString(),
             po: intakePO,
             invoice: intakeInvoice,
+            receivedDate: intakeReceivedDate,
             note: intakeNote,
         });
         toast.success(t("inventory.batchAdded"));
@@ -995,7 +1002,21 @@ const Inventory = ({ lockedShopId, shopType = "avg_cost", refreshKey }: Inventor
                                     </div>
                                 </div>
 
-                                {/* 4 ── PO Ref / Invoice (optional) */}
+                                {/* 4 ── Received date + PO Ref / Invoice */}
+                                <div>
+                                    <Label>{t("inventory.receivedDate", "Received date")}</Label>
+                                    <Input
+                                        type="date"
+                                        value={intakeReceivedDate}
+                                        onChange={(e) => setIntakeReceivedDate(e.target.value)}
+                                    />
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        {t(
+                                            "inventory.receivedDateHint",
+                                            "วันที่ของมาส่งจริง — ใส่ย้อนหลังได้ถ้าเพิ่งมาบันทึกทีหลัง",
+                                        )}
+                                    </p>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label>{t("inventory.poNumber")}</Label>

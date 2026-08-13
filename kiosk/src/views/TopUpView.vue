@@ -5,9 +5,16 @@ import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, 
 import LogoutButton from '../components/LogoutButton.vue';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { realApi } from '../api/realApi';
-import { useBillAcceptor } from '../hooks/useBillAcceptor';
+import { useBillAcceptor, type CashTopupContext } from '../hooks/useBillAcceptor';
 import { usePrinter } from '../hooks/usePrinter';
-import { logKioskEvent } from '../lib/kioskLog';
+import { auditTopupEnd } from '../lib/kioskAuditLog';
+import { enterOutOfService } from '../lib/kioskOutOfService';
+import {
+    buildRecoveryReceiptData,
+    buildRecoverySnapshot,
+    RECOVERY_RECEIPT_DISPLAY_MS,
+    type RecoveryTopupSnapshot,
+} from '../lib/recoveryReceipt';
 import { getMinTopupAmount, isKioskDebugMode } from '../lib/debugMode';
 import type { TopupReceiptData, ReceiptRow } from '../lib/escpos';
 import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
@@ -17,6 +24,58 @@ import QRCode from 'qrcode';
 
 const router = useRouter();
 const store = useKioskStore();
+
+function topupPayerId(): string {
+    return store.sessionPayerId ?? '—';
+}
+
+function topupReceiverId(): string {
+    return store.currentWallet?.externalId?.trim() || '—';
+}
+
+function cashTopupContext(ref: string): CashTopupContext {
+    return {
+        ref,
+        payer_id: topupPayerId(),
+        receiver_id: topupReceiverId(),
+        target_amount: bill.getCashTargetAmount() || amountNumber.value,
+    };
+}
+
+function logCashTopupEnd(
+    status: 'cancelled' | 'timeout',
+    ref: string,
+    actualAmount: number,
+): void {
+    auditTopupEnd({
+        ref,
+        method: 'CASH',
+        payer_id: topupPayerId(),
+        receiver_id: topupReceiverId(),
+        target_amount: bill.getCashTargetAmount() || amountNumber.value,
+        actual_amount: actualAmount,
+        status,
+        bills: bill.getStackedBillsCount(),
+    });
+}
+
+function logQrTopupEnd(
+    status: 'cancelled' | 'timeout' | 'success' | 'failed',
+    opts?: { transaction_id?: number; actual_amount?: number; reason?: string },
+): void {
+    if (!activeRefCode.value) return;
+    auditTopupEnd({
+        ref: activeRefCode.value,
+        method: 'QR',
+        payer_id: topupPayerId(),
+        receiver_id: topupReceiverId(),
+        target_amount: amountNumber.value,
+        actual_amount: opts?.actual_amount ?? 0,
+        status,
+        transaction_id: opts?.transaction_id,
+        reason: opts?.reason,
+    });
+}
 
 if (!store.isAuthenticated) {
     router.push('/');
@@ -87,6 +146,8 @@ const t = {
         receiptType: 'Top-up',
         receiptTxId: 'Transaction No.',
         receiptPayerIsbId: 'Payer ISB ID',
+        receiptReceiverIsbId: 'Receiver ISB ID',
+        receiptRef: 'Reference',
         receiptPayer: 'Payer',
         receiptDevice: 'Machine',
         receiptBalanceAfter: 'Remaining Balance from this transaction',
@@ -97,6 +158,10 @@ const t = {
         printed: 'Receipt printed',
         printFailed: 'Could not print receipt',
         reprint: 'Print again',
+        recoveryTitle: 'Payment Received — Service Issue',
+        recoverySubtitle: 'Your payment was received but could not be credited automatically.',
+        recoveryStaffMessage: 'Please bring this receipt to Ed-Tech for assistance.',
+        recoveryOosHint: 'This kiosk will stop service in {n}s…',
     },
     TH: {
         title: 'เติมเงิน',
@@ -162,6 +227,8 @@ const t = {
         receiptType: 'เติมเงิน',
         receiptTxId: 'เลขที่รายการ',
         receiptPayerIsbId: 'รหัส ISB ผู้ชำระ',
+        receiptReceiverIsbId: 'รหัส ISB ผู้รับ',
+        receiptRef: 'เลขอ้างอิง',
         receiptPayer: 'ผู้ชำระ',
         receiptDevice: 'เครื่อง',
         receiptBalanceAfter: 'ยอดคงเหลือ',
@@ -172,6 +239,10 @@ const t = {
         printed: 'พิมพ์ใบเสร็จแล้ว',
         printFailed: 'พิมพ์ใบเสร็จไม่สำเร็จ',
         reprint: 'พิมพ์อีกครั้ง',
+        recoveryTitle: 'รับเงินแล้ว — ระบบขัดข้อง',
+        recoverySubtitle: 'รับเงินสดแล้ว แต่ไม่สามารถเติมเงินเข้าระบบได้อัตโนมัติ',
+        recoveryStaffMessage: 'กรุณานำใบเสร็จนี้ไปติดต่อเจ้าหน้าที่เพื่อดำเนินการ',
+        recoveryOosHint: 'เครื่องจะหยุดให้บริการในอีก {n} วินาที…',
     }
 };
 
@@ -180,7 +251,7 @@ const methods = [
     { key: 'cash', icon: 'banknote', colorBg: '#f0fdf4', colorText: '#16a34a', border: '#86efac' },
 ];
 
-type Step = 'methods' | 'amount' | 'qr' | 'cash-confirm' | 'success' | 'fail';
+type Step = 'methods' | 'amount' | 'qr' | 'cash-confirm' | 'success' | 'fail' | 'recovery-receipt';
 
 const selectedMethod = ref<string | null>(null);
 const currentStep = ref<Step>('amount');
@@ -239,6 +310,11 @@ type PrintState = 'idle' | 'printing' | 'done' | 'error';
 const printState = ref<PrintState>('idle');
 let autoPrinted = false;
 
+const recoverySnapshot = ref<RecoveryTopupSnapshot | null>(null);
+const recoverySecondsLeft = ref(0);
+let recoveryTimer: number | null = null;
+let recoveryTick: number | null = null;
+
 /** Cash session is locked once any bill has been stacked — no back, logout, or method change. */
 const cashLocked = computed(
     () => currentStep.value === 'cash-confirm' && bill.collectedThb.value > 0,
@@ -260,7 +336,6 @@ const selectMethod = async (key: string) => {
     autoPrinted = false;
     if (key === 'cash') {
         currentStep.value = 'cash-confirm';
-        logKioskEvent('cash', 'info', 'Cash top-up session started', { amount: amountNumber.value, walletId: store.currentWallet?.id });
         try {
             await bill.start(amountNumber.value);
         } catch (e) {
@@ -271,7 +346,6 @@ const selectMethod = async (key: string) => {
         }
     } else {
         currentStep.value = 'qr';
-        logKioskEvent('qr', 'info', 'QR top-up session started', { amount: amountNumber.value, walletId: store.currentWallet?.id });
         await initQrPayment();
     }
 };
@@ -297,7 +371,7 @@ const isQrExpired = computed(() => qrTimeLeft.value <= 0);
 const handleQrSessionExpired = () => {
     if (currentStep.value !== 'qr') return;
     stopPolling();
-    logKioskEvent('qr', 'warn', 'QR session timed out', { ref_code: activeRefCode.value });
+    logQrTopupEnd('timeout');
     store.setSuppressGlobalIdle(false);
     void bill.stop();
     store.logout();
@@ -348,7 +422,10 @@ const clearCashIdleTimer = () => {
 const handleCashIdleExpired = () => {
     if (currentStep.value !== 'cash-confirm') return;
     clearCashIdleTimer();
-    logKioskEvent('cash', 'info', 'Cash top-up idle timeout', { collected: bill.collectedThb.value });
+    const ref = bill.getCashSessionRef();
+    if (ref && bill.collectedThb.value <= 0) {
+        logCashTopupEnd('timeout', ref, 0);
+    }
     void executeCancelTopup();
 };
 
@@ -378,7 +455,6 @@ const initQrPayment = async () => {
     try {
         const intent = await realApi.createTopupIntent(walletId, amountNumber.value, store.currentUser?.actingUserId ?? null, store.currentUser?.actingCustomerId ?? null);
         activeRefCode.value = intent.ref_code;
-        logKioskEvent('qr', 'info', 'QR intent created', { ref_code: intent.ref_code, amount: amountNumber.value });
         qrDataUrl.value = await QRCode.toDataURL(intent.qr_payload, {
             width: 240,
             margin: 2,
@@ -404,7 +480,10 @@ const startPolling = () => {
             if (s.status === 'confirmed') {
                 stopPolling();
                 clearQrTimer();
-                logKioskEvent('qr', 'info', 'QR payment confirmed', { ref_code: activeRefCode.value, transaction_id: s.transaction_id });
+                logQrTopupEnd('success', {
+                    transaction_id: s.transaction_id ?? undefined,
+                    actual_amount: s.amount,
+                });
                 if (s.transaction_id != null) {
                     receiptTxId.value = s.transaction_id;
                 }
@@ -414,7 +493,7 @@ const startPolling = () => {
             } else if (s.status === 'cancelled') {
                 stopPolling();
                 clearQrTimer();
-                logKioskEvent('qr', 'warn', 'QR payment cancelled or expired', { ref_code: activeRefCode.value });
+                logQrTopupEnd('cancelled', { reason: 'Payment was cancelled or expired' });
                 failType.value = 'server';
                 failDetail.value = 'Payment was cancelled or expired';
                 currentStep.value = 'fail';
@@ -464,13 +543,13 @@ const scheduleSuccessLogout = () => {
         successLogoutSecondsLeft.value = Math.max(0, successLogoutSecondsLeft.value - 1);
     }, 1000);
     successLogoutTimer = window.setTimeout(() => {
-        logKioskEvent('auth', 'info', 'Auto logout after successful top-up');
         finishAndLogout();
     }, SUCCESS_LOGOUT_MS);
 };
 
 onUnmounted(() => {
     clearSuccessLogoutTimer();
+    clearRecoveryTimer();
     clearQrTimer();
     clearCashIdleTimer();
     stopTopupSuccessSound();
@@ -500,15 +579,41 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
 
     isProcessing.value = true;
     failDetail.value = null;
+    const ref = bill.getCashSessionRef();
+    const ctx = ref ? cashTopupContext(ref) : null;
     try {
         await bill.stop();
-        const res = await bill.finalizeTopUp(walletId, amount, store.currentUser?.actingUserId ?? null, store.currentUser?.actingCustomerId ?? null);
+        if (!ref || !ctx) return false;
+        const res = await bill.finalizeTopUp(
+            walletId,
+            amount,
+            store.currentUser?.actingUserId ?? null,
+            store.currentUser?.actingCustomerId ?? null,
+            ctx,
+        );
         receiptTxId.value = res.transaction_id;
         creditedAmount.value = amount;
         await store.refreshBalance();
         currentStep.value = 'success';
         return true;
     } catch (e) {
+        if (amount > 0 && ref && ctx) {
+            recoverySnapshot.value = buildRecoverySnapshot({
+                method: 'CASH',
+                ref,
+                payer_id: ctx.payer_id,
+                receiver_id: ctx.receiver_id,
+                payer_name_masked: store.currentWallet?.holderName
+                    ? maskReceiptPayerName(store.currentWallet.holderName)
+                    : undefined,
+                actual_amount: amount,
+                target_amount: ctx.target_amount,
+                device_name: store.deviceProfile?.full_name,
+            });
+            currentStep.value = 'recovery-receipt';
+            void startRecoveryFlow();
+            return false;
+        }
         const isNetwork = e instanceof TypeError && (e.message.includes('fetch') || e.message.includes('network'));
         failType.value = isNetwork ? 'internet' : 'server';
         failDetail.value = e instanceof Error ? e.message : String(e);
@@ -520,6 +625,95 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
     }
 };
 
+const clearRecoveryTimer = () => {
+    if (recoveryTimer != null) {
+        clearTimeout(recoveryTimer);
+        recoveryTimer = null;
+    }
+    if (recoveryTick != null) {
+        clearInterval(recoveryTick);
+        recoveryTick = null;
+    }
+    recoverySecondsLeft.value = 0;
+};
+
+const formatRecoveryDate = (iso: string) =>
+    new Intl.DateTimeFormat(store.language === 'TH' ? 'th-TH' : 'en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+        timeZone: 'Asia/Bangkok',
+    }).format(new Date(iso));
+
+const recoveryReceiptData = computed(() => {
+    if (!recoverySnapshot.value) return null;
+    const tt = currT.value;
+    return buildRecoveryReceiptData(
+        recoverySnapshot.value,
+        {
+            receiptTitle: tt.receiptTitle,
+            receiptType: tt.receiptType,
+            receiptRef: tt.receiptRef,
+            receiptTxId: tt.receiptTxId,
+            receiptPayerIsbId: tt.receiptPayerIsbId,
+            receiptReceiverIsbId: tt.receiptReceiverIsbId,
+            receiptPayer: tt.receiptPayer,
+            receiptDevice: tt.receiptDevice,
+            successDate: tt.successDate,
+            successMethod: tt.successMethod,
+            successAmount: tt.successAmount,
+            receiptPoweredBy: tt.receiptPoweredBy,
+        },
+        tt.cash,
+        formatCurrency,
+        formatRecoveryDate,
+        store.schoolInfo.school_name || undefined,
+    );
+});
+
+const printRecoveryReceipt = async () => {
+    const data = recoveryReceiptData.value;
+    if (!data || printState.value === 'printing') return;
+    printState.value = 'printing';
+    try {
+        await printer.printTopupReceipt(data);
+        printState.value = 'done';
+    } catch (e) {
+        console.warn('[TopUp] recovery print failed:', e);
+        printState.value = 'error';
+    }
+};
+
+const finishAndLogoutToOos = () => {
+    clearRecoveryTimer();
+    clearQrTimer();
+    stopPolling();
+    void bill.stop();
+    store.logout();
+    router.replace('/out-of-service');
+};
+
+const startRecoveryFlow = async () => {
+    store.setSuppressGlobalIdle(true);
+    printState.value = 'idle';
+    autoPrinted = false;
+
+    recoverySecondsLeft.value = Math.ceil(RECOVERY_RECEIPT_DISPLAY_MS / 1000);
+    recoveryTick = window.setInterval(() => {
+        recoverySecondsLeft.value = Math.max(0, recoverySecondsLeft.value - 1);
+    }, 1000);
+
+    if (!autoPrinted) {
+        autoPrinted = true;
+        void printRecoveryReceipt();
+    }
+
+    recoveryTimer = window.setTimeout(() => {
+        if (!recoverySnapshot.value) return;
+        enterOutOfService(recoverySnapshot.value);
+        finishAndLogoutToOos();
+    }, RECOVERY_RECEIPT_DISPLAY_MS);
+};
+
 const handleHeaderBack = () => {
     if (currentStep.value === 'amount') goBack();
     else if (currentStep.value === 'methods') backToAmount();
@@ -529,6 +723,14 @@ const handleHeaderBack = () => {
 };
 
 const backToMethods = async () => {
+    if (currentStep.value === 'cash-confirm') {
+        const ref = bill.getCashSessionRef();
+        if (ref && bill.collectedThb.value <= 0) {
+            logCashTopupEnd('cancelled', ref, 0);
+        }
+    } else if (currentStep.value === 'qr') {
+        logQrTopupEnd('cancelled');
+    }
     await bill.stop();
     bill.resetSessionState();
     selectedMethod.value = null;
@@ -561,9 +763,16 @@ const goBackToBalance = () => {
 
 const executeCancelTopup = async () => {
     clearQrTimer();
-    if (currentStep.value === 'cash-confirm' && bill.collectedThb.value > 0) {
-        const ok = await finalizeCashTopUp();
-        if (ok) return;
+    if (currentStep.value === 'cash-confirm') {
+        if (bill.collectedThb.value > 0) {
+            const ok = await finalizeCashTopUp();
+            if (ok || recoverySnapshot.value) return;
+        } else {
+            const ref = bill.getCashSessionRef();
+            if (ref) logCashTopupEnd('cancelled', ref, 0);
+        }
+    } else if (currentStep.value === 'qr') {
+        logQrTopupEnd('cancelled');
     }
     await bill.stop();
     bill.resetSessionState();
@@ -666,7 +875,7 @@ const printReceipt = async () => {
 // so this also recovers when the boot-time printer connect failed.
 // Also schedule a short auto-logout so the next member can tap in right away.
 watch(currentStep, (step) => {
-    const suppress = step === 'qr' || step === 'cash-confirm' || step === 'success' || step === 'fail';
+    const suppress = step === 'qr' || step === 'cash-confirm' || step === 'success' || step === 'fail' || step === 'recovery-receipt';
     store.setSuppressGlobalIdle(suppress);
 
     if (step === 'cash-confirm') {
@@ -730,7 +939,8 @@ const overpayExceedsCap = computed(() => {
 <template>
     <div class="kiosk-container topup-view">
         <!-- Header -->
-        <div class="header-section" v-if="currentStep !== 'success' && currentStep !== 'fail' && currentStep !== 'qr'">
+        <div class="header-section"
+            v-if="currentStep !== 'success' && currentStep !== 'fail' && currentStep !== 'qr' && currentStep !== 'recovery-receipt'">
             <button v-if="!cashLocked" class="back-btn" @click="handleHeaderBack">
                 <ChevronLeft :size="32" />
                 <span>{{ currT.back }}</span>
@@ -826,7 +1036,7 @@ const overpayExceedsCap = computed(() => {
                     <span>{{ currT.timeRemaining }}: </span>
                     <span class="timer-value">{{ Math.floor(qrTimeLeft / 60) }}:{{ (qrTimeLeft %
                         60).toString().padStart(2, '0')
-                        }}</span>
+                    }}</span>
                 </div>
 
                 <!-- Timer Progress Bar -->
@@ -996,14 +1206,14 @@ const overpayExceedsCap = computed(() => {
                     {{ currT.printFailed }}
                     <span v-if="printer.lastPrinterError.value" class="print-error-detail">({{
                         printer.lastPrinterError.value
-                        }})</span>
+                    }})</span>
                 </p>
 
                 <button class="kiosk-btn btn-secondary print-receipt-btn" :disabled="printState === 'printing'"
                     @click="printReceipt">
                     <Printer :size="22" />
                     <span>{{ printState === 'done' || printState === 'error' ? currT.reprint : currT.printReceipt
-                        }}</span>
+                    }}</span>
                 </button>
             </div>
 
@@ -1013,6 +1223,36 @@ const overpayExceedsCap = computed(() => {
             <button class="kiosk-btn btn-primary" style="margin-top: 1rem;" @click="goBackToBalance">
                 {{ currT.backToBalance }}
             </button>
+        </div>
+
+        <!-- Recovery receipt — cash collected but server top-up failed -->
+        <div v-if="currentStep === 'recovery-receipt' && recoveryReceiptData" class="result-screen recovery-screen">
+            <div class="result-icon recovery-icon-wrap">
+                <AlertTriangle :size="72" />
+            </div>
+            <h2 class="result-title">{{ currT.recoveryTitle }}</h2>
+            <p class="recovery-subtitle">{{ currT.recoverySubtitle }}</p>
+            <div class="recovery-receipt-card">
+                <div v-for="row in recoveryReceiptData.rows" :key="row.label" class="result-row">
+                    <span class="result-label">{{ row.label }}</span>
+                    <span class="result-value">{{ row.value }}</span>
+                </div>
+                <div class="result-amount-box">
+                    <span class="result-label">{{ recoveryReceiptData.amountLabel }}</span>
+                    <span class="result-amount">{{ recoveryReceiptData.amountText }}</span>
+                </div>
+            </div>
+            <p class="recovery-staff-msg">{{ currT.recoveryStaffMessage }}</p>
+            <div class="receipt-print-block">
+                <p v-if="printState === 'printing'" class="print-status printing">{{ currT.printing }}</p>
+                <p v-else-if="printState === 'done'" class="print-status done">
+                    <CheckCircle2 :size="18" /> {{ currT.printed }}
+                </p>
+                <p v-else-if="printState === 'error'" class="print-status error">{{ currT.printFailed }}</p>
+            </div>
+            <p v-if="recoverySecondsLeft > 0" class="auto-logout-hint">
+                {{ currT.recoveryOosHint.replace('{n}', String(recoverySecondsLeft)) }}
+            </p>
         </div>
 
         <!-- Step 5: Failure Screen -->
@@ -1622,6 +1862,42 @@ const overpayExceedsCap = computed(() => {
     justify-content: center;
     gap: 0.5rem;
     width: 100%;
+}
+
+/* Recovery receipt (post-payment server failure) */
+.recovery-screen {
+    text-align: center;
+}
+
+.recovery-icon-wrap {
+    color: #d97706;
+    margin-bottom: 0.75rem;
+}
+
+.recovery-subtitle {
+    margin: 0 0 1.25rem;
+    color: var(--text-muted);
+    font-size: 1rem;
+    max-width: 28rem;
+}
+
+.recovery-receipt-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card-bg);
+    border-radius: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow);
+    text-align: left;
+}
+
+.recovery-staff-msg {
+    margin: 1.25rem 0 0;
+    max-width: 28rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #b45309;
+    line-height: 1.45;
 }
 
 /* Failure */

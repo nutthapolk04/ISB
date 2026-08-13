@@ -63,14 +63,67 @@ if (-not $edcDevices) {
 
 # ── 2. Paywire EDC bridge ─────────────────────────────────────────────
 Write-Step "2) ตรวจสอบ Paywire EDC bridge..."
-$paywireProc = Get-Process paywire -ErrorAction SilentlyContinue
+$paywireExe = Join-Path $PSScriptRoot "paywire\paywire.exe"
+
+# Duplicate autostart entries (leftover from an older/different install, or
+# an install that ran twice at two different shortcut scopes) race with each
+# other at every login and each launch their own copy of paywire.exe -- the
+# two then fight over port 7331 and the EDC USB device (only one process can
+# hold either at a time), so whichever one loses just sits there useless
+# until next reboot's coin flip. This installer only ever creates ONE
+# autostart path (the all-users Startup shortcut below) -- anything else
+# pointing at paywire.exe is a duplicate and gets removed here.
+$canonicalStartup = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Paywire Bridge.lnk"
+$staleCurrentUserStartup = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\Paywire Bridge.lnk"
+if (Test-Path $staleCurrentUserStartup) {
+    Write-Warn "พบ Startup shortcut ซ้ำที่ current-user scope -- ลบออก (ตัวที่ถูกต้องอยู่ที่ all-users scope)"
+    Remove-Item $staleCurrentUserStartup -Force -ErrorAction SilentlyContinue
+}
+foreach ($runKeyRoot in @("HKCU:\Software\Microsoft\Windows\CurrentVersion\Run", "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run")) {
+    $runProps = Get-ItemProperty -Path $runKeyRoot -ErrorAction SilentlyContinue
+    if ($runProps) {
+        foreach ($prop in $runProps.PSObject.Properties) {
+            if ($prop.Name -notmatch '^PS' -and $prop.Value -match "paywire") {
+                Write-Warn "พบ Run key ซ้ำที่ $runKeyRoot ($($prop.Name)) -- ลบออก (ไม่ใช่กลไก autostart ของ installer นี้)"
+                Remove-ItemProperty -Path $runKeyRoot -Name $prop.Name -ErrorAction SilentlyContinue
+            }
+        }
+    }
+}
+$staleTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
+    $_.TaskName -match "paywire" -or ($_.Actions | ForEach-Object { $_.Execute } | Where-Object { $_ -match "paywire" })
+}
+foreach ($task in $staleTasks) {
+    Write-Warn "พบ scheduled task ซ้ำ ($($task.TaskName)) -- ลบออก"
+    Unregister-ScheduledTask -TaskName $task.TaskName -Confirm:$false -ErrorAction SilentlyContinue
+}
+if (-not (Test-Path $canonicalStartup) -and (Test-Path $paywireExe)) {
+    Write-Warn "ไม่พบ Startup shortcut มาตรฐาน -- กำลังสร้างใหม่..."
+    $wshellPaywire = New-Object -ComObject WScript.Shell
+    $paywireShortcut = $wshellPaywire.CreateShortcut($canonicalStartup)
+    $paywireShortcut.TargetPath = $paywireExe
+    $paywireShortcut.Save()
+}
+
+# Duplicate RUNNING instances -- e.g. leftover from before this script's
+# autostart cleanup above ran for the first time. Kill all of them and start
+# exactly one clean copy rather than trying to guess which one currently
+# holds the port/USB device.
+$paywireProcs = @(Get-Process paywire -ErrorAction SilentlyContinue)
+if ($paywireProcs.Count -gt 1) {
+    Write-Warn "พบ paywire.exe รันซ้อนกัน $($paywireProcs.Count) instance -- กำลังปิดทั้งหมดแล้วเปิดใหม่ให้เหลือตัวเดียว..."
+    Stop-Process -Name paywire -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+    $paywireProcs = @()
+}
+
+$paywireProc = if ($paywireProcs.Count -gt 0) { $paywireProcs[0] } else { $null }
 if (-not $paywireProc) {
     Write-Warn "ไม่พบ process paywire.exe -- กำลังเปิดให้อัตโนมัติ..."
-    $paywireExe = Join-Path $PSScriptRoot "paywire\paywire.exe"
     if (Test-Path $paywireExe) {
         Start-Process -FilePath $paywireExe
         Start-Sleep -Seconds 3
-        $paywireProc = Get-Process paywire -ErrorAction SilentlyContinue
+        $paywireProc = Get-Process paywire -ErrorAction SilentlyContinue | Select-Object -First 1
     } else {
         Write-Err "ไม่พบ $paywireExe -- ติดตั้ง ISB-POS-Setup ใหม่อีกรอบ"
     }
@@ -93,23 +146,48 @@ if ($paywireProc) {
 # ── 3. Chrome kiosk auto-start shortcut ───────────────────────────────
 Write-Step "3) ตรวจสอบ Chrome kiosk auto-start shortcut..."
 $kioskShortcut = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\ISB POS Kiosk.lnk"
-if (-not (Test-Path $kioskShortcut)) {
-    Write-Warn "ไม่พบ shortcut -- กำลังสร้างให้อัตโนมัติ..."
+$kioskArgs = '--kiosk "https://campuscard.isb.ac.th/login" --window-position=0,0 --kiosk-printing --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+
+# Shortcuts created by an older installer/repair run can be missing either
+# flag below, so check both and repair in place if either is absent:
+#   --kiosk-printing  : without it, window.print() (used for every receipt —
+#     see frontend/src/lib/printReceipt.ts) shows an interactive print dialog
+#     instead of silently printing to the default printer. In full-screen
+#     --kiosk mode that dialog is easy to miss, so the receipt never comes
+#     out even though the cash drawer (wired into the printer, fires
+#     independently of dialog confirmation) still kicks.
+#   --window-position=0,0 : pins the kiosk window's origin to the primary
+#     monitor before Chrome goes fullscreen there. Without it Chrome reuses
+#     whatever window bounds it last persisted to its profile, which can
+#     drift to the second monitor after a crash or an odd sleep/resume.
+# Just checking Test-Path isn't enough — a shortcut can exist AND be missing
+# a flag — so check its actual Arguments and repair in place if it doesn't match.
+$needsShortcut = $true
+if (Test-Path $kioskShortcut) {
+    $wshellCheck = New-Object -ComObject WScript.Shell
+    $existing = $wshellCheck.CreateShortcut($kioskShortcut)
+    if ($existing.Arguments -like "*--kiosk-printing*" -and $existing.Arguments -like "*--window-position=0,0*") {
+        Write-Ok "shortcut พบที่ $kioskShortcut (มีครบทั้ง --kiosk-printing และ --window-position=0,0)"
+        $needsShortcut = $false
+    } else {
+        Write-Warn "shortcut มีอยู่แต่ขาด flag ที่จำเป็น -- กำลังแก้ไขให้..."
+    }
+}
+if ($needsShortcut) {
     $chromeKey = Get-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe" -ErrorAction SilentlyContinue
     $chromePath = if ($chromeKey) { $chromeKey.GetValue("") } else { $null }
     if ($chromePath -and (Test-Path $chromePath)) {
         $wshell = New-Object -ComObject WScript.Shell
         $shortcut = $wshell.CreateShortcut($kioskShortcut)
         $shortcut.TargetPath = $chromePath
-        $shortcut.Arguments = '--kiosk "https://isb.schooney.tech/login" --no-first-run --noerrdialogs --disable-session-crashed-bubble'
+        $shortcut.Arguments = $kioskArgs
         $shortcut.Save()
-        Write-Ok "สร้าง shortcut สำเร็จ ($chromePath)"
+        Write-Ok "สร้าง/แก้ไข shortcut สำเร็จ ($chromePath) -- ต้อง log off/on หรือรีสตาร์ท Chrome kiosk เพื่อให้มีผล"
     } else {
         Write-Err "ไม่พบ Chrome ติดตั้งอยู่บนเครื่องนี้ -- ติดตั้ง Chrome ก่อนแล้วรันสคริปต์นี้ซ้ำ"
     }
 }
 if (Test-Path $kioskShortcut) {
-    Write-Ok "shortcut พบที่ $kioskShortcut"
     $results["Kiosk Shortcut"] = $true
 } else {
     $results["Kiosk Shortcut"] = $false
@@ -118,7 +196,7 @@ if (Test-Path $kioskShortcut) {
 # ── 4. Chrome Local Network Access policy ─────────────────────────────
 Write-Step "4) ตรวจสอบ Chrome Local Network Access policy..."
 $policyPath = "HKLM:\SOFTWARE\Policies\Google\Chrome\LocalNetworkAccessAllowedForUrls"
-$allowedUrl = "isb.schooney.tech"
+$allowedUrl = "campuscard.isb.ac.th"
 function Test-PolicyValue {
     if (-not (Test-Path $policyPath)) { return $false }
     $vals = Get-ItemProperty -Path $policyPath -ErrorAction SilentlyContinue
@@ -140,6 +218,34 @@ if (Test-PolicyValue) {
 } else {
     Write-Err "ตั้งค่า registry ไม่สำเร็จ"
     $results["Chrome Policy"] = $false
+}
+
+# ── 5. Chrome popup-allowlist policy (customer-display watchdog) ──────
+# The customer-display popup (screen 2) is watched by a JS watchdog that
+# silently reopens it if it ever closes — but that reopen fires from a timer,
+# not a click, so Chrome's popup blocker eats it without this policy.
+Write-Step "5) ตรวจสอบ Chrome popup-allowlist policy (สำหรับจอลูกค้า/จอ 2)..."
+$popupPolicyPath = "HKLM:\SOFTWARE\Policies\Google\Chrome\PopupsAllowedForUrls"
+function Test-PopupPolicyValue {
+    if (-not (Test-Path $popupPolicyPath)) { return $false }
+    $vals = Get-ItemProperty -Path $popupPolicyPath -ErrorAction SilentlyContinue
+    return [bool]($vals.PSObject.Properties | Where-Object { $_.Name -notmatch '^PS' -and $_.Value -eq $allowedUrl })
+}
+$popupPolicyWasMissing = -not (Test-PopupPolicyValue)
+if ($popupPolicyWasMissing) {
+    Write-Warn "ไม่พบค่า '$allowedUrl' ใน popup allowlist -- กำลังตั้งค่าให้อัตโนมัติ..."
+    New-Item -Path $popupPolicyPath -Force | Out-Null
+    Set-ItemProperty -Path $popupPolicyPath -Name "1" -Value $allowedUrl
+}
+if (Test-PopupPolicyValue) {
+    Write-Ok "registry มีค่า '$allowedUrl' อยู่แล้ว"
+    if ($popupPolicyWasMissing) {
+        Write-Warn "เพิ่งตั้งใหม่ -- ต้องปิด Chrome ทุกหน้าต่างแล้วเปิดใหม่ 1 ครั้งถึงจะมีผลจริง"
+    }
+    $results["Chrome Popup Policy"] = $true
+} else {
+    Write-Err "ตั้งค่า registry ไม่สำเร็จ"
+    $results["Chrome Popup Policy"] = $false
 }
 
 # ── สรุปผล ─────────────────────────────────────────────────────────

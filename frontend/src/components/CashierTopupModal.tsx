@@ -704,7 +704,7 @@ export function CashierTopupModal({
                                         <Banknote className="h-4 w-4" />
                                         {t("topup.methodCash", "Cash")}
                                     </button>
-                                    <button
+                                    {/* <button
                                         type="button"
                                         onClick={() => setPaymentMethod("bay_qr")}
                                         className={cn(
@@ -716,8 +716,8 @@ export function CashierTopupModal({
                                     >
                                         <QrCode className="h-4 w-4" />
                                         {t("topup.methodBayQr", "QR Code")}
-                                    </button>
-                                    <button
+                                    </button> */}
+                                    {/* <button
                                         type="button"
                                         onClick={() => setPaymentMethod("edc")}
                                         className={cn(
@@ -729,7 +729,7 @@ export function CashierTopupModal({
                                     >
                                         <CreditCard className="h-4 w-4" />
                                         {t("topup.methodEdc", "EDC")}
-                                    </button>
+                                    </button> */}
                                 </div>
                             </div>
 
@@ -989,6 +989,8 @@ export function CashierTopupModal({
                 open={edcOpen}
                 onOpenChange={setEdcOpen}
                 total={edcAmount}
+                // Wallet top-up, not a sale — no shop scope applies here.
+                telemetry={{ context: "cashier_topup" }}
                 onBack={() => {
                     setEdcOpen(false);
                     setStep("topup");

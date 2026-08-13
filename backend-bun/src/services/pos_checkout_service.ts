@@ -16,12 +16,20 @@ import {
     menuOptions,
     spendingGroups,
     shopSpendingGroups,
+    auditLogs,
 } from "@/db/schema";
+import { logger } from "@/logger";
 import { bangkokDayRange, bangkokTodayCompact, bangkokTodayIso, pgNumber, pgToIso } from "@/lib/dates";
 import { getReceipt } from "@/services/pos_service";
 import { getRaw as getSettingRaw } from "@/services/settings_service";
 import { fifoDeductInTx } from "@/services/inventory_fifo";
 import { checkAndSendLowBalanceAlerts } from "@/services/low_balance_notification";
+import {
+    startTransaction,
+    markTransactionSuccess,
+    markTransactionFailed,
+    getTransactionIdByRefCode,
+} from "@/services/pos_transaction_service";
 
 const ALLOWED_PAYMENT_METHODS = new Set([
     "CASH",
@@ -82,6 +90,17 @@ export interface CheckoutInput {
     notes?: string | null;
     shop_id?: string | null;
     userId: number;
+    /**
+     * Client-generated key for this checkout attempt. Optional — omitting it
+     * gives exactly the old behaviour, which is what the kiosk and the BAY QR
+     * webhook do.
+     *
+     * When present, a repeat of the same key returns the receipt the first
+     * call created instead of making a second one. That protects against the
+     * double-click and against a retry after a lost response, both of which
+     * would otherwise deduct stock twice.
+     */
+    idempotency_key?: string | null;
 }
 
 async function generateReceiptNumber(sqlTx: SqlTx, shopId?: string | null): Promise<string> {
@@ -273,7 +292,95 @@ async function resolveSpendingGroupForShop(
     return { id: rows[0].id, dailyLimit: pgNumber(rows[0].dailyLimit) ?? 0 };
 }
 
-export async function checkout(input: CheckoutInput) {
+/**
+ * Best-effort audit trail for a checkout attempt that never became a receipt.
+ * Reuses the existing `audit_logs` table/enum (action 'REJECT', already
+ * defined but unused before this) so failed cash/wallet/department/EDC/QR
+ * attempts show up in the same admin Audit Log screen as successful sales
+ * (entity_type='receipt') instead of vanishing after a toast the cashier saw
+ * once. Never throws — a logging failure must not mask the real error.
+ */
+async function logFailedCheckoutAttempt(input: CheckoutInput, err: unknown): Promise<void> {
+    try {
+        await db.insert(auditLogs).values({
+            entityType: "receipt",
+            entityId: null,
+            action: "REJECT",
+            userId: input.userId,
+            shopId: input.shop_id ?? null,
+            changesJson: {
+                payment_method: (input.payment_method ?? "").toLowerCase(),
+                items: input.items?.length ?? 0,
+                payer_kind: input.payer_kind ?? null,
+                payer_id: input.customer_id ?? input.payer_user_id ?? input.payer_department_id ?? null,
+                reason: err instanceof Error ? err.message : String(err),
+            },
+        });
+    } catch (logErr) {
+        logger.error("[checkout] failed to log rejected checkout attempt", logErr);
+    }
+}
+
+/** Rough pre-checkout estimate for the transaction log — the exact total
+ *  (with EDC surcharge etc.) is only known once runCheckout finishes, so this
+ *  is overwritten with the real receipt.total on success. Good enough for
+ *  display on a still-pending row. */
+function estimateAttemptedAmount(input: CheckoutInput): number | null {
+    if (!input.items || input.items.length === 0) return null;
+    const itemsTotal = input.items.reduce(
+        (s, i) => s + i.unit_price * i.quantity - (i.discount ?? 0),
+        0,
+    );
+    return Math.round((itemsTotal - (input.discount ?? 0)) * 100) / 100;
+}
+
+/**
+ * Public entry point — wraps the real checkout logic so every attempt is
+ * recorded to pos_checkout_transactions (the Transactions tab) from the
+ * moment it starts, and every failure is also recorded via
+ * logFailedCheckoutAttempt (audit_logs) — all without touching the logic
+ * below.
+ *
+ * `linkToTransactionRefCode` is set by confirmPosQrSale: a QR sale's
+ * transaction row is created back when the intent was created
+ * (createPosQrIntent), so this call must UPDATE that existing row instead of
+ * starting a new one.
+ */
+export async function checkout(
+    input: CheckoutInput,
+    opts?: { linkToTransactionRefCode?: string },
+) {
+    const txnId = opts?.linkToTransactionRefCode
+        ? await getTransactionIdByRefCode(opts.linkToTransactionRefCode)
+        : await startTransaction({
+            // For EDC, the terminal has already replied by the time this runs
+            // (doCheckout only fires after approval) — its invoice_no/RRN is
+            // the reference tied to the bank/acquirer side of the sale. QR's
+            // equivalent (refCode) is set via linkToTransactionRefCode instead,
+            // since that row already exists by the time this branch would run.
+            refCode: input.edc_terminal_ref ?? null,
+            transactionMode: input.transaction_mode ?? null,
+            paymentMethod: input.payment_method,
+            shopId: input.shop_id ?? null,
+            cashierUserId: input.userId,
+            payerKind: input.payer_kind ?? null,
+            payerId: input.customer_id ?? input.payer_user_id ?? input.payer_department_id ?? null,
+            itemsCount: input.items?.length ?? 0,
+            amount: estimateAttemptedAmount(input),
+            items: input.items,
+        });
+    try {
+        const receipt = await runCheckout(input);
+        await markTransactionSuccess(txnId, receipt.id, receipt.total);
+        return receipt;
+    } catch (err) {
+        await logFailedCheckoutAttempt(input, err);
+        await markTransactionFailed(txnId, err instanceof Error ? err.message : String(err));
+        throw err;
+    }
+}
+
+async function runCheckout(input: CheckoutInput) {
     // ── Pre-flight validation ────────────────────────────────────────────
     const paymentMethod = (input.payment_method ?? "").toUpperCase();
     if (!ALLOWED_PAYMENT_METHODS.has(paymentMethod)) {
@@ -359,7 +466,9 @@ export async function checkout(input: CheckoutInput) {
 
     // Run the actual mutation under one DB transaction.
     let postCheckoutCustomerData: { customerId: number; balanceAfter: number } | null = null;
-    const newReceiptId = await pgClient.begin(async (sqlTx) => {
+    let newReceiptId: number;
+    try {
+        newReceiptId = await pgClient.begin(async (sqlTx) => {
         const receiptNumber = await generateReceiptNumber(sqlTx, effectiveShopId);
 
         let subtotal = 0;
@@ -725,14 +834,14 @@ export async function checkout(input: CheckoutInput) {
          customer_id, payer_user_id, payer_department_id, requester_user_id,
          shop_id, subtotal, discount, tax, total, status,
          notes, edc_terminal_ref, edc_approval_code, edc_masked_card, edc_card_fee,
-         cash_received, spending_group_id, created_by)
+         cash_received, spending_group_id, created_by, idempotency_key)
       VALUES (${receiptNumber}, ${transactionMode}, ${paymentMethod},
               ${receiptCustomerId}, ${receiptPayerUserId}, ${receiptPayerDeptId}, ${input.requester_user_id ?? null},
               ${effectiveShopId}, ${subtotal}, ${billDiscount}, 0, ${total}, 'ACTIVE',
               ${input.notes ?? null}, ${input.edc_terminal_ref ?? null},
               ${input.edc_approval_code ?? null}, ${input.edc_masked_card ?? null}, ${edcCardFee},
               ${paymentMethod === "CASH" ? input.cash_received ?? null : null},
-              ${receiptSpendingGroupId}, ${input.userId})
+              ${receiptSpendingGroupId}, ${input.userId}, ${input.idempotency_key ?? null})
       RETURNING id
     `;
         const receiptId = rIns[0].id;
@@ -778,7 +887,15 @@ export async function checkout(input: CheckoutInput) {
     `;
 
         return receiptId;
-    });
+        });
+    } catch (e) {
+        // Lost a race against a concurrent request carrying the same key: the
+        // other one already wrote the receipt, so return theirs rather than
+        // surfacing a constraint error. The lookup is what makes this safe —
+        // an unrelated unique violation finds no receipt and falls through to
+        // the throw below.
+        throw e;
+    }
 
     const receipt = await getReceipt(newReceiptId);
     // Fire-and-forget — never block checkout response

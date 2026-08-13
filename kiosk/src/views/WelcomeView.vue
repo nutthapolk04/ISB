@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useKioskStore } from '../stores/kioskStore';
 import KioskOverlay from '../components/KioskOverlay.vue';
 import KioskExitPinDialog from '../components/KioskExitPinDialog.vue';
+import { isRfidAccepting } from '../lib/kioskSession';
 import { Languages, Wrench } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -11,28 +12,40 @@ const router = useRouter();
 
 const store = useKioskStore();
 
-const EXIT_KIOSK_TAP_COUNT = 5;
-const EXIT_KIOSK_TAP_MAX_GAP_MS = 600;
+const SECRET_TAP_COUNT = 5;
+const SECRET_TAP_MAX_GAP_MS = 600;
 
 const showExitPin = ref(false);
 let exitTapCount = 0;
 let exitLastTapAt = 0;
+let techTapCount = 0;
+let techLastTapAt = 0;
 
 function onCardSecretTap() {
     const now = Date.now();
-    if (now - exitLastTapAt > EXIT_KIOSK_TAP_MAX_GAP_MS) {
+    if (now - exitLastTapAt > SECRET_TAP_MAX_GAP_MS) {
         exitTapCount = 0;
     }
     exitLastTapAt = now;
     exitTapCount += 1;
-    if (exitTapCount >= EXIT_KIOSK_TAP_COUNT) {
+    if (exitTapCount >= SECRET_TAP_COUNT) {
         exitTapCount = 0;
         showExitPin.value = true;
     }
 }
 
-function openTechnician() {
-    router.push('/technician');
+function onTechnicianSecretTap() {
+    if (store.isLoading) return;
+    const now = Date.now();
+    if (now - techLastTapAt > SECRET_TAP_MAX_GAP_MS) {
+        techTapCount = 0;
+    }
+    techLastTapAt = now;
+    techTapCount += 1;
+    if (techTapCount >= SECRET_TAP_COUNT) {
+        techTapCount = 0;
+        router.push('/technician');
+    }
 }
 
 const toggleLanguage = () => {
@@ -81,6 +94,15 @@ async function handleRfidLogin(code: string) {
 
 function handleKeyDown(e: KeyboardEvent) {
     if (store.isLoading || !store.isReady) return;
+
+    if (!isRfidAccepting()) {
+        if (e.key === 'Enter') {
+            rfidBuffer.value = '';
+            rfidMode.value = false;
+            rfidLastKey.value = 0;
+        }
+        return;
+    }
 
     const now = Date.now();
     const gap = now - rfidLastKey.value;
@@ -159,7 +181,7 @@ const t = {
         <KioskExitPinDialog :open="showExitPin" @close="showExitPin = false" />
 
         <div class="lang-switch-container">
-            <button class="tech-entry-btn" type="button" :disabled="store.isLoading" @click="openTechnician">
+            <button class="tech-entry-btn" type="button" :disabled="store.isLoading" @click="onTechnicianSecretTap">
                 <Wrench :size="28" />
                 <span>{{ currT.technician }}</span>
             </button>
@@ -177,12 +199,8 @@ const t = {
 
         <div class="welcome-content">
             <div class="rfid-animation mb-12">
-                <div
-                    :class="['card-icon', { 'card-error': rfidError || rfidBlocked }]"
-                    role="button"
-                    tabindex="-1"
-                    @click="onCardSecretTap"
-                >
+                <div :class="['card-icon', { 'card-error': rfidError || rfidBlocked }]" role="button" tabindex="-1"
+                    @click="onCardSecretTap">
                     <!-- <CreditCard :size="120" stroke-width="1.5" /> -->
                     <img src="/images/decor-card.png" alt="Card icon" class="object-cover" />
                 </div>
@@ -195,7 +213,7 @@ const t = {
 
             <h1 class="mb-4">{{ currT.welcome }}</h1>
             <p class=" text-center mb-12 text-breathe" style="font-size: 1.75rem; font-weight: 300; ">{{ currT.sub
-            }}
+                }}
             </p>
             <p v-if="rfidBlocked" class="rfid-error-msg">{{ currT.cardBlocked }}</p>
             <p v-else-if="rfidError" class="rfid-error-msg">{{ currT.cardNotFound }}</p>
@@ -227,8 +245,8 @@ const t = {
 
 .tech-entry-btn {
     background: none;
-    border: 2px solid #94a3b8;
-    color: var(--text-muted);
+    border: transparent;
+    color: transparent;
     padding: 0.75rem 1.25rem;
     border-radius: 3rem;
     display: flex;

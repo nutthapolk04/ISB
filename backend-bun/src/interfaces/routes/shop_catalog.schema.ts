@@ -193,6 +193,9 @@ export const receiveStock = {
                 po: t.Optional(t.Nullable(t.String())),
                 invoice: t.Optional(t.Nullable(t.String())),
                 note: t.Optional(t.Nullable(t.String())),
+                /** "YYYY-MM-DD" — when the goods actually arrived. Optional;
+                 *  the service defaults to today and rejects any other shape. */
+                received_date: t.Optional(t.Nullable(t.String())),
             }),
             { minItems: 1 },
         ),

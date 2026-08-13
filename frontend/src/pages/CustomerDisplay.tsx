@@ -10,7 +10,7 @@
  * every callsite from the POS only has to broadcast the final result
  * once — the display window auto-returns to Standby 5 seconds later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useDisplayState } from "@/hooks/useDisplayState";
 
@@ -26,11 +26,74 @@ const TERMINAL_DWELL_MS = 5000;
 export default function CustomerDisplay() {
     const display = useDisplayState();
     const [forceStandby, setForceStandby] = useState(false);
+    const selfClosing = useRef(false);
 
+    // Most browsers reject a Fullscreen API call that isn't a direct result of
+    // a user gesture, so firing it here on mount often gets silently rejected
+    // (the `.catch` below just swallows that). Try it anyway — some browsers
+    // carry the opener's click activation over to a freshly `window.open()`'d
+    // popup — but also arm a one-time click listener as a guaranteed fallback:
+    // the cashier's first tap on this window (e.g. while dragging it to the
+    // second monitor) is a real gesture the API will always honour. Re-armed
+    // on fullscreenchange so leaving fullscreen (Escape, alt-tab) doesn't
+    // strand the display outside it with no way back short of a reload.
     useEffect(() => {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => { });
-        }
+        const enterFullscreen = () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => { });
+            }
+        };
+
+        enterFullscreen();
+        document.addEventListener("click", enterFullscreen, { once: true });
+
+        const onFullscreenChange = () => {
+            if (!document.fullscreenElement) {
+                document.addEventListener("click", enterFullscreen, { once: true });
+            }
+        };
+        document.addEventListener("fullscreenchange", onFullscreenChange);
+
+        return () => {
+            document.removeEventListener("click", enterFullscreen);
+            document.removeEventListener("fullscreenchange", onFullscreenChange);
+        };
+    }, []);
+
+    // This window must survive the cashier's whole shift undisturbed — guard
+    // against an accidental Ctrl+W or navigation closing it. Doesn't stop an
+    // OS-level Alt+F4 (browsers can't intercept that), and modern Chrome shows
+    // its own generic "Leave site?" prompt rather than custom text — but it's
+    // still a real confirm step between an accidental keystroke and the window
+    // actually closing. customerDisplayWindow.ts's watchdog reopens it
+    // automatically if it does close, as a second line of defense.
+    useEffect(() => {
+        const onBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (selfClosing.current) return;
+            e.preventDefault();
+            e.returnValue = "";
+        };
+        window.addEventListener("beforeunload", onBeforeUnload);
+        return () => window.removeEventListener("beforeunload", onBeforeUnload);
+    }, []);
+
+    // Cascade-close with the cashier window — but only when it's genuinely
+    // gone (Alt+F4, task close), never on an ordinary reload or alt-tab.
+    // window.opener.closed only flips true once that browsing context is
+    // actually discarded; a same-origin reload keeps the context alive
+    // (just swaps the document), so it can't misfire there. Poll instead of
+    // trying to catch this from the opener's side, since a window that's
+    // truly closing can't reliably run cleanup code for another window.
+    useEffect(() => {
+        if (!window.opener) return;
+        const interval = window.setInterval(() => {
+            if (window.opener?.closed) {
+                window.clearInterval(interval);
+                selfClosing.current = true;
+                window.close();
+            }
+        }, 1000);
+        return () => window.clearInterval(interval);
     }, []);
 
     // Whenever a fresh non-terminal state arrives, clear the "force standby"

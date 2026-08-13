@@ -6,7 +6,8 @@
  */
 
 import type { User, Wallet, Transaction } from './mockApi';
-import { getKioskDeviceId, getKioskDeviceName, logKioskEvent } from '../lib/kioskLog';
+import { cardUidLookupAttempts } from '../lib/cardUid';
+import { getKioskDeviceId, getKioskDeviceName } from '../lib/kioskLog';
 import { verifyTechnicianPassword as verifyTechnicianPasswordLib } from '../lib/technicianPassword';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -34,6 +35,18 @@ interface ISBCustomerLookupResult {
     wallet_id: number | null;
     external_id?: string | null;
     card_frozen?: boolean;
+    card_uid?: string | null;
+}
+
+interface ISBUserPayerLookup {
+    user_id: number;
+    username: string;
+    full_name: string;
+    role: string;
+    photo_url: string | null;
+    external_id: string | null;
+    wallet_id: number;
+    wallet_balance: number;
 }
 
 /** Thrown when a student card is found but blocked (card_frozen). */
@@ -102,6 +115,8 @@ export interface KioskProfile {
 
 // ── Token manager ─────────────────────────────────────────────────────────────
 
+type RequestOpts = { skipLog?: boolean };
+
 let _token: string | null = null;
 
 async function fetchToken(): Promise<string> {
@@ -124,13 +139,11 @@ async function fetchToken(): Promise<string> {
 
     const data: ISBTokenResponse = await res.json();
     _token = data.access_token;
-    logKioskEvent('api', 'info', 'Service account authenticated', { username });
     return _token;
 }
 
-async function request<T>(path: string, retried = false): Promise<T> {
+async function request<T>(path: string, retried = false, _opts: RequestOpts = {}): Promise<T> {
     const token = _token ?? await fetchToken();
-    const started = Date.now();
 
     const res = await fetch(`${BASE_URL}${path}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -138,8 +151,7 @@ async function request<T>(path: string, retried = false): Promise<T> {
 
     if (res.status === 401 && !retried) {
         _token = null;
-        logKioskEvent('api', 'warn', 'GET 401 — refreshing token', { path });
-        return request<T>(path, true);
+        return request<T>(path, true, _opts);
     }
 
     if (!res.ok) {
@@ -148,17 +160,14 @@ async function request<T>(path: string, retried = false): Promise<T> {
             const body = await res.json();
             if (body.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
         } catch { /* ignore parse errors */ }
-        logKioskEvent('api', 'error', `GET ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
-    logKioskEvent('api', 'info', `GET ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
-async function requestPost<T>(path: string, body: unknown, retried = false): Promise<T> {
+async function requestPost<T>(path: string, body: unknown, retried = false, opts: RequestOpts = {}): Promise<T> {
     const token = _token ?? await fetchToken();
-    const started = Date.now();
 
     const res = await fetch(`${BASE_URL}${path}`, {
         method: 'POST',
@@ -171,8 +180,7 @@ async function requestPost<T>(path: string, body: unknown, retried = false): Pro
 
     if (res.status === 401 && !retried) {
         _token = null;
-        logKioskEvent('api', 'warn', 'POST 401 — refreshing token', { path });
-        return requestPost<T>(path, body, true);
+        return requestPost<T>(path, body, true, opts);
     }
 
     if (!res.ok) {
@@ -181,17 +189,14 @@ async function requestPost<T>(path: string, body: unknown, retried = false): Pro
             const err = await res.json();
             if (err.detail) detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
         } catch { /* ignore parse errors */ }
-        logKioskEvent('api', 'error', `POST ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
-    logKioskEvent('api', 'info', `POST ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
-async function requestPatch<T>(path: string, body: unknown, retried = false): Promise<T> {
+async function requestPatch<T>(path: string, body: unknown, retried = false, opts: RequestOpts = {}): Promise<T> {
     const token = _token ?? await fetchToken();
-    const started = Date.now();
 
     const res = await fetch(`${BASE_URL}${path}`, {
         method: 'PATCH',
@@ -204,8 +209,7 @@ async function requestPatch<T>(path: string, body: unknown, retried = false): Pr
 
     if (res.status === 401 && !retried) {
         _token = null;
-        logKioskEvent('api', 'warn', 'PATCH 401 — refreshing token', { path });
-        return requestPatch<T>(path, body, true);
+        return requestPatch<T>(path, body, true, opts);
     }
 
     if (!res.ok) {
@@ -214,11 +218,9 @@ async function requestPatch<T>(path: string, body: unknown, retried = false): Pr
             const err = await res.json();
             if (err.detail) detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
         } catch { /* ignore parse errors */ }
-        logKioskEvent('api', 'error', `PATCH ${path} failed`, { status: res.status, detail, ms: Date.now() - started });
         throw new Error(detail);
     }
 
-    logKioskEvent('api', 'info', `PATCH ${path}`, { status: res.status, ms: Date.now() - started });
     return res.json() as Promise<T>;
 }
 
@@ -333,6 +335,65 @@ function mapTransaction(tx: ISBWalletTransaction): Transaction {
     };
 }
 
+function isNotFoundError(e: unknown): boolean {
+    if (!(e instanceof Error)) return false;
+    const msg = e.message.toLowerCase();
+    return msg.includes('404')
+        || msg.includes('not found')
+        || msg.includes('card not bound');
+}
+
+async function requestGetOrNull<T>(path: string): Promise<T | null> {
+    try {
+        return await request<T>(path);
+    } catch (e) {
+        if (isNotFoundError(e)) return null;
+        throw e;
+    }
+}
+
+async function getByCardWithFallback<T>(pathPrefix: string, raw: string): Promise<T | null> {
+    for (const attempt of cardUidLookupAttempts(raw)) {
+        const hit = await requestGetOrNull<T>(`${pathPrefix}/${encodeURIComponent(attempt)}`);
+        if (hit) return hit;
+    }
+    return null;
+}
+
+function userPayerToLookup(user: ISBUserPayerLookup): ISBCustomerLookupResult {
+    return {
+        id: user.user_id,
+        user_id: user.user_id,
+        name: user.full_name,
+        student_code: null,
+        customer_code: user.username,
+        customer_kind: user.role,
+        grade: null,
+        photo_url: user.photo_url,
+        wallet_balance: user.wallet_balance,
+        wallet_id: user.wallet_id,
+        external_id: user.external_id,
+        card_frozen: false,
+    };
+}
+
+async function buildUserFromLookup(exact: ISBCustomerLookupResult): Promise<User> {
+    if (exact.card_frozen && exact.user_id == null) {
+        throw new CardBlockedError();
+    }
+
+    let family: ISBFamilyResponse = { children: [], coparents: [] };
+    if (exact.user_id != null) {
+        try {
+            family = await request<ISBFamilyResponse>(`/family/by-user/${exact.user_id}`);
+        } catch (err) {
+            console.warn('[Kiosk] /family/by-user failed:', err);
+        }
+    }
+
+    return mapCustomer(exact, family);
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export const realApi = {
@@ -344,36 +405,45 @@ export const realApi = {
         const q = identifier.trim();
         if (!q) return null;
 
+        const customerByCard = await getByCardWithFallback<ISBCustomerLookupResult>('/customers/by-card', q);
+        if (customerByCard) {
+            return buildUserFromLookup(customerByCard);
+        }
+
+        const userByCard = await getByCardWithFallback<ISBUserPayerLookup>('/users/by-card', q);
+        if (userByCard) {
+            return buildUserFromLookup(userPayerToLookup(userByCard));
+        }
+
+        const byCode = await requestGetOrNull<ISBCustomerLookupResult>(
+            `/customers/by-code/${encodeURIComponent(q)}`,
+        );
+        if (byCode) {
+            return buildUserFromLookup(byCode);
+        }
+
         const results = await request<ISBCustomerLookupResult[]>(
             `/customers/search?q=${encodeURIComponent(q)}&limit=10`,
         );
-
         if (results.length === 0) return null;
 
-        // Prefer exact match on student_code / customer_code (case-insensitive)
         const lower = q.toLowerCase();
-        const exact = results.find(
-            c =>
-                c.student_code?.toLowerCase() === lower ||
-                c.customer_code?.toLowerCase() === lower,
-        ) ?? results[0];
+        const uidCandidates = new Set(cardUidLookupAttempts(q).map((c) => c.toLowerCase()));
+        const exact = results.find((c) =>
+            c.student_code?.toLowerCase() === lower
+            || c.customer_code?.toLowerCase() === lower
+            || (c.card_uid && uidCandidates.has(c.card_uid.toLowerCase())),
+        );
 
-        if (exact.card_frozen && exact.user_id == null) {
-            throw new CardBlockedError();
+        if (exact) {
+            return buildUserFromLookup(exact);
         }
 
-        // If this is a parent/staff User (not a student Customer), fetch family
-        let family: ISBFamilyResponse = { children: [], coparents: [] };
-        if (exact.user_id != null) {
-            try {
-                family = await request<ISBFamilyResponse>(`/family/by-user/${exact.user_id}`);
-                console.log('[Kiosk] family for user', exact.user_id, family);
-            } catch (err) {
-                console.warn('[Kiosk] /family/by-user failed:', err);
-            }
+        if (results.length === 1) {
+            return buildUserFromLookup(results[0]);
         }
 
-        return mapCustomer(exact, family);
+        return null;
     },
 
     /**
@@ -408,7 +478,7 @@ export const realApi = {
      * no separate credential payload needed since the kiosk is already
      * authenticated for the whole process lifetime. */
     async sendHeartbeat(): Promise<{ status: string }> {
-        return requestPost<{ status: string }>('/kiosk/heartbeat', {});
+        return requestPost<{ status: string }>('/kiosk/heartbeat', {}, false, { skipLog: true });
     },
 
     async updateKioskLocation(fullName: string): Promise<KioskProfile> {
@@ -422,7 +492,7 @@ export const realApi = {
     /** Uploads a batch of on-device event-log entries — see kioskLogUploader.ts,
      * which calls this on an interval and tracks its own "already sent" cursor. */
     async uploadKioskLogs(entries: Array<{ ts: string; level: string; category: string; message: string; data?: Record<string, unknown> }>): Promise<{ inserted: number }> {
-        return requestPost<{ inserted: number }>('/kiosk/logs', { entries });
+        return requestPost<{ inserted: number }>('/kiosk/logs', { entries }, false, { skipLog: true });
     },
 
     /**

@@ -5,26 +5,25 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { versionCodeFromSemver } from './version-code.mjs';
 
 const kioskRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(path.join(kioskRoot, 'package.json'), 'utf8'));
 const version = String(pkg.version ?? '').trim();
-const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+const versionCode = versionCodeFromSemver(version);
 
-if (!match) {
+if (!versionCode) {
     console.error(`sync-android-version: invalid semver in package.json: ${version}`);
     process.exit(1);
 }
 
-const major = Number(match[1]);
+const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
 const minor = Number(match[2]);
 const patch = Number(match[3]);
 if (minor > 99 || patch > 99) {
     console.error('sync-android-version: minor and patch must be 0–99');
     process.exit(1);
 }
-
-const versionCode = major * 10_000 + minor * 100 + patch;
 const gradlePath = path.join(kioskRoot, 'android/app/build.gradle');
 let gradle = readFileSync(gradlePath, 'utf8');
 

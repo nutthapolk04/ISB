@@ -37,6 +37,14 @@ export class EdcClient {
   private _statusWs: WebSocket | null = null;
   private _statusListeners: Array<(s: EDCStatusEvent) => void> = [];
 
+  // ── Heartbeat support (see edcHeartbeat.ts) ─────────────────────────────
+  // `_txnInFlight` and `_pingAbortController` exist purely so an optional,
+  // opt-in liveness probe can never collide with a real transaction. Both
+  // are no-ops unless something calls pingTerminal()/setHeartbeatHealthy().
+  private _txnInFlight = 0;
+  private _pingAbortController: AbortController | null = null;
+  private _heartbeatOverride = false;
+
   constructor(opts: EdcClientOptions = {}) {
     const domain = opts.domain ?? DEFAULT_DOMAIN;
     const port = opts.port ?? DEFAULT_PORT;
@@ -77,7 +85,11 @@ export class EdcClient {
 
   get bridgeId(): string { return this._whoami?.bridgeId ?? ""; }
   get device(): DeviceInfo | null { return this._whoami?.device ?? null; }
-  get terminalConnected(): boolean { return this._terminalConnected; }
+  // `_heartbeatOverride` stays false forever unless something calls
+  // setHeartbeatHealthy(false) — with no heartbeat wired up (today's
+  // default everywhere), this is byte-for-byte the same `_terminalConnected`
+  // read as before.
+  get terminalConnected(): boolean { return this._terminalConnected && !this._heartbeatOverride; }
   get capabilities(): string[] { return this._whoami?.device.capabilities ?? []; }
 
   // ── Status stream ──────────────────────────────────────────────────────────
@@ -120,6 +132,70 @@ export class EdcClient {
       setTimeout(() => this._connectStatus(), 3000);
     });
     ws.addEventListener("error", () => ws.close());
+  }
+
+  // ── Heartbeat support ────────────────────────────────────────────────────
+  // Everything below this line only ever runs if something outside this
+  // class calls it — no existing code path (sale, qrSale, the /status WS
+  // handler, etc.) calls into any of it, so it is inert by construction, not
+  // just by config.
+
+  private _emitStatus(reason?: string): void {
+    const flat: EDCStatusEvent = {
+      kind: "edc",
+      state: this.terminalConnected ? "connected" : "disconnected",
+      ...(reason ? { reason } : {}),
+    };
+    for (const l of this._statusListeners) l(flat);
+  }
+
+  /**
+   * Called only by the optional heartbeat (edcHeartbeat.ts) — never by the
+   * /status WS handler. Forces `terminalConnected` false once a direct
+   * hardware probe fails `failThreshold` times in a row, even though the
+   * bridge still reports the port as open (that's the whole "shows
+   * connected but hangs on payment" bug this exists to catch); clears the
+   * instant a probe succeeds again, independent of whatever the bridge's own
+   * WS is currently saying.
+   */
+  setHeartbeatHealthy(healthy: boolean): void {
+    if (this._heartbeatOverride === !healthy) return;
+    this._heartbeatOverride = !healthy;
+    this._emitStatus(healthy ? undefined : "heartbeat-timeout");
+  }
+
+  /**
+   * Direct, isolated hardware-liveness probe — deliberately bypasses
+   * _txnStream entirely (no /events WS, no shared code with a real sale) so
+   * a bug here can never touch the payment path. Never throws; resolves
+   * `false` on any timeout/HTTP/network failure.
+   *
+   * Skips outright (resolves `true` — "assume fine, don't disturb it")
+   * whenever a real transaction is already in flight: this must never be
+   * the thing standing between a cashier and a live sale. If a real
+   * transaction starts while a probe is still in flight, _txnStream aborts
+   * the probe immediately (see the abort call at its top) rather than risk
+   * two concurrent commands reaching the physical terminal at once.
+   */
+  async pingTerminal(timeoutMs = 6000): Promise<boolean> {
+    if (this._txnInFlight > 0) return true;
+    const controller = new AbortController();
+    this._pingAbortController = controller;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}/txn/commstest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": this._randomKey() },
+        body: JSON.stringify({ fields: {} }),
+        signal: controller.signal,
+      });
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+      if (this._pingAbortController === controller) this._pingAbortController = null;
+    }
   }
 
   // ── Capability guard ───────────────────────────────────────────────────────
@@ -264,6 +340,13 @@ export class EdcClient {
   ): AsyncGenerator<TxnEvent> {
     const reqId = idempotencyKey;
 
+    // A real transaction always wins over the optional heartbeat: cancel any
+    // liveness probe still in flight (no-op if none is) before this command
+    // reaches the terminal, and mark ourselves busy so the heartbeat won't
+    // start a new one until we're done (see pingTerminal()/finally below).
+    this._pingAbortController?.abort();
+    this._txnInFlight++;
+
     // Push-queue + notifier: the WS handler pushes and wakes the loop below.
     const queue: TxnEvent[] = [];
     let wake: (() => void) | null = null;
@@ -330,6 +413,7 @@ export class EdcClient {
       yield this._toResult(reqId, raw);
     } finally {
       ws?.close();
+      this._txnInFlight--;
     }
   }
 

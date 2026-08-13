@@ -56,7 +56,7 @@ export function useBatchQueue(products: Product[], onConfirmed: () => void) {
       return;
     }
     // Group batch items by shop
-    const itemsByShop: Record<string, { product_id: number; qty: number; cost_per_unit: number; po?: string; invoice?: string; note?: string }[]> = {};
+    const itemsByShop: Record<string, { product_id: number; qty: number; cost_per_unit: number; po?: string; invoice?: string; note?: string; received_date?: string }[]> = {};
     for (const item of batchItems) {
       const product = products.find((p) => p.id === parseInt(item.productId));
       if (!product) continue;
@@ -69,6 +69,9 @@ export function useBatchQueue(products: Product[], onConfirmed: () => void) {
         po: item.po || undefined,
         invoice: item.invoice || undefined,
         note: item.note || undefined,
+        // Omitted rather than guessed when a queue entry predates this field —
+        // the backend then stamps today, which is the old behaviour.
+        received_date: item.receivedDate || undefined,
       });
     }
     try {

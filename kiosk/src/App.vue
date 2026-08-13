@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useKioskStore } from './stores/kioskStore';
+import { App } from '@capacitor/app';
+import { useKioskStore } from './stores/kioskStore.ts';
 import { Hardware } from 'capacitor-hardware';
-import { retryPendingCashTopup } from './hooks/useBillAcceptor';
-import { connectPrinter } from './hooks/usePrinter';
+import { retryPendingCashTopup } from './hooks/useBillAcceptor.ts';
+import { connectPrinter } from './hooks/usePrinter.ts';
+import { blockRfidAfterBoot, resetKioskSession } from './lib/kioskSession.ts';
+import { isOutOfService } from './lib/kioskOutOfService.ts';
 import BootSplashScreen from './components/BootSplashScreen.vue';
 
 const router = useRouter();
@@ -18,6 +21,7 @@ const splashDone = ref(false);
 function onSplashFinished() {
     contentVisible.value = true;
     showSplash.value = false;
+    blockRfidAfterBoot();
 }
 
 function onSplashAfterLeave() {
@@ -33,13 +37,14 @@ const resetTimeout = () => {
     if (timeoutId) clearTimeout(timeoutId);
     store.updateActivity();
 
-    if (route.name === 'welcome' || route.name === 'technician') return;
+    if (route.name === 'welcome' || route.path.startsWith('/technician') || route.name === 'out-of-service') return;
     if (store.suppressGlobalIdleTimeout) return;
 
     timeoutId = window.setTimeout(handleTimeout, TIMEOUT_DEFAULT);
 };
 
 const handleTimeout = () => {
+    if (isOutOfService()) return;
     store.logout();
     router.push('/');
 };
@@ -49,11 +54,25 @@ const handleInteraction = () => {
 };
 
 onMounted(async () => {
+    resetKioskSession(store, router);
+    blockRfidAfterBoot();
+
     window.addEventListener('mousedown', handleInteraction);
     window.addEventListener('touchstart', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
     resetTimeout();
-    void store.bootstrap().then(() => retryPendingCashTopup());
+    void store.bootstrap().then(() => {
+        if (isOutOfService()) {
+            router.replace('/out-of-service');
+            return;
+        }
+        retryPendingCashTopup();
+    });
+
+    void App.addListener('resume', () => {
+        resetKioskSession(store, router);
+        blockRfidAfterBoot();
+    });
 
     Hardware.connect({
         port: '/dev/ttyS2',

@@ -20,6 +20,7 @@ import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
 import { useProductReorder } from "@/hooks/useProductReorder";
 import { useStoreRfidScanner } from "@/hooks/useStoreRfidScanner";
 import { useStoreCheckout } from "@/hooks/useStoreCheckout";
+import { useEdcTerminalStatus } from "@/hooks/useEdcTerminalStatus";
 import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 import { payerForCustomer } from "@/lib/customerDisplay";
 import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
@@ -57,6 +58,7 @@ import { CartPanel } from "./store/CartPanel";
 import { SpecialItemPriceDialog } from "./store/SpecialItemPriceDialog";
 import { panelColorClass } from "./store/storeTypes";
 import type { Product } from "./store/storeTypes";
+import { buildCheckoutItem } from "./store/buildCheckoutItem";
 
 const Store = () => {
     const { t } = useTranslation();
@@ -364,6 +366,7 @@ const Store = () => {
         departmentOptions,
         display,
     });
+    const edcStatus = useEdcTerminalStatus();
 
     // ── Passive RFID/barcode listener (page-level, no input focused) ────────
     const rfidScanner = useStoreRfidScanner({
@@ -405,7 +408,7 @@ const Store = () => {
                     (p.extraBarcodes ?? []).some((b) => b.barcode.toLowerCase().includes(q))
                 );
             })
-            .slice(0, 6)
+            .slice(0, 30)
         : [];
 
     // Panel-aware price lookup for a product (used when adding to cart)
@@ -641,6 +644,7 @@ const Store = () => {
                 lastAddedId={checkout.lastAddedId}
                 onClearCart={checkout.clearCart}
                 onUpdateQuantity={checkout.updateQuantity}
+                onSetQuantity={checkout.setItemQuantity}
                 onRemoveFromCart={checkout.removeFromCart}
                 onSetPriceOverride={checkout.setItemPriceOverride}
                 onItemDiscountChange={checkout.setItemDiscount}
@@ -685,6 +689,7 @@ const Store = () => {
                         lastAddedId={checkout.lastAddedId}
                         onClearCart={checkout.clearCart}
                         onUpdateQuantity={checkout.updateQuantity}
+                onSetQuantity={checkout.setItemQuantity}
                         onRemoveFromCart={checkout.removeFromCart}
                         onSetPriceOverride={checkout.setItemPriceOverride}
                         onItemDiscountChange={checkout.setItemDiscount}
@@ -718,6 +723,7 @@ const Store = () => {
                 methods={checkout.availableMethods}
                 walletLabel={t("store.studentCard", "บัตรนักเรียน")}
                 onSelect={checkout.handlePickMethod}
+                edcStatus={edcStatus}
             />
 
             {/* Wallet (student / parent / staff card) */}
@@ -760,14 +766,12 @@ const Store = () => {
                     shop_id: user?.shopId ?? undefined,
                     discount: checkout.billDiscountAmount,
                     notes: checkout.receiptNote.trim() || undefined,
-                    items: checkout.cart.map((i) => ({
-                        product_variant_id: i.id,
-                        quantity: i.quantity,
-                        unit_price: i.price,
-                        price_override: i.priceOverride ?? null,
-                        discount: 0,
-                        options: [],
-                    })),
+                    items: checkout.cart.map((i) =>
+                        buildCheckoutItem(i, {
+                            unitPrice: i.price,
+                            discount: checkout.getItemDiscountAmount(i),
+                        }),
+                    ),
                 })}
                 onPaid={checkout.handleQrConfirmed}
                 onIntentReady={(info) => {
@@ -803,6 +807,12 @@ const Store = () => {
                 onBack={checkout.handleBackToPicker}
                 onConfirm={checkout.handleConfirmEdc}
                 confirming={checkout.confirming}
+                buildCartPayload={checkout.buildEdcCheckoutCartPayload}
+                telemetry={{
+                    context: "store_pos",
+                    shopId: user?.shopId ?? null,
+                    getCartSnapshot: checkout.buildEdcCartSnapshot,
+                }}
             />
 
             {/* Receipt success */}

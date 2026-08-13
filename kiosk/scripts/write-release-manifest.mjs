@@ -8,6 +8,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { versionCodeFromSemver } from './version-code.mjs';
+
 const kioskRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = process.argv[2];
 if (!outDir) {
@@ -22,13 +24,11 @@ for (let i = 3; i < process.argv.length; i += 1) {
 
 const pkg = JSON.parse(readFileSync(path.join(kioskRoot, 'package.json'), 'utf8'));
 const version = String(pkg.version).trim();
-const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
-if (!match) {
+const versionCode = versionCodeFromSemver(version);
+if (!versionCode) {
     console.error(`write-release-manifest: invalid version ${version}`);
     process.exit(1);
 }
-const versionCode =
-    Number(match[1]) * 10_000 + Number(match[2]) * 100 + Number(match[3]);
 
 const matrix = JSON.parse(
     readFileSync(path.join(kioskRoot, 'scripts/kiosk-release-matrix.json'), 'utf8'),

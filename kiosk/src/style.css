@@ -134,7 +134,9 @@ h3 {
   cursor: pointer;
   flex-shrink: 0;
   box-shadow: 0 4px 12px -4px rgba(212, 54, 42, 0.55);
-  transition: background-color 0.2s, transform 0.1s;
+  transition:
+    background-color 0.2s,
+    transform 0.1s;
 }
 
 .kiosk-logout-btn:hover:not(:disabled) {

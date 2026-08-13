@@ -54,6 +54,9 @@ export interface BatchItem {
   po: string;
   invoice: string;
   note: string;
+  /** "YYYY-MM-DD" when the goods arrived. Optional on the type so a queue
+   *  persisted by an older build still parses; the hook falls back to today. */
+  receivedDate?: string;
 }
 
 export interface Category {

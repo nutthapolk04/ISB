@@ -683,6 +683,14 @@ export async function voidReport(args: {
 
 export interface StockCardRowDTO {
     date: string | null;
+    /**
+     * When the goods physically arrived, for `receive` rows only — null on
+     * every other movement type, which the UI renders as "-".
+     *
+     * Purely informational: the report still orders, filters and values by
+     * `date` (the entry timestamp), so this column cannot move a balance.
+     */
+    received_date: string | null;
     description: string;
     invoice_no: string | null;
     qty_in: number;
@@ -703,6 +711,26 @@ export interface StockCardProductBlockDTO {
     total_qty_out: number;
     total_amount_in: number;
     total_amount_out: number;
+    /** Value of this product's stock at the end of the period (the Closing
+     *  Balance row's amount). Surfaced so the report-level grand total can add
+     *  up inventory value without the caller re-reading the last row. */
+    closing_amount_balance: number;
+}
+
+/**
+ * Report-wide totals, rendered as the single Grand Total line at the very end.
+ *
+ * Only the additive columns are here. Quantity balance is deliberately absent:
+ * summing units across products that have different units of measure produces
+ * a number with no meaning. Amount balance IS summable — money is money — and
+ * is the useful figure (total inventory value at the end of the period).
+ */
+export interface StockCardGrandTotalDTO {
+    qty_in: number;
+    qty_out: number;
+    amount_in: number;
+    amount_out: number;
+    amount_balance: number;
 }
 
 export interface StockCardReportDTO {
@@ -711,6 +739,7 @@ export interface StockCardReportDTO {
     date_from: string;
     date_to: string;
     products: StockCardProductBlockDTO[];
+    grand_total: StockCardGrandTotalDTO;
 }
 
 const MOVEMENT_DESCRIPTION: Record<string, string> = {
@@ -781,6 +810,7 @@ async function buildProductBlock(
     const rows: StockCardRowDTO[] = [
         {
             date: null,
+            received_date: null,
             description: "Beginning Balance",
             invoice_no: null,
             qty_in: 0,
@@ -812,9 +842,16 @@ async function buildProductBlock(
         // delivery; every other movement type shows the avg cost basis in
         // effect at that moment (the value COGS is valued at) — never the
         // selling price or any other per-row value. Matches
-        // balance_file_service.ts's in_unit_cost / out_avg_cost split. This is
-        // still the Cost/Unit column's value, deliberately unchanged below —
-        // only Amt Out / Amt In switch to real sale revenue when available.
+        // balance_file_service.ts's in_unit_cost / out_avg_cost split.
+        //
+        // Amt In / Amt Out are valued on this same basis. They used to switch
+        // to `sale_amount` (the real receipt line_total) for sale legs, added
+        // in c451005 for revenue tracking — reverted on request 2026-08-07:
+        // this is a stock card, so both amount columns must read as inventory
+        // value moving in and out, not as revenue. `sale_amount` is still
+        // written to shop_movements and still used by balance_file_service —
+        // only this report's interpretation changed, so the two now answer
+        // different questions on purpose. Do not "re-align" them.
         const cost = typeStr === "receive" ? receivedCost : avgBefore;
         // Bucket by the actual stock change (stock_after - stock_before), not by
         // the sign of `quantity` — `quantity`'s sign convention isn't consistent
@@ -825,18 +862,12 @@ async function buildProductBlock(
         const delta = m.stockAfter - m.stockBefore;
         const qtyIn = delta > 0 ? delta : 0;
         const qtyOut = delta < 0 ? -delta : 0;
-        // sale_amount is the real amount charged/refunded for this row (a
-        // receipt line_total, or the original sale's line_total for its void) —
-        // null for receive/adjustment and for bundle sub-item rows (no clean
-        // per-component allocation), which keep the cost-basis fallback.
-        const saleAmt = m.saleAmount !== null ? pgNumber(m.saleAmount) : null;
-        const isSaleOut = qtyOut > 0 && (typeStr === "sale" || typeStr === "internal_use" || typeStr === "exchange") && saleAmt !== null;
-        const isVoidIn = qtyIn > 0 && typeStr === "void" && saleAmt !== null;
-        const amountIn = isVoidIn ? saleAmt! : Math.round(qtyIn * cost * 100) / 100;
-        const amountOut = isSaleOut ? saleAmt! : Math.round(qtyOut * cost * 100) / 100;
+        const amountIn = Math.round(qtyIn * cost * 100) / 100;
+        const amountOut = Math.round(qtyOut * cost * 100) / 100;
         const balance = m.stockAfter;
         rows.push({
             date: pgToIso(m.createdAt),
+            received_date: m.receivedDate ?? null,
             description: MOVEMENT_DESCRIPTION[typeStr] ?? typeStr,
             invoice_no: m.reference ?? null,
             qty_in: qtyIn,
@@ -862,6 +893,7 @@ async function buildProductBlock(
     const closingCost = state.avg;
     rows.push({
         date: null,
+        received_date: null,
         description: "Closing Balance",
         invoice_no: null,
         qty_in: 0,
@@ -882,6 +914,27 @@ async function buildProductBlock(
         total_qty_out: totalQtyOut,
         total_amount_in: Math.round(totalAmountIn * 100) / 100,
         total_amount_out: Math.round(totalAmountOut * 100) / 100,
+        closing_amount_balance: Math.round(closingQty * closingCost * 100) / 100,
+    };
+}
+
+/**
+ * Add up the per-product totals into the single Grand Total line.
+ *
+ * Each product's figures are already rounded to satang, so summing them keeps
+ * the Grand Total equal to the visible column — rounding the raw sum instead
+ * could differ by a satang from what a reader gets adding the rows by hand.
+ */
+export function sumStockCardGrandTotal(
+    products: StockCardProductBlockDTO[],
+): StockCardGrandTotalDTO {
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    return {
+        qty_in: products.reduce((s, p) => s + p.total_qty_in, 0),
+        qty_out: products.reduce((s, p) => s + p.total_qty_out, 0),
+        amount_in: round2(products.reduce((s, p) => s + p.total_amount_in, 0)),
+        amount_out: round2(products.reduce((s, p) => s + p.total_amount_out, 0)),
+        amount_balance: round2(products.reduce((s, p) => s + p.closing_amount_balance, 0)),
     };
 }
 
@@ -950,6 +1003,10 @@ export async function stockCardReport(args: {
         date_from: args.dateFrom,
         date_to: args.dateTo,
         products,
+        // Computed after filtering so the Grand Total always matches the rows
+        // the reader can actually see — a total that includes products the
+        // search or include-empty filter removed would never reconcile.
+        grand_total: sumStockCardGrandTotal(products),
     };
 }
 
@@ -1393,6 +1450,63 @@ export interface SalesByItemReport {
     line_count: number;
 }
 
+/** Bucket line-item rows by their receipt, preserving the query's order. */
+function groupByReceipt<T extends { receipt: { id: number } }>(entries: T[]): Map<number, T[]> {
+    const out = new Map<number, T[]>();
+    for (const e of entries) {
+        const list = out.get(e.receipt.id);
+        if (list) list.push(e);
+        else out.set(e.receipt.id, [e]);
+    }
+    return out;
+}
+
+/**
+ * Spread a receipt-level amount across its line items.
+ *
+ * `delta` is `receipts.total - SUM(line_total)`: negative for a bill discount,
+ * positive for the EDC card surcharge. Neither belongs to any one line, but the
+ * lines still have to add up to what the customer was charged, or the report's
+ * own column won't foot to its own total.
+ *
+ * Works in satang and hands the rounding remainder out largest-fraction-first,
+ * so the result sums to `SUM(line_total) + delta` exactly — no satang invented,
+ * none lost. Weighting is by |line_total| so a Store refund line (negative
+ * quantity) still takes a proportional share instead of an inverted one.
+ *
+ * Exported for tests: the allocation is pure arithmetic and the rounding is
+ * where this would quietly go wrong.
+ */
+export function allocateReceiptTotalToLines(lineTotals: number[], delta: number): number[] {
+    const cents = lineTotals.map((v) => Math.round(v * 100));
+    const d = Math.round(delta * 100);
+    if (d === 0 || cents.length === 0) return cents.map((c) => c / 100);
+
+    const share = new Array<number>(cents.length).fill(0);
+    const weights = cents.map((c) => Math.abs(c));
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+    if (totalWeight === 0) {
+        // A zero-value basket carrying a discount isn't a real sale, but the
+        // arithmetic still has to balance rather than silently drop the amount.
+        share[0] = d;
+    } else {
+        const raw = weights.map((w) => (d * w) / totalWeight);
+        // Truncate toward zero, then hand out what's left one satang at a time.
+        raw.forEach((v, i) => { share[i] = Math.trunc(v); });
+        let remainder = d - share.reduce((a, b) => a + b, 0);
+        const byFraction = raw
+            .map((v, i) => ({ frac: Math.abs(v - Math.trunc(v)), i }))
+            .sort((a, b) => b.frac - a.frac);
+        const step = remainder > 0 ? 1 : -1;
+        for (let k = 0; remainder !== 0; k++) {
+            share[byFraction[k % byFraction.length].i] += step;
+            remainder -= step;
+        }
+    }
+    return cents.map((c, i) => (c + share[i]) / 100);
+}
+
 export async function salesByItemReport(args: {
     user: AccessTokenPayload;
     dateFrom?: string | null;
@@ -1406,35 +1520,52 @@ export async function salesByItemReport(args: {
     shopId?: string;
     module?: string;
     sortOrder?: string | null;
+    /**
+     * Report the same money Daily Sales Report reports, broken out per line
+     * item: net amounts (bill discount off, EDC surcharge on), a voided receipt
+     * shown as a sale leg plus a reversal leg, and reversals of receipts sold
+     * before the window included. Every row counts toward the total, so the
+     * column foots to the printed figure AND the figure equals Daily's Amt
+     * Billing — the two only hold together as a set.
+     *
+     * Off by default. Sales by Item Report shares this endpoint and answers a
+     * different question ("what did each item ring up at"), so it keeps the raw
+     * line amounts and drops voided lines from its total.
+     */
+    netTotals?: boolean;
 }): Promise<SalesByItemReport> {
     const sortOrder = parseSortOrder(args.sortOrder);
     const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
     const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
 
-    // No status filter — voided receipts are included as their own rows
-    // (tagged via `status`) and excluded from totals below.
-    const conds: SQL[] = [];
-    if (args.dateFrom) conds.push(gte(receipts.transactionDate, `${args.dateFrom}T00:00:00+07:00`));
-    if (args.dateTo) conds.push(lte(receipts.transactionDate, `${args.dateTo}T23:59:59.999999+07:00`));
+    // Filters shared by both legs. The date range is deliberately NOT here —
+    // the sale leg is dated by when it was sold and the void leg by when it was
+    // voided, so each picks its own bound (same split as salesSummaryReport).
+    const commonConds: SQL[] = [];
     if (effectiveShopId) {
-        conds.push(eq(receipts.shopId, effectiveShopId));
+        commonConds.push(eq(receipts.shopId, effectiveShopId));
     } else if (effMod) {
         const ids = await moduleShopIds(effMod);
-        if (ids.length > 0) conds.push(inArray(receipts.shopId, ids));
+        if (ids.length > 0) commonConds.push(inArray(receipts.shopId, ids));
     }
-    if (args.receiptNoFrom) conds.push(gte(receipts.receiptNumber, args.receiptNoFrom));
-    if (args.receiptNoTo) conds.push(lte(receipts.receiptNumber, args.receiptNoTo));
+    if (args.receiptNoFrom) commonConds.push(gte(receipts.receiptNumber, args.receiptNoFrom));
+    if (args.receiptNoTo) commonConds.push(lte(receipts.receiptNumber, args.receiptNoTo));
     if (args.receiveType && args.receiveType !== "all") {
         const methods = RECEIVE_TYPE_GROUPS[args.receiveType as ReceiveTypeKey];
-        if (methods) conds.push(inArray(receipts.paymentMethod, [...methods]));
+        if (methods) commonConds.push(inArray(receipts.paymentMethod, [...methods]));
     }
-    if (args.familyCode) conds.push(eq(customers.familyCode, args.familyCode));
+    if (args.familyCode) commonConds.push(eq(customers.familyCode, args.familyCode));
     if (args.userName) {
         const pat = `%${args.userName}%`;
-        conds.push(or(ilike(customers.name, pat), ilike(users.fullName, pat))!);
+        commonConds.push(or(ilike(customers.name, pat), ilike(users.fullName, pat))!);
     }
 
-    const joined = await db
+    const saleDateConds: SQL[] = [];
+    if (args.dateFrom) saleDateConds.push(gte(receipts.transactionDate, `${args.dateFrom}T00:00:00+07:00`));
+    if (args.dateTo) saleDateConds.push(lte(receipts.transactionDate, `${args.dateTo}T23:59:59.999999+07:00`));
+    const hasDateFilter = saleDateConds.length > 0;
+
+    const baseQuery = () => db
         .select({
             receipt: receipts,
             item: receiptItems,
@@ -1448,65 +1579,170 @@ export async function salesByItemReport(args: {
         .leftJoin(shopProducts, eq(shopProducts.id, receiptItems.productVariantId))
         .leftJoin(customers, eq(customers.id, receipts.customerId))
         .leftJoin(users, eq(users.id, receipts.payerUserId))
-        .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
-        .where(and(...conds))
+        .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId));
+
+    const joined = await baseQuery()
+        .where(and(...commonConds, ...saleDateConds))
         .orderBy(desc(receipts.transactionDate), desc(receipts.id), desc(receiptItems.id));
+
+    type ItemJoinRow = (typeof joined)[number];
+
+    /** Payer identity, however this receipt was paid for. */
+    function payerOf(e: ItemJoinRow): { id: string | null; name: string | null } {
+        if (e.customer) return { id: e.customer.customerCode, name: e.customer.name };
+        if (e.payer) return { id: e.payer.externalId ?? e.payer.username, name: e.payer.fullName };
+        if (e.payerDepartment) return { id: e.payerDepartment.departmentCode, name: e.payerDepartment.departmentName };
+        return { id: null, name: null };
+    }
+
+    /** Bundle sale lines don't have a product_variant_id pointing at a real
+     *  shop_products row (checkout stores the bundle's own name/code in
+     *  receipt_items.options instead) — the shopProducts join above misses
+     *  them, so resolve the name from options rather than falling back to
+     *  "(unknown)". Same pattern as returns_service.ts's receiptToSearchDto. */
+    function itemIdentity(e: ItemJoinRow): { no: string | null; name: string; isBundle: boolean } {
+        const opts = (e.item.options ?? {}) as Record<string, unknown>;
+        const isBundle = Boolean(opts.is_bundle);
+        if (isBundle) {
+            return {
+                no: typeof opts.bundle_code === "string" ? opts.bundle_code : null,
+                name: typeof opts.bundle_name === "string" ? opts.bundle_name : "(unknown)",
+                isBundle: true,
+            };
+        }
+        return { no: e.product?.productCode ?? null, name: e.product?.name ?? "(unknown)", isBundle: false };
+    }
+
+    function buildRow(e: ItemJoinRow, o: { seq: number; date: string; qty: number; amt: number; status: string; remark: string | null }): SalesByItemRow {
+        const who = payerOf(e);
+        const what = itemIdentity(e);
+        return {
+            seq: o.seq,
+            transaction_date: o.date,
+            item_no: what.no,
+            item_name: what.name,
+            is_bundle: what.isBundle,
+            receipt_number: e.receipt.receiptNumber,
+            customer_id: who.id,
+            customer_name: who.name,
+            sales_qty: o.qty,
+            sales_amt: o.amt,
+            receive_type: formatPaymentMethodLabel(String(e.receipt.paymentMethod), {
+                edcCardFee: e.receipt.edcCardFee,
+                edcMaskedCard: e.receipt.edcMaskedCard,
+            }),
+            remark: o.remark,
+            status: o.status,
+        };
+    }
 
     const rows: SalesByItemRow[] = [];
     const totals: SalesByItemTotals = { sales_qty: 0, sales_amt: 0 };
 
-    joined.forEach(({ receipt: r, item, product, customer, payer, payerDepartment }, idx) => {
-        const qty = item.quantity;
-        const amt = pgNumber(item.lineTotal) ?? 0;
-        let custId: string | null = null;
-        let custName: string | null = null;
-        if (customer) {
-            custId = customer.customerCode;
-            custName = customer.name;
-        } else if (payer) {
-            custId = payer.externalId ?? payer.username;
-            custName = payer.fullName;
-        } else if (payerDepartment) {
-            custId = payerDepartment.departmentCode;
-            custName = payerDepartment.departmentName;
-        }
-        // Bundle sale lines don't have a product_variant_id pointing at a real
-        // shop_products row (checkout stores the bundle's own name/code in
-        // receipt_items.options instead) — the shopProducts join above misses
-        // them, so resolve the name from options rather than falling back to
-        // "(unknown)". Same pattern as returns_service.ts's receiptToSearchDto.
-        const opts = (item.options ?? {}) as Record<string, unknown>;
-        const isBundle = Boolean(opts.is_bundle);
-        const bundleCode = isBundle && typeof opts.bundle_code === "string" ? opts.bundle_code : null;
-        const bundleName = isBundle && typeof opts.bundle_name === "string" ? opts.bundle_name : null;
-
-        // A voided line shows as a negative qty/amount — same convention as
-        // salesSummaryReport()'s void leg and salesByPaymentReport().
-        const sign = r.status === "VOIDED" ? -1 : 1;
-
-        rows.push({
-            seq: idx + 1,
-            transaction_date: pgToIso(r.transactionDate)!,
-            item_no: isBundle ? bundleCode : (product?.productCode ?? null),
-            item_name: isBundle ? (bundleName ?? "(unknown)") : (product?.name ?? "(unknown)"),
-            is_bundle: isBundle,
-            receipt_number: r.receiptNumber,
-            customer_id: custId,
-            customer_name: custName,
-            sales_qty: qty * sign,
-            sales_amt: amt * sign,
-            receive_type: formatPaymentMethodLabel(String(r.paymentMethod), {
-                edcCardFee: r.edcCardFee,
-                edcMaskedCard: r.edcMaskedCard,
-            }),
-            remark: r.notes ?? null,
-            status: r.status,
+    if (!args.netTotals) {
+        // Sales by Item Report: one row per line at the price it was rung up,
+        // voided lines shown negative and left out of the total. Unchanged.
+        joined.forEach((e, idx) => {
+            const sign = e.receipt.status === "VOIDED" ? -1 : 1;
+            const qty = e.item.quantity;
+            const amt = pgNumber(e.item.lineTotal) ?? 0;
+            rows.push(buildRow(e, {
+                seq: idx + 1,
+                date: pgToIso(e.receipt.transactionDate)!,
+                qty: qty * sign,
+                amt: amt * sign,
+                status: e.receipt.status,
+                remark: e.receipt.notes ?? null,
+            }));
+            if (e.receipt.status === "ACTIVE") {
+                totals.sales_qty += qty;
+                totals.sales_amt += amt;
+            }
         });
-        if (r.status === "ACTIVE") {
-            totals.sales_qty += qty;
-            totals.sales_amt += amt;
+    } else {
+        // Sales Report: the line-level mirror of Daily Sales Report. Three
+        // things follow from that and none of them work on their own:
+        //
+        //  1. amounts are NET — checkout stores
+        //     `receipts.total = SUM(line_total) - discount + edc_card_fee`, and
+        //     neither the discount nor the surcharge belongs to any single
+        //     line, so the difference is spread across the lines. Without this
+        //     the printed total can tie to Daily or foot to the rows, never
+        //     both.
+        //  2. a voided receipt shows BOTH legs — the sale as it happened, then
+        //     the reversal dated when it was actually voided — and both count.
+        //     They net to zero, which is the same answer as dropping them, but
+        //     now the reader can add the column up and land on the total.
+        //  3. a receipt sold before the window but voided inside it contributes
+        //     its reversal leg only. Daily counts that reversal; leaving it out
+        //     here is what left Sales Report ฿72.00 high on 2026-08-10.
+        const voidLegOf = (r: typeof receipts.$inferSelect): string | null => {
+            if (r.status !== "VOIDED" || !r.voidedAt) return null;
+            const iso = pgToIso(r.voidedAt)!;
+            if (!hasDateFilter) return iso;
+            const t = new Date(iso).getTime();
+            if (args.dateFrom && t < new Date(`${args.dateFrom}T00:00:00+07:00`).getTime()) return null;
+            if (args.dateTo && t > new Date(`${args.dateTo}T23:59:59.999999+07:00`).getTime()) return null;
+            return iso;
+        };
+
+        // Receipts voided inside the window whose sale falls outside it. The
+        // ones already in `joined` decide their own void leg above, so this
+        // only needs the complement.
+        let voidOnly: ItemJoinRow[] = [];
+        if (hasDateFilter) {
+            const voidDateConds: SQL[] = [];
+            if (args.dateFrom) voidDateConds.push(gte(receipts.voidedAt, `${args.dateFrom}T00:00:00+07:00`));
+            if (args.dateTo) voidDateConds.push(lte(receipts.voidedAt, `${args.dateTo}T23:59:59.999999+07:00`));
+            voidOnly = await baseQuery()
+                .where(and(
+                    ...commonConds,
+                    eq(receipts.status, "VOIDED"),
+                    ...voidDateConds,
+                    not(and(...saleDateConds)!),
+                ))
+                .orderBy(desc(receipts.voidedAt), desc(receipts.id), desc(receiptItems.id));
         }
-    });
+
+        // Net line amounts, per receipt. Grouping first is what keeps the
+        // receipt-level figures from being applied once per line.
+        const netAmountByItemId = new Map<number, number>();
+        for (const group of groupByReceipt([...joined, ...voidOnly]).values()) {
+            const grossLines = group.map((e) => pgNumber(e.item.lineTotal) ?? 0);
+            const gross = grossLines.reduce((a, b) => a + b, 0);
+            const target = pgNumber(group[0].receipt.total) ?? 0;
+            const net = allocateReceiptTotalToLines(grossLines, Math.round((target - gross) * 100) / 100);
+            group.forEach((e, i) => netAmountByItemId.set(e.item.id, net[i]));
+        }
+
+        const push = (e: ItemJoinRow, leg: "sale" | "void") => {
+            const sign = leg === "sale" ? 1 : -1;
+            rows.push(buildRow(e, {
+                seq: rows.length + 1,
+                date: pgToIso(leg === "sale" ? e.receipt.transactionDate : e.receipt.voidedAt!)!,
+                qty: e.item.quantity * sign,
+                amt: (netAmountByItemId.get(e.item.id) ?? 0) * sign,
+                status: leg === "sale" ? "ACTIVE" : "VOIDED",
+                // The void leg carries the admin's void reason; reusing
+                // r.notes there would show the original sale's checkout note.
+                remark: leg === "sale" ? (e.receipt.notes ?? null) : (e.receipt.voidedReason ?? null),
+            }));
+        };
+
+        for (const e of joined) {
+            push(e, "sale");
+            if (voidLegOf(e.receipt)) push(e, "void");
+        }
+        for (const e of voidOnly) push(e, "void");
+
+        // Every leg counts. A sale and its reversal cancel out on their own, so
+        // there is no status-based exclusion left to make.
+        for (const r of rows) {
+            totals.sales_qty += r.sales_qty;
+            totals.sales_amt += r.sales_amt;
+        }
+        totals.sales_amt = Math.round(totals.sales_amt * 100) / 100;
+    }
 
     rows.sort((a, b) => compareDateTime(a.transaction_date, b.transaction_date, sortOrder, a.seq, b.seq));
     rows.forEach((r, idx) => { r.seq = idx + 1; });
@@ -1518,5 +1754,152 @@ export async function salesByItemReport(args: {
         rows,
         totals,
         line_count: rows.filter((r) => r.status === "ACTIVE").length,
+    };
+}
+
+// ── /receive-stock ───────────────────────────────────────────────────────────
+
+export interface ReceiveStockRow {
+    seq: number;
+    /** Entry timestamp (when the intake was recorded) — always present. */
+    date: string;
+    /** Real delivery date, receive-specific and optional — "-" on the UI when absent. */
+    received_date: string | null;
+    product_code: string | null;
+    product_name: string;
+    shop_id: string;
+    shop_name: string | null;
+    quantity: number;
+    cost_per_unit: number;
+    total_cost: number;
+    /**
+     * Null for rows recorded before po_number/invoice_number existed as their
+     * own columns (2026-08-11) — those old rows only ever wrote the legacy
+     * combined `reference` field. Falls back to it as the PO value (receiveStock()
+     * used to prefer PO over invoice when merging the two), so old rows still
+     * show *something* rather than a blank PO with no explanation.
+     */
+    po_number: string | null;
+    invoice_number: string | null;
+    note: string | null;
+    created_by_name: string | null;
+}
+
+export interface ReceiveStockTotals {
+    quantity: number;
+    total_cost: number;
+}
+
+export interface ReceiveStockReport {
+    date_from: string | null;
+    date_to: string | null;
+    shop_id: string | null;
+    rows: ReceiveStockRow[];
+    totals: ReceiveStockTotals;
+    line_count: number;
+}
+
+export async function receiveStockReport(args: {
+    user: AccessTokenPayload;
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    shopId?: string;
+    module?: string;
+    productSearch?: string;
+    category?: string;
+    poNumber?: string;
+    invoiceNumber?: string;
+    sortOrder?: string | null;
+}): Promise<ReceiveStockReport> {
+    const sortOrder = parseSortOrder(args.sortOrder);
+    const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
+    const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
+
+    const conds: SQL[] = [eq(shopMovements.type, "receive")];
+    if (args.dateFrom) conds.push(gte(shopMovements.createdAt, `${args.dateFrom}T00:00:00+07:00`));
+    if (args.dateTo) conds.push(lte(shopMovements.createdAt, `${args.dateTo}T23:59:59.999999+07:00`));
+    if (effectiveShopId) {
+        conds.push(eq(shopMovements.shopId, effectiveShopId));
+    } else if (effMod) {
+        const ids = await moduleShopIds(effMod);
+        if (ids.length > 0) conds.push(inArray(shopMovements.shopId, ids));
+    }
+    if (args.productSearch) {
+        const pat = `%${args.productSearch}%`;
+        conds.push(or(ilike(shopMovements.productName, pat), ilike(shopProducts.productCode, pat))!);
+    }
+    if (args.category) conds.push(eq(shopProducts.category, args.category));
+    // Matches against the legacy `reference` column too, so a search for a PO
+    // typed before po_number/invoice_number existed still finds that row.
+    if (args.poNumber) {
+        const pat = `%${args.poNumber}%`;
+        conds.push(or(ilike(shopMovements.poNumber, pat), ilike(shopMovements.reference, pat))!);
+    }
+    if (args.invoiceNumber) {
+        const pat = `%${args.invoiceNumber}%`;
+        conds.push(or(ilike(shopMovements.invoiceNumber, pat), ilike(shopMovements.reference, pat))!);
+    }
+
+    const joined = await db
+        .select({
+            movement: shopMovements,
+            product: shopProducts,
+            shop: shops,
+            creator: users,
+        })
+        .from(shopMovements)
+        // LEFT — a receive row's product can have since been deleted
+        // (productId is SET NULL on delete); productName is denormalized on
+        // the movement row itself, so the row still displays fine either way.
+        .leftJoin(shopProducts, eq(shopProducts.id, shopMovements.productId))
+        .leftJoin(shops, eq(shops.id, shopMovements.shopId))
+        .leftJoin(users, eq(users.id, shopMovements.createdBy))
+        .where(and(...conds))
+        // Fixed fetch order — the user-facing sort_order (default oldest-first)
+        // is applied to `rows` below via compareDateTime, same as
+        // salesByItemReport(), so the sortable Date/Time column can flip
+        // direction without a second query.
+        .orderBy(asc(shopMovements.createdAt), asc(shopMovements.id));
+
+    const rows: ReceiveStockRow[] = [];
+    const totals: ReceiveStockTotals = { quantity: 0, total_cost: 0 };
+
+    joined.forEach(({ movement: m, product, shop, creator }, idx) => {
+        const cost = m.costPerUnit !== null ? pgNumber(m.costPerUnit) ?? 0 : 0;
+        const totalCost = Math.round(m.quantity * cost * 100) / 100;
+        rows.push({
+            seq: idx + 1,
+            date: pgToIso(m.createdAt)!,
+            received_date: m.receivedDate ?? null,
+            product_code: product?.productCode ?? null,
+            product_name: m.productName,
+            shop_id: m.shopId,
+            shop_name: shop?.name ?? null,
+            quantity: m.quantity,
+            cost_per_unit: cost,
+            total_cost: totalCost,
+            // Old rows (before po_number/invoice_number existed) only have the
+            // legacy combined `reference` — show it as PO, matching the
+            // priority receiveStock() used when it wrote that single column.
+            po_number: m.poNumber ?? (m.invoiceNumber ? null : m.reference ?? null),
+            invoice_number: m.invoiceNumber ?? null,
+            note: m.note ?? null,
+            created_by_name: creator?.fullName ?? null,
+        });
+        totals.quantity += m.quantity;
+        totals.total_cost += totalCost;
+    });
+    totals.total_cost = Math.round(totals.total_cost * 100) / 100;
+
+    rows.sort((a, b) => compareDateTime(a.date, b.date, sortOrder, a.seq, b.seq));
+    rows.forEach((r, idx) => { r.seq = idx + 1; });
+
+    return {
+        date_from: args.dateFrom ?? null,
+        date_to: args.dateTo ?? null,
+        shop_id: effectiveShopId,
+        rows,
+        totals,
+        line_count: rows.length,
     };
 }

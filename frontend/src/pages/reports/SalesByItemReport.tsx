@@ -75,12 +75,19 @@ interface GroupedItemRow {
     sales_amt: number;
 }
 
-/** Voided lines carry no real sales weight, so — like the ranking sort below
- * and the backend's own totals — they're excluded from grouped figures. */
-function groupRowsByItem(rows: SalesByItemRow[]): GroupedItemRow[] {
+/**
+ * Roll the line rows up per item.
+ *
+ * With `netTotals` (Sales Report) a voided receipt arrives as two rows — the
+ * sale and its reversal — that cancel out, so both have to be counted or the
+ * grouped figures keep the sale and lose the refund. Without it (Sales by Item
+ * Report) a voided receipt has only its negative row, which carries no real
+ * sales weight and is dropped, matching that report's own total.
+ */
+function groupRowsByItem(rows: SalesByItemRow[], netTotals = false): GroupedItemRow[] {
     const groups = new Map<string, GroupedItemRow>();
     for (const row of rows) {
-        if (row.status !== "ACTIVE") continue;
+        if (!netTotals && row.status !== "ACTIVE") continue;
         const key = row.item_no ?? row.item_name;
         const existing = groups.get(key);
         if (existing) {
@@ -121,6 +128,10 @@ interface SalesByItemReportProps {
      * instead — oldest first, latest at the bottom. Defaults to the
      * original ranking behavior so Sales by Item Report is unaffected. */
     rankByBestSelling?: boolean;
+    /** "Sales Report" has to reconcile against Daily Sales Report, so its total
+     * is the net bill amount — line totals less the bill discount, plus the EDC
+     * card surcharge. Sales by Item Report keeps the raw line sum. */
+    netTotals?: boolean;
 }
 
 export function SalesByItemReport({
@@ -133,6 +144,7 @@ export function SalesByItemReport({
     title = "Sales by Item Report",
     filenamePrefix = "SalesByItem",
     rankByBestSelling = true,
+    netTotals = false,
 }: SalesByItemReportProps) {
     const { t } = useTranslation();
     const { user } = useAuth();
@@ -151,7 +163,7 @@ export function SalesByItemReport({
     const [siPageSize, setSiPageSize] = useState(25);
     const [siDateTimeSort, setSiDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
 
-    const siGroupedRows = siData && siGroupByItem ? groupRowsByItem(siData.rows) : null;
+    const siGroupedRows = siData && siGroupByItem ? groupRowsByItem(siData.rows, netTotals) : null;
     const siRowCount = siGroupedRows ? siGroupedRows.length : (siData?.rows.length ?? 0);
     const siTotalPages = Math.max(1, Math.ceil(siRowCount / siPageSize));
 
@@ -172,6 +184,7 @@ export function SalesByItemReport({
         if (siItemNoFrom.trim()) params.set("item_no_from", siItemNoFrom.trim());
         if (siItemNoTo.trim()) params.set("item_no_to", siItemNoTo.trim());
         if (!rankByBestSelling) params.set("sort_order", sort);
+        if (netTotals) params.set("net_totals", "1");
         if (needsShopSelector) {
             if (selectedStall === "all") params.set("module", isCanteenReportsPage ? "canteen" : "store");
             else params.set("shop_id", selectedStall);

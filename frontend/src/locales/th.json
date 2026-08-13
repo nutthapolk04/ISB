@@ -130,6 +130,7 @@
     "cashReceived": "จำนวนเงินที่รับ",
     "change": "เงินทอน",
     "enterAmount": "กรอกจำนวนเงิน",
+    "quantityLabel": "จำนวน",
     "studentCardNumber": "เลขบัตรสมาชิก",
     "enterStudentCardNumber": "กรอกเลขบัตรสมาชิก",
     "departmentPlaceholder": "เลือกแผนก",
@@ -505,6 +506,32 @@
     "receiptCount": "จำนวนใบเสร็จ",
     "todaySales": "ยอดขายวันนี้",
     "allReceipts": "รายการใบเสร็จทั้งหมด",
+    "tabReceipts": "ใบเสร็จ",
+    "tabTransactions": "รายการทำธุรกรรม",
+    "transactions": {
+      "searchTitle": "ค้นหารายการทำธุรกรรม",
+      "status": "สถานะ",
+      "statusPending": "รอดำเนินการ",
+      "statusSuccess": "สำเร็จ",
+      "statusFailed": "ล้มเหลว",
+      "statusCancelled": "ยกเลิกแล้ว",
+      "guideTitle": "หน้านี้คืออะไร",
+      "guideBody": "ทุกความพยายามเช็คเอาท์ตั้งแต่เลือกวิธีชำระเงิน รวมถึงรายการที่ยังรอผล (เช่น จ่ายด้วย Thai QR ที่ยังรอธนาคารยืนยัน) หรือที่ล้มเหลวก่อนจะออกใบเสร็จได้",
+      "all": "รายการทำธุรกรรมทั้งหมด",
+      "none": "ไม่พบรายการทำธุรกรรม",
+      "result": "ผลลัพธ์",
+      "startedAt": "เวลาเริ่ม",
+      "endedAt": "เวลาสิ้นสุด",
+      "stillWaiting": "กำลังรอผล…",
+      "bankRef": "เลขอ้างอิงธนาคาร",
+      "actions": "จัดการ",
+      "details": "รายละเอียดธุรกรรม",
+      "receiptLoadFailed": "โหลดใบเสร็จไม่สำเร็จ",
+      "itemsLoading": "กำลังโหลดตะกร้า…",
+      "itemsNone": "ไม่มีข้อมูลตะกร้าสำหรับรายการนี้",
+      "checkNow": "เช็คกับธนาคารตอนนี้",
+      "checkFailed": "เช็คกับธนาคารไม่สำเร็จ"
+    },
     "searchReceipt": "ค้นหาด้วยเลขที่ใบเสร็จ, ชื่อ, ยอดเงิน, หรือวันที่...",
     "searchPanel": {
       "title": "ค้นหาใบเสร็จ",
@@ -679,6 +706,8 @@
     "stockCardReportDesc": "ประวัติความเคลื่อนไหวสต็อคแยกตาม SKU พร้อมยอดเปิด-ปิด",
     "bundleReport": "รายงานสินค้าจัดกลุ่ม",
     "bundleReportDesc": "รายการสินค้าจัดกลุ่มพร้อมส่วนประกอบและจำนวนที่พร้อมขายในปัจจุบัน",
+    "receiveStockReport": "รายงานรับสินค้าเข้า",
+    "receiveStockReportDesc": "รายการรับสินค้าเข้าทั้งหมด — สินค้า, จำนวน, ต้นทุน, เลข PO/Invoice, และผู้บันทึก",
     "salesSummaryReport": "Daily Sales Report",
     "salesSummaryReportDesc": "Daily sales totals with payment method breakdown by receipt",
     "salesByItemReport": "Sales by Item",
@@ -1806,7 +1835,7 @@
     "paymentMethod_qr": "Thai QR",
     "paymentMethod_qr_promptpay": "Thai QR",
     "paymentMethod_bay_qr": "Thai QR",
-    "paymentMethod_edc": "EDC QR",
+    "paymentMethod_edc": "EDC Credit Card",
     "paymentMethod_department": "ตัดงบ",
     "paymentWallet": "กระเป๋าเงิน",
     "paymentCash": "เงินสด",
@@ -1865,7 +1894,8 @@
       "retailVsInternalDesc": "Retail = ราคาขายปกติสำหรับลูกค้า · Internal = ราคาพนักงาน/ครอบครัว/ใช้ภายในองค์กร",
       "setPrice": "กำหนดราคา",
       "enterPriceHint": "ใส่ราคาขาย",
-      "insufficientBalance": "ยอดเงินไม่เพียงพอ"
+      "insufficientBalance": "ยอดเงินไม่เพียงพอ",
+      "quantityLabel": "จำนวน"
     },
     "memberSearch": {
       "title": "ค้นหาสมาชิก",
@@ -1947,7 +1977,7 @@
       "campus_card": "Campus Card",
       "cash": "เงินสด",
       "thai_qr": "Thai QR",
-      "edc_qr": "EDC QR",
+      "edc_qr": "EDC Credit Card",
       "edc_credit_card": "EDC Credit Card",
       "edc_debit_card": "EDC Debit Card",
       "credit_card": "บัตรเครดิต",
@@ -1960,7 +1990,7 @@
       "qr_promptpay": "Thai QR",
       "bay_qr": "Thai QR",
       "bank_transfer": "Thai QR",
-      "edc": "EDC QR",
+      "edc": "EDC Credit Card",
       "bay_easypay": "บัตรเครดิต"
     },
     "optional": "ไม่บังคับ",
@@ -1973,7 +2003,9 @@
     "select": "เลือก",
     "next": "ถัดไป",
     "prev": "ก่อนหน้า",
-    "showingOf": "แสดง {{from}}–{{to}} จาก {{total}} รายการ"
+    "showingOf": "แสดง {{from}}–{{to}} จาก {{total}} รายการ",
+    "clear": "ล้าง",
+    "backspace": "ลบ"
   },
   "errorBoundary": {
     "title": "เกิดข้อผิดพลาดในการแสดงหน้านี้",
@@ -2047,11 +2079,15 @@
     "todayRemaining": "วงเงินคงเหลือวันนี้",
     "todayUsedOf": "{{spent}} / {{limit}}",
     "dailyLimitReached": "ใช้วงเงินวันนี้ครบแล้ว",
-    "shopMissingGroup": "ร้านค้านี้ยังไม่ถูกกำหนดกลุ่มวงเงิน"
+    "shopMissingGroup": "ร้านค้านี้ยังไม่ถูกกำหนดกลุ่มวงเงิน",
+    "quantityDialogTitle": "กำหนดจำนวน",
+    "quantityDialogConfirm": "เพิ่ม {{qty}} ชิ้น"
   },
   "checkout": {
     "failed": "ชำระเงินไม่สำเร็จ",
-    "failedHint": "กรุณาลองใหม่ หรือตรวจสอบการเชื่อมต่อ"
+    "failedHint": "กรุณาลองใหม่ หรือตรวจสอบการเชื่อมต่อ",
+    "timeoutTitle": "ไม่ทราบผลการบันทึก",
+    "timeoutHint": "เซิร์ฟเวอร์ไม่ตอบกลับ — ห้ามชำระซ้ำ ตรวจสอบในรายการขายก่อนว่ามีใบเสร็จแล้วหรือยัง"
   },
   "cashPay": {
     "title": "ชำระด้วยเงินสด",
@@ -2189,7 +2225,20 @@
     "deptEmpVerify": "ยืนยันพนักงาน (แตะบัตรหรือพิมพ์ username)",
     "deptEmpPlaceholder": "แตะบัตรพนักงาน หรือพิมพ์ username…",
     "change": "เปลี่ยน",
-    "empNotFound": "ไม่พบพนักงาน"
+    "empNotFound": "ไม่พบพนักงาน",
+    "edcRecoveryConfirmFailed": "บันทึกใบเสร็จไม่สำเร็จ — ลองอีกครั้งหรือแจ้งผู้ดูแลระบบ",
+    "edcQueryApprovedNoCode": "เครื่องยืนยันว่าอนุมัติแล้ว แต่ยังไม่ได้รหัสอนุมัติ — กรอกจากสลิปด้านล่าง",
+    "edcQueryNoAnswer": "เครื่องไม่ตอบกลับ — กรอกรหัสจากสลิปด้านล่างแทน",
+    "edcQueryFailed": "ตรวจสอบกับเครื่องไม่สำเร็จ — กรอกรหัสจากสลิปด้านล่างแทน",
+    "edcQrTimeoutChecking": "หมดเวลารอสแกน QR ฝั่งเรา — เครื่อง EDC อาจยังทำรายการค้างอยู่จริง (ยังไม่ครบ 3 นาทีของเครื่อง) ระบบกำลังตรวจสอบกับเครื่องอัตโนมัติ ห้ามลองรายการใหม่จนกว่าจะยืนยันผล",
+    "edcApprovedNoCode": "เครื่องอนุมัติรายการแล้วแต่ไม่ได้รับรหัสยืนยันกลับมา — ห้ามลองใหม่ซ้ำ (อาจตัดเงินซ้ำ) กรุณาติดต่อผู้ดูแลระบบเพื่อบันทึกใบเสร็จด้วยตนเอง",
+    "edcConnectionLost": "ขาดการเชื่อมต่อกับเครื่อง EDC ระหว่างทำรายการ — เครื่องอาจยังทำรายการค้างอยู่ (เช่น QR ยังไม่หมดเวลา) ห้ามลองรายการใหม่จนกว่าจะตรวจสอบกับเครื่องก่อน",
+    "edcUnknownOutcomeDesc": "ยังไม่ทราบผลลัพธ์จริงของรายการ",
+    "edcCardFeeNote": "รวมค่าธรรมเนียมบัตร 3%: ฿{{fee}} (ยอดสินค้า ฿{{goods}})",
+    "edcConnectionLostTitle": "ไม่ทราบผลการทำรายการ",
+    "edcQueryTerminal": "ตรวจสอบรายการล่าสุดกับเครื่อง",
+    "edcManualApprLabel": "หรือกรอก APPR.CODE จากสลิป",
+    "edcRecordSale": "บันทึกการขาย"
   },
   "shopUsers": {
     "titleSuffix": "ผู้ใช้",
@@ -2452,7 +2501,8 @@
       "UPDATE_BALANCE": "ปรับยอดเงิน",
       "UPDATE_PRICE": "ปรับราคา",
       "UPDATE_SETTING": "แก้ค่าระบบ",
-      "DELETE_PRODUCT": "ลบสินค้า"
+      "DELETE_PRODUCT": "ลบสินค้า",
+      "REJECT": "ล้มเหลว"
     },
     "field": {
       "items": "จำนวนรายการ",
@@ -2495,6 +2545,8 @@
     "summary": {
       "createReceipt": "ขาย {{items}} รายการ รวม ฿{{total}} จ่ายด้วย{{payment}}",
       "createReceiptNoPayment": "ออกใบเสร็จ {{items}} รายการ รวม ฿{{total}}",
+      "rejectReceipt": "เช็คเอาท์ล้มเหลว ({{payment}}) — {{reason}}",
+      "rejectReceiptNoPayment": "เช็คเอาท์ล้มเหลว — {{reason}}",
       "voidReceipt": "ยกเลิกใบเสร็จ คืนเงิน ฿{{total}}",
       "updatePrice": "เปลี่ยนราคา จาก ฿{{from}} เป็น ฿{{to}}",
       "updateBalance": "ปรับยอดเงิน จาก ฿{{from}} เป็น ฿{{to}}",

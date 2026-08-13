@@ -32,6 +32,8 @@ interface ShopOption { id: string; name: string; }
 
 interface StockCardRow {
   date: string | null;
+  /** Real delivery date — receive rows only, null elsewhere (rendered "-"). */
+  received_date?: string | null;
   description: string;
   invoice_no: string | null;
   qty_in: number;
@@ -51,6 +53,16 @@ interface StockCardProductBlock {
   total_qty_out: number;
   total_amount_in: number;
   total_amount_out: number;
+  closing_amount_balance: number;
+}
+/** Report-wide totals for the single Grand Total line. Qty Balance is absent
+ *  by design — summing units across different products has no meaning. */
+interface StockCardGrandTotal {
+  qty_in: number;
+  qty_out: number;
+  amount_in: number;
+  amount_out: number;
+  amount_balance: number;
 }
 interface StockCardReportData {
   shop_id: string | null;
@@ -58,6 +70,7 @@ interface StockCardReportData {
   date_from: string;
   date_to: string;
   products: StockCardProductBlock[];
+  grand_total?: StockCardGrandTotal;
 }
 
 interface StockCardReportProps {
@@ -171,6 +184,10 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
 
     const columns: ReportColumn[] = [
       { header: "Date", key: "date", format: "date", width: 60 },
+      // Pre-formatted as text, not format:"date" — the placeholder for rows
+      // with no delivery date has to be the same character the web table
+      // shows, and a date formatter would render its own dash instead.
+      { header: "Received Date", key: "received_date", width: 62 },
       { header: "Description", key: "description", width: 80 },
       { header: "Invoice No.", key: "invoice_no", width: 95 },
       { header: "Qty In", key: "qty_in", format: "number", width: 45 },
@@ -200,6 +217,9 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
         body.push({
           ...(isClosing ? { [EMPHASIS_KEY]: "subtotal" as const } : {}),
           date: r.date ?? "",
+          // "-" rather than blank: a movement that simply has no delivery date
+          // should read as "not applicable", not as missing data.
+          received_date: r.received_date ? fmtDate(r.received_date) : "-",
           description: r.description,
           invoice_no: r.invoice_no ?? "",
           qty_in: r.qty_in || "",
@@ -216,6 +236,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
       body.push({
         [EMPHASIS_KEY]: "total" as const,
         date: "",
+        received_date: "",
         description: "Total :",
         invoice_no: "",
         qty_in: block.total_qty_in,
@@ -240,6 +261,8 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
     filterLines.push(`User ID: ${user?.username ?? user?.fullName ?? "-"}`);
     filterLines.push(`Print Date: ${fmtDateTime(new Date())}`);
 
+    const grand = stockCardData.grand_total;
+
     return {
       meta: {
         title: `Stockcard Report From ${date_from} To ${date_to}`,
@@ -250,6 +273,21 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
       },
       columns,
       rows: body,
+      totalsLabel: "Grand Total",
+      // Rendered by the exporter as the footer row — PDF shows it on the last
+      // page only (showFoot: "lastPage"). Qty Balance and Cost/Unit are left
+      // out on purpose: neither is meaningful summed across products.
+      ...(grand
+        ? {
+          totals: {
+            qty_in: grand.qty_in,
+            qty_out: grand.qty_out,
+            amount_in: grand.amount_in,
+            amount_out: grand.amount_out,
+            amount_balance: grand.amount_balance,
+          },
+        }
+        : {}),
     };
   };
 
@@ -413,6 +451,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                     <thead className="bg-muted/50">
                       <tr>
                         <th className="px-2 py-2 text-left">{t("reports.colDate")}</th>
+                        <th className="px-2 py-2 text-left">Received Date</th>
                         <th className="px-2 py-2 text-left">Description</th>
                         <th className="px-2 py-2 text-left">Invoice No.</th>
                         <th className="px-2 py-2 text-right">Qty In</th>
@@ -428,7 +467,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                       {stockCardData.products.map((block) => (
                         <React.Fragment key={block.product_variant_id}>
                           <tr className="border-t bg-secondary/40">
-                            <td className="px-2 py-2 font-semibold" colSpan={10}>
+                            <td className="px-2 py-2 font-semibold" colSpan={11}>
                               Product Code {block.product_code} &nbsp;&nbsp; {block.product_name}
                             </td>
                           </tr>
@@ -436,6 +475,9 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                             <tr key={`${block.product_variant_id}-${i}`} className="border-t">
                               <td className="px-2 py-1 whitespace-nowrap">
                                 {row.date ? fmtDate(row.date) : ""}
+                              </td>
+                              <td className="px-2 py-1 whitespace-nowrap">
+                                {row.received_date ? fmtDate(row.received_date) : "-"}
                               </td>
                               <td className="px-2 py-1">{row.description}</td>
                               <td className="px-2 py-1">{row.invoice_no ?? ""}</td>
@@ -450,6 +492,7 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                           ))}
                           <tr className="border-t font-semibold bg-muted/30">
                             <td className="px-2 py-1"></td>
+                            <td className="px-2 py-1"></td>
                             <td className="px-2 py-1">Total :</td>
                             <td></td>
                             <td className="px-2 py-1 text-right font-mono">{block.total_qty_in || ""}</td>
@@ -462,6 +505,35 @@ export function StockCardReport({ reportId, isCanteenReportsPage }: StockCardRep
                           </tr>
                         </React.Fragment>
                       ))}
+                      {/* Grand Total — one line for the whole report, matching
+                          the exporter's footer row. Qty Balance and Cost/Unit
+                          stay empty: summing them across products would be a
+                          number with no meaning. */}
+                      {stockCardData.grand_total && (
+                        <tr className="border-t-2 border-foreground/30 font-bold bg-muted/60">
+                          <td className="px-2 py-1"></td>
+                          <td className="px-2 py-1"></td>
+                          <td className="px-2 py-1">Grand Total</td>
+                          <td></td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.qty_in || ""}
+                          </td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.qty_out || ""}
+                          </td>
+                          <td></td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.amount_in.toFixed(2)}
+                          </td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.amount_out.toFixed(2)}
+                          </td>
+                          <td></td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {stockCardData.grand_total.amount_balance.toFixed(2)}
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
