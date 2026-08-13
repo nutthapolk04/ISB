@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getEdcClient, readyEdc } from "@/lib/paywire/edcClient";
+import { ensureEdcHeartbeat, getEdcClient, readyEdc } from "@/lib/paywire/edcClient";
 
 export type EdcTerminalStatus = "connected" | "disconnected" | "unknown";
 
@@ -19,6 +19,9 @@ export function useEdcTerminalStatus(): EdcTerminalStatus {
     useEffect(() => {
         let active = true;
         const edc = getEdcClient();
+        // No-op unless VITE_EDC_HEARTBEAT_MS is explicitly set (see
+        // edcClient.ts) — safe to call from every mount of this hook.
+        ensureEdcHeartbeat();
         const unsubscribe = edc.onTerminalStatus((s) => {
             if (!active) return;
             setStatus(s.state === "connected" ? "connected" : "disconnected");
