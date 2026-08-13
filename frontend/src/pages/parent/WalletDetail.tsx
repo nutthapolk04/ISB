@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { formatCurrency as formatTHB } from "@/lib/format";
+import { PAYMENT_QR_BG, PAYMENT_QR_FG } from "@/lib/paymentQrColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -591,7 +592,13 @@ export default function WalletDetail() {
             {intent && (
               <div className="space-y-4">
                 <div className="flex justify-center rounded-xl bg-white p-4 sm:p-6 border border-amber-100 shadow-inner">
-                  <QRCodeSVG value={intent.qr_payload} size={200} className="sm:!h-[220px] sm:!w-[220px]" />
+                  <QRCodeSVG
+                    value={intent.qr_payload}
+                    size={200}
+                    className="sm:!h-[220px] sm:!w-[220px]"
+                    fgColor={PAYMENT_QR_FG}
+                    bgColor={PAYMENT_QR_BG}
+                  />
                 </div>
                 {qrStatus === "waiting" && (
                   <QrCountdownBar

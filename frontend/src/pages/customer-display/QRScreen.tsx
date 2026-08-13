@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
 import type { DisplayItem } from "@/hooks/useDisplayBroadcast";
+import { PAYMENT_QR_BG, PAYMENT_QR_FG } from "@/lib/paymentQrColors";
 
 interface Props {
   items: DisplayItem[];
@@ -94,6 +95,8 @@ export function QRScreen({ items, total, qrPayload, expiresAt }: Props) {
             size={320}
             level="M"
             includeMargin={false}
+            fgColor={PAYMENT_QR_FG}
+            bgColor={PAYMENT_QR_BG}
           />
         </div>
 

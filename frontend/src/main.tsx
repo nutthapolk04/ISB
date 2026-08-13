@@ -3,6 +3,10 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 
+// App is light-only — strip any stray .dark class (extensions / leftovers).
+document.documentElement.classList.remove("dark");
+document.documentElement.style.colorScheme = "light only";
+
 // Recover a tab left open across a deploy: its index.html still points at
 // asset hashes the server has replaced, so any lazy route/vendor chunk it
 // hasn't loaded yet 404s and would otherwise dead-end on the ErrorBoundary.

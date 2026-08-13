@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { PAYMENT_QR_BG, PAYMENT_QR_FG } from "@/lib/paymentQrColors";
 import {
     Dialog,
     DialogContent,
@@ -321,6 +322,8 @@ export function QrPaymentModal({
                                     size={168}
                                     level="M"
                                     includeMargin={false}
+                                    fgColor={PAYMENT_QR_FG}
+                                    bgColor={PAYMENT_QR_BG}
                                     aria-label="BAY PromptPay QR"
                                 />
                             </div>

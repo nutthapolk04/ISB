@@ -66,80 +66,10 @@
     --warning-foreground: 0 0% 98%;
   }
 
-  .dark {
-    /* Base Colors */
-    --background: 0 0% 9%;
-    --foreground: 0 0% 90%;
-
-    /* Card */
-    --card: 0 0% 15%;
-    --card-foreground: 0 0% 90%;
-
-    /* Popover */
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 90%;
-
-    /* Primary - Amber/Orange */
-    --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 0%;
-
-    /* Secondary */
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 90%;
-
-    /* Muted */
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 64%;
-
-    /* Accent */
-    --accent: 27 85% 31%;
-    --accent-foreground: 45 100% 87%;
-
-    /* Destructive */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* Border, Input, Ring */
-    --border: 0 0% 25%;
-    --input: 0 0% 25%;
-    --ring: 38 92% 50%;
-
-    /* Sidebar */
-    --sidebar-background: 0 0% 6%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 38 92% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 27 85% 31%;
-    --sidebar-accent-foreground: 45 100% 87%;
-    --sidebar-border: 0 0% 25%;
-    --sidebar-ring: 38 92% 50%;
-
-    /* Charts */
-    --chart-1: 48 96% 53%;
-    --chart-2: 36 83% 54%;
-    --chart-3: 27 85% 31%;
-    --chart-4: 29 80% 44%;
-    --chart-5: 27 85% 31%;
-
-    /* Success & Warning */
-    --success: 142 50% 45%;
-    --success-foreground: 0 0% 95%;
-    --warning: 38 70% 55%;
-    --warning-foreground: 0 0% 95%;
-  }
-
   body {
     background-image:
-      radial-gradient(
-        circle at top right,
-        hsl(var(--accent) / 0.7) 0%,
-        transparent 48%
-      ),
-      radial-gradient(
-        circle at bottom left,
-        hsl(var(--primary) / 0.08) 0%,
-        transparent 42%
-      );
+      radial-gradient(circle at top right, hsl(var(--accent) / 0.7) 0%, transparent 48%),
+      radial-gradient(circle at bottom left, hsl(var(--primary) / 0.08) 0%, transparent 42%);
     background-attachment: fixed;
   }
 }
@@ -184,5 +114,4 @@
   .data-number {
     @apply tabular-nums;
   }
-
 }

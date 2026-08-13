@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, type MutableRefObject } from 
 import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import { useRfidListener } from "@/hooks/useRfidListener";
+import { PAYMENT_QR_BG, PAYMENT_QR_FG } from "@/lib/paymentQrColors";
 import {
     Dialog,
     DialogContent,
@@ -854,7 +855,12 @@ export function CashierTopupModal({
                             </div>
 
                             <div className="flex justify-center rounded-xl bg-white p-4 border border-emerald-100 shadow-inner">
-                                <QRCodeSVG value={intent.qr_payload} size={220} />
+                                <QRCodeSVG
+                                    value={intent.qr_payload}
+                                    size={220}
+                                    fgColor={PAYMENT_QR_FG}
+                                    bgColor={PAYMENT_QR_BG}
+                                />
                             </div>
 
                             {qrStatus === "waiting" && (
