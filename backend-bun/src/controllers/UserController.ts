@@ -7,6 +7,7 @@ import {
 	getUserPayerByUsername,
 	getUserPayerByCard,
 	getUserPayerByExternalId,
+	resolveScan,
 	familyLookup,
 	createUser,
 	updateUser,
@@ -86,6 +87,21 @@ export const UserController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			// Same reasoning as byUsername above — routine fallback-chain miss.
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	resolveScan: async (ctx: any) => {
+		const { reqContext } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (UC-11)] UserController.resolveScan() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (UC-11)] UserController.resolveScan() calling resolveScan().`);
+			const result = await resolveScan(params.q);
+			logger.info(`[${reqContext.requestId} (UC-11)] UserController.resolveScan() completed matched_by=${result.matched_by}.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			// Routine kiosk/POS miss — errorFromService already warns on 4xx.
 			return errorFromService(reqContext, e);
 		}
 	},

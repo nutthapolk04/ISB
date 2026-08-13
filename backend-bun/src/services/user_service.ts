@@ -1,7 +1,7 @@
 import { and, eq, ilike, isNull, or, sql, asc } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { users, shops, customers, wallets, departments } from "@/db/schema";
-import { expandCardUidCandidates, cardUidLookupAttempts } from "@/lib/card_uid";
+import { cardUidLookupAttempts } from "@/lib/card_uid";
 import { pgNumber, pgToIso } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
@@ -315,6 +315,167 @@ export async function getUserPayerByExternalId(externalId: string): Promise<User
         throw err;
     }
     return payerView(rows[0]);
+}
+
+/** How a kiosk/POS scan was matched — useful for logs and QA. */
+export type ScanMatchBy =
+    | "user_card_uid"
+    | "user_external_id"
+    | "customer_card_uid"
+    | "customer_code";
+
+/**
+ * Unified scan lookup for kiosk (barcode = external_id, NFC = card_uid).
+ * Shape aligns with customer-by-card so the kiosk can reuse one mapper.
+ *
+ * Order: users.card_uid → users.external_id → customers.card_uid → customer code.
+ * A users hit without a wallet (e.g. student login shell) soft-falls through
+ * so the real customer wallet can still be found.
+ */
+export interface ScanResolveDTO {
+    entity_type: "user" | "customer";
+    matched_by: ScanMatchBy;
+    id: number;
+    user_id: number | null;
+    name: string;
+    student_code: string | null;
+    customer_code: string | null;
+    customer_kind: string | null;
+    grade: string | null;
+    photo_url: string | null;
+    wallet_id: number | null;
+    wallet_balance: number | null;
+    external_id: string | null;
+    card_frozen: boolean;
+    card_uid: string | null;
+}
+
+function scanNotFound(): never {
+    const err = new Error("Card or member not found");
+    (err as { status?: number }).status = 404;
+    throw err;
+}
+
+function scanInactive(message: string): never {
+    const err = new Error(message);
+    (err as { status?: number }).status = 400;
+    throw err;
+}
+
+async function findUserRowByCardUid(uid: string): Promise<typeof users.$inferSelect | null> {
+    const candidates = cardUidLookupAttempts(uid);
+    if (candidates.length === 0) return null;
+    const rows = await db
+        .select()
+        .from(users)
+        .where(or(...candidates.map((c) => ilike(users.cardUid, c))))
+        .limit(1);
+    return rows[0] ?? null;
+}
+
+/** Returns null when the user has no wallet (soft miss for the resolve chain). */
+async function userRowToScanResolve(
+    target: typeof users.$inferSelect,
+    matchedBy: ScanMatchBy,
+): Promise<ScanResolveDTO | null> {
+    if (!target.isActive) scanInactive("User is inactive");
+    const walletRows = await db.select().from(wallets).where(eq(wallets.userId, target.id)).limit(1);
+    const wallet = walletRows[0];
+    if (!wallet) return null;
+    return {
+        entity_type: "user",
+        matched_by: matchedBy,
+        id: target.id,
+        user_id: target.id,
+        name: target.fullName || target.username,
+        student_code: null,
+        customer_code: target.username,
+        customer_kind: target.role ?? null,
+        grade: null,
+        photo_url: target.photoUrl ?? null,
+        wallet_id: wallet.id,
+        wallet_balance: pgNumber(wallet.balance) ?? 0,
+        external_id: target.externalId ?? null,
+        card_frozen: false,
+        card_uid: target.cardUid ?? null,
+    };
+}
+
+async function findCustomerRowByCardUid(uid: string): Promise<typeof customers.$inferSelect | null> {
+    const candidates = cardUidLookupAttempts(uid);
+    if (candidates.length === 0) return null;
+    const rows = await db
+        .select()
+        .from(customers)
+        .where(or(...candidates.map((c) => ilike(customers.cardUid, c))))
+        .limit(1);
+    return rows[0] ?? null;
+}
+
+async function findCustomerRowByCode(code: string): Promise<typeof customers.$inferSelect | null> {
+    const rows = await db
+        .select()
+        .from(customers)
+        .where(or(
+            ilike(customers.studentCode, code),
+            ilike(customers.customerCode, code),
+            ilike(customers.externalId, code),
+        ))
+        .limit(1);
+    return rows[0] ?? null;
+}
+
+async function customerRowToScanResolve(
+    c: typeof customers.$inferSelect,
+    matchedBy: ScanMatchBy,
+): Promise<ScanResolveDTO> {
+    const walletRows = await db.select().from(wallets).where(eq(wallets.customerId, c.id)).limit(1);
+    const wallet = walletRows[0];
+    return {
+        entity_type: "customer",
+        matched_by: matchedBy,
+        id: c.id,
+        user_id: null,
+        name: c.name,
+        student_code: c.studentCode ?? null,
+        customer_code: c.customerCode,
+        customer_kind: c.customerKind ?? null,
+        grade: c.grade ?? null,
+        photo_url: c.photoUrl ?? null,
+        wallet_id: wallet?.id ?? null,
+        wallet_balance: wallet ? (pgNumber(wallet.balance) ?? 0) : null,
+        external_id: c.externalId ?? null,
+        card_frozen: c.cardFrozen,
+        card_uid: c.cardUid ?? null,
+    };
+}
+
+export async function resolveScan(raw: string): Promise<ScanResolveDTO> {
+    const q = raw.trim();
+    if (!q) scanNotFound();
+
+    const byUserCard = await findUserRowByCardUid(q);
+    if (byUserCard) {
+        const hit = await userRowToScanResolve(byUserCard, "user_card_uid");
+        if (hit) return hit;
+    }
+
+    const byUserExt = (
+        await db.select().from(users).where(eq(users.externalId, q)).limit(1)
+    )[0];
+    if (byUserExt) {
+        const hit = await userRowToScanResolve(byUserExt, "user_external_id");
+        if (hit) return hit;
+    }
+
+    // Lightweight customer lookups — skip spent_today (not needed for kiosk scan).
+    const byCustCard = await findCustomerRowByCardUid(q);
+    if (byCustCard) return customerRowToScanResolve(byCustCard, "customer_card_uid");
+
+    const byCustCode = await findCustomerRowByCode(q);
+    if (byCustCode) return customerRowToScanResolve(byCustCode, "customer_code");
+
+    scanNotFound();
 }
 
 async function userToFamilyMember(u: typeof users.$inferSelect): Promise<FamilyMemberLookupDTO> {

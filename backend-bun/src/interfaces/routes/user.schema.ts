@@ -27,6 +27,15 @@ export const getUserByExternalId = {
     detail: { tags: ["POS"], summary: "Resolve a user payer by external_id (PowerSchool/HR sync id)" },
 };
 
+export const resolveScan = {
+    params: t.Object({ q: t.String({ minLength: 1 }) }),
+    detail: {
+        tags: ["POS", "Kiosk"],
+        summary:
+            "Resolve a barcode/NFC scan in one call (users.card_uid → users.external_id → customers.card_uid → customer code)",
+    },
+};
+
 export const familyLookup = {
     query: t.Object({ q: t.String({ minLength: 1 }) }),
     detail: { tags: ["Admin"], summary: "Lookup by employee username or family code" },
