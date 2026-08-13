@@ -160,14 +160,16 @@ export async function getBalanceFile(
   `;
   const shopName = shopRows[0]?.name ?? null;
 
-  // Products to include
+  // Products to include. `avg_cost` is carried along as the opening cost basis
+  // of last resort — see where `opening` is derived below.
+  type ProductRow = { id: number; name: string; product_code: string | null; avg_cost: string | null };
   const productRows = productId
-    ? await pgClient<Array<{ id: number; name: string; product_code: string | null }>>`
-        SELECT id, name, product_code FROM shop_products
+    ? await pgClient<ProductRow[]>`
+        SELECT id, name, product_code, avg_cost::text AS avg_cost FROM shop_products
         WHERE shop_id = ${shopId} AND id = ${productId}
       `
-    : await pgClient<Array<{ id: number; name: string; product_code: string | null }>>`
-        SELECT id, name, product_code FROM shop_products
+    : await pgClient<ProductRow[]>`
+        SELECT id, name, product_code, avg_cost::text AS avg_cost FROM shop_products
         WHERE shop_id = ${shopId} AND is_active = true
         ORDER BY name
       `;
@@ -224,9 +226,24 @@ export async function getBalanceFile(
     const history = historyByProduct.get(p.id) ?? [];
     const monthMoves = monthMovesByProduct.get(p.id) ?? [];
 
-    // Replay history BEFORE monthStart to compute opening qty/avg
+    // Replay history BEFORE monthStart to compute opening qty/avg.
+    //
+    // With no history at all there is nothing to replay, and only a `receive`
+    // row ever moves the average — so the opening cost would be 0 and every
+    // sale before the product's first delivery would be valued at ฿0. That is
+    // exactly what happened to the products imported with stock 0: the import
+    // writes no movement, so their cost basis lived only on shop_products and
+    // this ledger never saw it. Falling back to the product's own avg_cost is
+    // what report_service.ts's Stock Card already does for the same case, so
+    // the two reports now agree instead of one showing a blended figure.
+    //
+    // Only the COST falls back. Opening qty stays 0 and self-corrects on the
+    // first movement, which sets qty from stock_after absolutely.
     let state: State = { qty: 0, avg: 0 };
     for (const m of history) state = applyMovement(state, m);
+    if (history.length === 0) {
+      state = { qty: state.qty, avg: p.avg_cost !== null ? Number(p.avg_cost) : 0 };
+    }
     const opening = { ...state };
 
     const openingValue = Math.round(opening.qty * opening.avg * 100) / 100;
