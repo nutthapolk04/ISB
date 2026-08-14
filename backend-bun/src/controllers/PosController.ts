@@ -256,6 +256,10 @@ export const PosController = {
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
+			logger.info(`[${reqContext.requestId} (PC-05)] PosController.createQrIntent() body.cart:`, {
+				shop_id: body.cart?.shop_id,
+				keys: Object.keys(body.cart ?? {}),
+			});
 			logger.info(`[${reqContext.requestId} (PC-05)] PosController.createQrIntent() calling createPosQrIntent().`);
 			const result = await createPosQrIntent({
 				cart: { ...(body.cart as Omit<CheckoutInput, "payment_method">), userId: Number(user.sub) },
