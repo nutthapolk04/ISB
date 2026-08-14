@@ -116,12 +116,18 @@ export async function createPosQrIntent(input: CreatePosQrInput): Promise<PosQrI
     });
 
     try {
+        logger.info("[POS QR] createPosQrIntent cart data", {
+            refCode,
+            shop_id: input.cart.shop_id,
+            amount: input.amount,
+        });
         const r = await createQrPayment({
             amount: input.amount,
             refCode,
-            // POS sale has no wallet; use a stable per-shop pseudo-id so BAY's
+            // POS sale has no wallet — send the shop_id as ref2 so BAY's
             // ref2 (max 20 char alphanumeric) keeps reconciliation traceable.
             walletId: 0,
+            shopId: input.cart.shop_id ?? null,
             remark: input.cart.notes ?? null,
             expiredMinutes: 3,
         });

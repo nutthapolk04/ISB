@@ -88,15 +88,22 @@ export async function createQrPayment(args: {
     amount: number;
     refCode: string;
     walletId: number;
+    /**
+     * When set, ref2 carries the shop identifier instead of the wallet pseudo-id.
+     * Used by POS sales, which have no wallet. Top-ups omit this and keep `W<walletId>`.
+     */
+    shopId?: string | number | null;
     channel?: number;
     expiredMinutes?: number;
     remark?: string | null;
 }): Promise<QRResult> {
     if (!isPymtConfigured()) throw new PymtGatewayError("PYMT not configured", 503);
+    // POS sales identify by shop; wallet top-ups keep the legacy `W<walletId>` form.
+    const shopRef = args.shopId != null ? sanitizeRef(String(args.shopId), 20) : "";
     const payload: Record<string, unknown> = {
         amount: args.amount,
         ref1: sanitizeRef(args.refCode, 20),
-        ref2: sanitizeRef(`W${args.walletId}`, 20),
+        ref2: shopRef || sanitizeRef(`W${args.walletId}`, 20),
         channel: args.channel ?? 2,
         expiredMinutes: args.expiredMinutes ?? 3,
     };
