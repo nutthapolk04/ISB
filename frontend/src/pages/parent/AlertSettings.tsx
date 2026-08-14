@@ -69,7 +69,9 @@ export default function AlertSettings() {
     }
     setSaving(true);
     try {
-      await api.put(`/family/me/children/${customerId}/low-balance-alert`, {
+      // PATCH, not PUT — the route is registered as PATCH (routes.ts), so a PUT
+      // here fell through to a 404 and surfaced as "Failed to save · not found".
+      await api.patch(`/family/me/children/${customerId}/low-balance-alert`, {
         enabled,
         threshold: thresholdNum,
       });
