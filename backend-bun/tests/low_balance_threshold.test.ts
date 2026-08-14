@@ -34,6 +34,7 @@ import {
     checkAndSendLowBalanceAlerts,
     resolveLowBalanceThreshold,
     sendPendingLowBalanceAlerts,
+    sendSingleLowBalanceAlert,
 } from "@/services/low_balance_notification";
 import { getLowBalanceAlert, updateLowBalanceAlert } from "@/services/family_service";
 
@@ -532,6 +533,213 @@ describe("updateLowBalanceAlert — family-level save", () => {
     );
 });
 
+describe("re-check at send time", () => {
+    /** The env guard in sendEmail() also produces 'skipped', so assertions have
+     *  to name WHICH reason — otherwise a test passes for the wrong one. */
+    const ENV_REASON = /APP_ENV/;
+
+    async function setBalance(childId: number, balance: number): Promise<void> {
+        await db.update(wallets).set({ balance: balance.toFixed(2) })
+            .where(eq(wallets.customerId, childId));
+    }
+
+    async function queueThenFlush(childId: number, balanceAtCheckout: number): Promise<typeof emailAlertsLog.$inferSelect> {
+        await checkAndSendLowBalanceAlerts(childId, balanceAtCheckout);
+        const queued = await queuedAlerts(childId);
+        expect(queued).toHaveLength(1);
+        expect(queued[0].status).toBe("pending");
+        await sendPendingLowBalanceAlerts();
+        return (await queuedAlerts(childId))[0];
+    }
+
+    it.if(HAS_DB)(
+        "does not send an alert the family turned off after it was queued",
+        async () => {
+            if (!dbOk) return;
+            // Queue at 07:00, guardian opts out, scheduler fires at 19:00. The
+            // pending row used to go out regardless.
+            const savedEnv = process.env.APP_ENV;
+            try {
+                delete process.env.APP_ENV;
+                await setSetting("low_balance_alert_enabled", true);
+                await setSetting("low_balance_threshold", 100);
+                const { childId } = await seedFamily("R1", [null], true);
+
+                await checkAndSendLowBalanceAlerts(childId, 10);
+                expect((await queuedAlerts(childId))[0].status).toBe("pending");
+
+                const [link] = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId)).limit(1);
+                await updateLowBalanceAlert({
+                    parentUserId: link.parentUserId, childId, enabled: false, threshold: null,
+                });
+
+                await sendPendingLowBalanceAlerts();
+                const row = (await queuedAlerts(childId))[0];
+                expect(row.status).toBe("skipped");
+                expect(row.errorMessage).toMatch(/turned low-balance alerts off/);
+                expect(row.errorMessage).not.toMatch(ENV_REASON);
+            } finally {
+                if (savedEnv === undefined) delete process.env.APP_ENV;
+                else process.env.APP_ENV = savedEnv;
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "does not send when the wallet was topped back up before the send time",
+        async () => {
+            if (!dbOk) return;
+            // "Your balance is low" arriving hours after a top-up reads as a
+            // broken system.
+            const savedEnv = process.env.APP_ENV;
+            try {
+                delete process.env.APP_ENV;
+                await setSetting("low_balance_alert_enabled", true);
+                await setSetting("low_balance_threshold", 100);
+                const { childId } = await seedFamily("R2", [null], true);
+
+                await checkAndSendLowBalanceAlerts(childId, 10);
+                await setBalance(childId, 500);            // parent tops up
+                await sendPendingLowBalanceAlerts();
+
+                const row = (await queuedAlerts(childId))[0];
+                expect(row.status).toBe("skipped");
+                expect(row.errorMessage).toMatch(/Balance recovered to 500\.00/);
+                // The trigger figures stay as they were — the row is a record of
+                // what happened, not of what we later decided.
+                expect(Number(row.balanceAtAlert)).toBeCloseTo(10, 2);
+            } finally {
+                if (savedEnv === undefined) delete process.env.APP_ENV;
+                else process.env.APP_ENV = savedEnv;
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "still sends when the balance is genuinely still low",
+        async () => {
+            if (!dbOk) return;
+            // The re-check must not become a way to lose real alerts.
+            const savedEnv = process.env.APP_ENV;
+            try {
+                delete process.env.APP_ENV;
+                await setSetting("low_balance_alert_enabled", true);
+                await setSetting("low_balance_threshold", 100);
+                const { childId } = await seedFamily("R3", [null], true);
+                await setBalance(childId, 10);
+
+                const row = await queueThenFlush(childId, 10);
+                // Reached sendEmail() — blocked only by the test environment.
+                expect(row.errorMessage).toMatch(ENV_REASON);
+                expect(row.errorMessage).not.toMatch(/turned low-balance alerts off|Balance recovered/);
+            } finally {
+                if (savedEnv === undefined) delete process.env.APP_ENV;
+                else process.env.APP_ENV = savedEnv;
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "uses the threshold as it stands at send time, not at queue time",
+        async () => {
+            if (!dbOk) return;
+            // Queued against 500, family lowers it to 50 during the day, balance
+            // is 100 — no longer low by the current rule, so nothing goes out.
+            const savedEnv = process.env.APP_ENV;
+            try {
+                delete process.env.APP_ENV;
+                await setSetting("low_balance_alert_enabled", true);
+                await setSetting("low_balance_threshold", 100);
+                const { childId } = await seedFamily("R4", [500], true);
+                await setBalance(childId, 100);
+
+                await checkAndSendLowBalanceAlerts(childId, 100);
+                expect(Number((await queuedAlerts(childId))[0].thresholdAmount)).toBeCloseTo(500, 2);
+
+                const [link] = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId)).limit(1);
+                await updateLowBalanceAlert({
+                    parentUserId: link.parentUserId, childId, enabled: true, threshold: 50,
+                });
+
+                await sendPendingLowBalanceAlerts();
+                const row = (await queuedAlerts(childId))[0];
+                expect(row.status).toBe("skipped");
+                expect(row.errorMessage).toMatch(/threshold 50\.00/);
+            } finally {
+                if (savedEnv === undefined) delete process.env.APP_ENV;
+                else process.env.APP_ENV = savedEnv;
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "applies to the admin 'Send now' action too",
+        async () => {
+            if (!dbOk) return;
+            // Same guard, both paths — the check lives in sendOneAlertRow(), which
+            // both the scheduler and the manual resend go through.
+            const savedEnv = process.env.APP_ENV;
+            try {
+                delete process.env.APP_ENV;
+                await setSetting("low_balance_alert_enabled", true);
+                await setSetting("low_balance_threshold", 100);
+                const { childId } = await seedFamily("R5", [null], true);
+
+                await checkAndSendLowBalanceAlerts(childId, 10);
+                const queued = (await queuedAlerts(childId))[0];
+                await setBalance(childId, 900);
+
+                await sendSingleLowBalanceAlert(queued.id);
+                const row = (await queuedAlerts(childId))[0];
+                expect(row.status).toBe("skipped");
+                expect(row.errorMessage).toMatch(/Balance recovered/);
+            } finally {
+                if (savedEnv === undefined) delete process.env.APP_ENV;
+                else process.env.APP_ENV = savedEnv;
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "does not stamp last_low_balance_alert_at on a row it skipped",
+        async () => {
+            if (!dbOk) return;
+            const savedEnv = process.env.APP_ENV;
+            try {
+                delete process.env.APP_ENV;
+                await setSetting("low_balance_alert_enabled", true);
+                await setSetting("low_balance_threshold", 100);
+                const { childId } = await seedFamily("R6", [null], true);
+
+                await checkAndSendLowBalanceAlerts(childId, 10);
+                await setBalance(childId, 900);
+                await sendPendingLowBalanceAlerts();
+
+                const links = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId));
+                expect(links.every((l) => l.lastLowBalanceAlertAt === null)).toBe(true);
+            } finally {
+                if (savedEnv === undefined) delete process.env.APP_ENV;
+                else process.env.APP_ENV = savedEnv;
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+});
+
 describe("last_low_balance_alert_at", () => {
     it.if(HAS_DB)(
         "is written only when an alert actually goes out",
@@ -552,6 +760,9 @@ describe("last_low_balance_alert_at", () => {
 
                 const rows = await queuedAlerts(childId);
                 expect(rows[0].status).toBe("skipped");
+                // Skipped by the email env guard, NOT by the send-time re-check —
+                // otherwise this would pass for the wrong reason.
+                expect(rows[0].errorMessage).toMatch(/APP_ENV/);
                 const links = await db.select().from(parentChildLinks)
                     .where(eq(parentChildLinks.childCustomerId, childId));
                 expect(links.every((l) => l.lastLowBalanceAlertAt === null)).toBe(true);
