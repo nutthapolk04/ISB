@@ -305,6 +305,8 @@ const printer = usePrinter();
 
 // --- Receipt printing ---
 const receiptTxId = ref<number | null>(null);
+/** Authoritative balance after top-up from API — used for receipt (not stale store). */
+const receiptBalanceAfter = ref<number | null>(null);
 const balanceBefore = ref(0);
 type PrintState = 'idle' | 'printing' | 'done' | 'error';
 const printState = ref<PrintState>('idle');
@@ -332,6 +334,7 @@ const selectMethod = async (key: string) => {
     selectedMethod.value = key;
     balanceBefore.value = store.currentWallet?.balance ?? 0;
     receiptTxId.value = null;
+    receiptBalanceAfter.value = null;
     printState.value = 'idle';
     autoPrinted = false;
     if (key === 'cash') {
@@ -488,7 +491,13 @@ const startPolling = () => {
                     receiptTxId.value = s.transaction_id;
                 }
                 creditedAmount.value = s.amount;
+                if (s.balance_after != null) {
+                    receiptBalanceAfter.value = s.balance_after;
+                } else {
+                    receiptBalanceAfter.value = balanceBefore.value + s.amount;
+                }
                 await store.refreshBalance();
+                store.applyWalletBalance(receiptBalanceAfter.value, store.currentWallet?.id);
                 currentStep.value = 'success';
             } else if (s.status === 'cancelled') {
                 stopPolling();
@@ -593,7 +602,9 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
         );
         receiptTxId.value = res.transaction_id;
         creditedAmount.value = amount;
+        receiptBalanceAfter.value = res.balance_after;
         await store.refreshBalance();
+        store.applyWalletBalance(res.balance_after, walletId);
         currentStep.value = 'success';
         return true;
     } catch (e) {
@@ -826,7 +837,8 @@ const buildReceiptData = (): TopupReceiptData => {
     const wallet = store.currentWallet;
     const methodLabel = selectedMethod.value ? (tt as any)[selectedMethod.value] : '';
     const amount = creditedNumber.value;
-    const balAfter = wallet?.balance ?? balanceBefore.value + amount;
+    // Prefer API balance_after; never trust possibly-stale store alone.
+    const balAfter = receiptBalanceAfter.value ?? (balanceBefore.value + amount);
 
     const rows: ReceiptRow[] = [];
     if (receiptTxId.value != null) {

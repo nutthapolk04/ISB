@@ -505,6 +505,7 @@ export const realApi = {
         amount: number;
         payment_method: string;
         transaction_id?: number | null;
+        balance_after?: number | null;
     }> {
         return request(`/wallets/topup/${refCode}/status`);
     },

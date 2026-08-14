@@ -55,6 +55,19 @@ export const useKioskStore = defineStore('kiosk', () => {
         }
     }
 
+    /** Patch the active wallet balance after a successful top-up/transfer (authoritative from API). */
+    function applyWalletBalance(balance: number, walletId?: string | null) {
+        const user = currentUser.value;
+        if (!user?.wallets.length) return;
+        const idx = walletId
+            ? user.wallets.findIndex((w) => w.id === walletId)
+            : activeWalletIndex.value;
+        const target = idx >= 0 ? idx : activeWalletIndex.value;
+        if (user.wallets[target]) {
+            user.wallets[target].balance = balance;
+        }
+    }
+
     function updateActivity() {
         lastActivity.value = Date.now();
     }
@@ -214,6 +227,7 @@ export const useKioskStore = defineStore('kiosk', () => {
         sessionPayerId,
         setLanguage,
         setActiveWallet,
+        applyWalletBalance,
         updateActivity,
         setSuppressGlobalIdle,
         bootstrap,
