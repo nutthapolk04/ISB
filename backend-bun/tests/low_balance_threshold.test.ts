@@ -1,17 +1,22 @@
 /**
- * Low-balance alerts — whose threshold actually decides.
+ * Low-balance alerts — who decides whether one is sent, and at what balance.
  *
- * A guardian sets an alert balance on /parent/alerts/:id, which writes
- * `parent_child_links.low_balance_threshold`. The value was stored correctly and
- * read back onto the page, but checkAndSendLowBalanceAlerts() only ever consulted
- * the school-wide `low_balance_threshold` system setting — so the parent-facing
- * screen was a form that saved into a column nothing consulted.
+ * A guardian's settings live on `parent_child_links` (one row per guardian ×
+ * child). Both were stored correctly and read back onto /parent/alerts/:id, but
+ * checkAndSendLowBalanceAlerts() consulted only the school-wide system
+ * settings — so the parent-facing screen was a form that saved into columns
+ * nothing ever read. Saving also 404'd, because the page issued PUT against a
+ * PATCH route.
  *
- * The agreed rule:
- *   - the admin toggle `low_balance_alert_enabled` is the master switch; a
- *     guardian's own setting can never turn alerting back on when it's off;
- *   - a guardian overrides the AMOUNT only;
- *   - no amount set → the school-wide default applies.
+ * The agreed rules:
+ *   - BOTH switches must be on. `low_balance_alert_enabled` (system) is the
+ *     school's; `parent_child_links.low_balance_alert_enabled` is the family's,
+ *     and it is off by default — nothing is sent until a guardian opts in.
+ *   - the family's amount wins whenever it is set, higher or lower than the
+ *     school's; a NULL amount follows the school default.
+ *   - both settings are FAMILY-level per child: alerts go to shared family
+ *     addresses that can't be attributed to one guardian, so every link for the
+ *     child carries the same value. Siblings stay independent.
  *
  * Also pinned here: `last_low_balance_alert_at`. The column existed and the page
  * displayed it, but nothing wrote it, so it was permanently null.
@@ -30,6 +35,7 @@ import {
     resolveLowBalanceThreshold,
     sendPendingLowBalanceAlerts,
 } from "@/services/low_balance_notification";
+import { getLowBalanceAlert, updateLowBalanceAlert } from "@/services/family_service";
 
 const DB_URL = process.env.DATABASE_URL ?? "";
 const IS_LOCAL_DB = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(DB_URL);
@@ -109,7 +115,11 @@ async function setSetting(key: string, value: unknown): Promise<void> {
         .onConflictDoUpdate({ target: systemSettings.key, set: { value: value as never } });
 }
 
-async function seedFamily(suffix: string, guardians: Array<number | null>): Promise<{ childId: number }> {
+async function seedFamily(
+    suffix: string,
+    guardians: Array<number | null>,
+    enabled = true,
+): Promise<{ childId: number }> {
     const [ct] = await db.select({ id: customerTypes.id }).from(customerTypes).limit(1);
     if (!ct) throw new Error("No customer_types row — seed the DB first");
     const [child] = await db.insert(customers).values({
@@ -133,7 +143,7 @@ async function seedFamily(suffix: string, guardians: Array<number | null>): Prom
 
         const [link] = await db.insert(parentChildLinks).values({
             parentUserId: u.id, childCustomerId: child.id, relation: "guardian",
-            lowBalanceAlertEnabled: false,      // the real-world default on every existing link
+            lowBalanceAlertEnabled: enabled,
             lowBalanceThreshold: threshold === null ? null : threshold.toFixed(2),
         }).returning({ id: parentChildLinks.id });
         created.links.push(link.id);
@@ -255,22 +265,79 @@ describe("checkAndSendLowBalanceAlerts — guardian threshold", () => {
     );
 
     it.if(HAS_DB)(
-        "does not require the per-link enabled flag — every existing link has it false",
+        "sends nothing when the family has not opted in, even with the school switch on",
         async () => {
             if (!dbOk) return;
-            // Gating on parent_child_links.low_balance_alert_enabled would mute
-            // alerts for the entire school: links are created with false and
-            // nothing has ever set it true. Guardians override the amount only.
+            // The second half of "both switches must be on".
             try {
                 await setSetting("low_balance_alert_enabled", true);
                 await setSetting("low_balance_threshold", 100);
-                const { childId } = await seedFamily("F", [null]);
-                const links = await db.select().from(parentChildLinks)
-                    .where(eq(parentChildLinks.childCustomerId, childId));
-                expect(links.every((l) => l.lowBalanceAlertEnabled === false)).toBe(true);
+                const { childId } = await seedFamily("F", [null], false);
+                await checkAndSendLowBalanceAlerts(childId, 1);
+                expect(await queuedAlerts(childId)).toHaveLength(0);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "leaves a newly created guardian link opted out",
+        async () => {
+            if (!dbOk) return;
+            // Default off is the whole premise: alerts only start once a guardian
+            // asks for them. A link created by the admin link flow must not be
+            // silently subscribed.
+            try {
+                const { childId } = await seedFamily("F2", [null], false);
+                const [existing] = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId)).limit(1);
+                const [u] = await db.insert(users).values({
+                    username: `${TAG}-F2-new`, email: `${TAG}-F2-new@fixture.invalid`,
+                    fullName: `${TAG} new guardian`, hashedPassword: "x",
+                    isActive: true, isSuperuser: false, role: "parent",
+                }).returning({ id: users.id });
+                created.users.push(u.id);
+                const [fresh] = await db.insert(parentChildLinks).values({
+                    parentUserId: u.id, childCustomerId: childId, relation: "guardian",
+                }).returning();
+                created.links.push(fresh.id);
+
+                expect(fresh.lowBalanceAlertEnabled).toBe(false);
+                expect(fresh.lowBalanceThreshold).toBeNull();
+                expect(existing.lowBalanceAlertEnabled).toBe(false);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "keeps sending when a co-parent is added to an opted-in family",
+        async () => {
+            if (!dbOk) return;
+            // A fresh link defaults to off. Requiring EVERY link to be on would
+            // mean adding a co-parent silently mutes a family that had alerts
+            // working — hence `some`, not `every`.
+            try {
+                await setSetting("low_balance_alert_enabled", true);
+                await setSetting("low_balance_threshold", 100);
+                const { childId } = await seedFamily("F3", [null], true);
+                const [u] = await db.insert(users).values({
+                    username: `${TAG}-F3-new`, email: `${TAG}-F3-new@fixture.invalid`,
+                    fullName: `${TAG} co-parent`, hashedPassword: "x",
+                    isActive: true, isSuperuser: false, role: "parent",
+                }).returning({ id: users.id });
+                created.users.push(u.id);
+                const [fresh] = await db.insert(parentChildLinks).values({
+                    parentUserId: u.id, childCustomerId: childId, relation: "guardian",
+                }).returning({ id: parentChildLinks.id });
+                created.links.push(fresh.id);
 
                 await checkAndSendLowBalanceAlerts(childId, 10);
-                expect(await queuedAlerts(childId)).toHaveLength(1);
+                expect((await queuedAlerts(childId)).length).toBeGreaterThan(0);
             } finally {
                 await cleanup();
             }
@@ -290,6 +357,173 @@ describe("checkAndSendLowBalanceAlerts — guardian threshold", () => {
                 const rows = await queuedAlerts(childId);
                 expect(rows.length).toBeGreaterThan(0);
                 expect(Number(rows[0].thresholdAmount)).toBeCloseTo(400, 2);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+});
+
+describe("updateLowBalanceAlert — family-level save", () => {
+    it.if(HAS_DB)(
+        "writes the setting to every guardian link for that child",
+        async () => {
+            if (!dbOk) return;
+            // Delivery is to shared family addresses, so one value per child is
+            // the only thing that can actually be honoured.
+            try {
+                const { childId } = await seedFamily("S1", [null, null], false);
+                const links = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId));
+                expect(links).toHaveLength(2);
+
+                await updateLowBalanceAlert({
+                    parentUserId: links[0].parentUserId, childId, enabled: true, threshold: 250,
+                });
+
+                const after = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId));
+                expect(after.every((l) => l.lowBalanceAlertEnabled)).toBe(true);
+                expect(after.every((l) => Number(l.lowBalanceThreshold) === 250)).toBe(true);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "leaves siblings alone",
+        async () => {
+            if (!dbOk) return;
+            try {
+                const a = await seedFamily("S2a", [null], false);
+                const b = await seedFamily("S2b", [null], false);
+                const [linkA] = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, a.childId)).limit(1);
+
+                await updateLowBalanceAlert({
+                    parentUserId: linkA.parentUserId, childId: a.childId, enabled: true, threshold: 300,
+                });
+
+                const afterB = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, b.childId));
+                expect(afterB.every((l) => l.lowBalanceAlertEnabled === false)).toBe(true);
+                expect(afterB.every((l) => l.lowBalanceThreshold === null)).toBe(true);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "clears the amount back to the school default — the 'Use default' button",
+        async () => {
+            if (!dbOk) return;
+            // The old code skipped nulls entirely, so once a family set an amount
+            // there was no route back to following the school.
+            try {
+                await setSetting("low_balance_threshold", 175);
+                const { childId } = await seedFamily("S3", [400], true);
+                const [link] = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId)).limit(1);
+
+                const out = await updateLowBalanceAlert({
+                    parentUserId: link.parentUserId, childId, enabled: true, threshold: null,
+                });
+
+                expect(out.threshold).toBeNull();
+                expect(out.default_threshold).toBe(175);
+                const after = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId));
+                expect(after.every((l) => l.lowBalanceThreshold === null)).toBe(true);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "accepts enabled with no amount — that is the default-following state",
+        async () => {
+            if (!dbOk) return;
+            // This used to be a 400 ("Threshold must be a positive number when
+            // alerts are enabled"), which made "Use default" impossible.
+            try {
+                const { childId } = await seedFamily("S4", [null], false);
+                const [link] = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId)).limit(1);
+                const out = await updateLowBalanceAlert({
+                    parentUserId: link.parentUserId, childId, enabled: true, threshold: null,
+                });
+                expect(out.enabled).toBe(true);
+                expect(out.threshold).toBeNull();
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "still rejects a zero or negative amount",
+        async () => {
+            if (!dbOk) return;
+            try {
+                const { childId } = await seedFamily("S5", [null], false);
+                const [link] = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId)).limit(1);
+                await expect(updateLowBalanceAlert({
+                    parentUserId: link.parentUserId, childId, enabled: true, threshold: 0,
+                })).rejects.toThrow(/positive number/);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "refuses a child the caller isn't linked to",
+        async () => {
+            if (!dbOk) return;
+            // Writing every link for the child makes the authorization check the
+            // only thing standing between one guardian and another family's rows.
+            try {
+                const mine = await seedFamily("S6a", [null], false);
+                const theirs = await seedFamily("S6b", [null], false);
+                const [myLink] = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, mine.childId)).limit(1);
+
+                await expect(updateLowBalanceAlert({
+                    parentUserId: myLink.parentUserId, childId: theirs.childId, enabled: true, threshold: 500,
+                })).rejects.toThrow(/not linked/);
+
+                const untouched = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, theirs.childId));
+                expect(untouched.every((l) => l.lowBalanceAlertEnabled === false)).toBe(true);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "reports the school default so the page can show a number",
+        async () => {
+            if (!dbOk) return;
+            try {
+                await setSetting("low_balance_threshold", 225);
+                const { childId } = await seedFamily("S7", [null], false);
+                const [link] = await db.select().from(parentChildLinks)
+                    .where(eq(parentChildLinks.childCustomerId, childId)).limit(1);
+                const out = await getLowBalanceAlert(link.parentUserId, childId);
+                expect(out.threshold).toBeNull();
+                expect(out.default_threshold).toBe(225);
             } finally {
                 await cleanup();
             }

@@ -53,10 +53,21 @@ export async function checkAndSendLowBalanceAlerts(
             parentUserId: parentChildLinks.parentUserId,
             email: users.email,
             linkThreshold: parentChildLinks.lowBalanceThreshold,
+            linkEnabled: parentChildLinks.lowBalanceAlertEnabled,
         })
         .from(parentChildLinks)
         .innerJoin(users, eq(users.id, parentChildLinks.parentUserId))
         .where(eq(parentChildLinks.childCustomerId, customerId));
+
+    // The family has to have opted in. Both switches must be on: the school's,
+    // checked above, and this child's — off by default, so nothing goes out
+    // until a guardian turns it on at /parent/alerts/:id.
+    //
+    // `some`, not `every`: updateLowBalanceAlert() writes every link for the
+    // child in one statement so they always agree, but a guardian added LATER
+    // gets a fresh link defaulting to false — requiring all of them would let
+    // adding a co-parent silently mute a family that had alerts on.
+    if (!parents.some((p) => p.linkEnabled)) return;
 
     // The threshold test has to come AFTER the links are read — it used to run
     // on the school-wide value alone, which is why anything a guardian saved on

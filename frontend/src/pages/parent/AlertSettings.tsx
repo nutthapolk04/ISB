@@ -16,7 +16,9 @@ import { getRoleStyle } from "@/lib/roleStyles";
 interface AlertConfig {
   child_customer_id: number;
   enabled: boolean;
+  /** null = following the school-wide default in `default_threshold`. */
   threshold: number | null;
+  default_threshold: number;
   last_alert_at: string | null;
 }
 
@@ -33,6 +35,11 @@ export default function AlertSettings() {
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [threshold, setThreshold] = useState("");
   const [enabled, setEnabled] = useState(false);
+  /** True while this child follows the school-wide amount. The box still shows
+   *  that number — an empty field reads as "no alert set" — but the save sends
+   *  null so the family keeps following the school if it changes the amount
+   *  later. Typing in the box takes ownership of the value. */
+  const [usingDefault, setUsingDefault] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +55,8 @@ export default function AlertSettings() {
         setConfig(cfg);
         setCustomer(cust);
         setEnabled(cfg.enabled);
-        setThreshold(cfg.threshold != null ? String(cfg.threshold) : "");
+        setUsingDefault(cfg.threshold == null);
+        setThreshold(String(cfg.threshold ?? cfg.default_threshold));
       } catch (e) {
         setError(e instanceof ApiError ? e.detail : "Failed to load settings");
       } finally {
@@ -59,10 +67,12 @@ export default function AlertSettings() {
 
   const handleSave = async () => {
     if (!customerId) return;
-    const thresholdNum = threshold ? Number(threshold) : null;
-    if (enabled && (thresholdNum === null || isNaN(thresholdNum) || thresholdNum <= 0)) {
+    // null tells the server "keep following the school amount". Only a value the
+    // guardian actually typed is sent as their own.
+    const thresholdNum = usingDefault ? null : Number(threshold);
+    if (thresholdNum !== null && (isNaN(thresholdNum) || thresholdNum <= 0)) {
       toast({
-        title: t("parent.lowBalanceAlert.invalidThreshold", "Enter a balance threshold to alert on"),
+        title: t("parent.lowBalanceAlert.invalidThreshold", "Enter a balance above 0, or use the school default"),
         variant: "destructive",
       });
       return;
@@ -71,10 +81,11 @@ export default function AlertSettings() {
     try {
       // PATCH, not PUT — the route is registered as PATCH (routes.ts), so a PUT
       // here fell through to a 404 and surfaced as "Failed to save · not found".
-      await api.patch(`/family/me/children/${customerId}/low-balance-alert`, {
+      const saved = await api.patch<AlertConfig>(`/family/me/children/${customerId}/low-balance-alert`, {
         enabled,
         threshold: thresholdNum,
       });
+      setConfig(saved);
       toast({ title: t("parent.lowBalanceAlert.saved", "Notification settings saved") });
     } catch (e) {
       toast({
@@ -125,9 +136,17 @@ export default function AlertSettings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm text-slate-700 flex-1">
-                  {t("parent.lowBalanceAlert.toggleLabel", "Email me when the balance drops below the threshold")}
-                </p>
+                <div className="flex-1">
+                  <p className="text-sm text-slate-700">
+                    {t("parent.lowBalanceAlert.toggleLabel", "Email our family when the balance drops below the threshold")}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {t(
+                      "parent.lowBalanceAlert.familyScopeNote",
+                      "This setting is shared with every guardian of this student. Each child is set separately.",
+                    )}
+                  </p>
+                </div>
                 <Switch checked={enabled} onCheckedChange={setEnabled} />
               </div>
 
@@ -136,19 +155,47 @@ export default function AlertSettings() {
                   <Label htmlFor="threshold" className="text-sm font-medium text-slate-700">
                     {t("parent.lowBalanceAlert.thresholdLabel", "Alert when balance is below (THB)")}
                   </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">฿</span>
-                    <Input
-                      id="threshold"
-                      type="number"
-                      min="0"
-                      step="50"
-                      value={threshold}
-                      onChange={(e) => setThreshold(e.target.value)}
-                      placeholder="200"
-                      className="pl-7"
-                    />
+                  <div className="flex items-start gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">฿</span>
+                      <Input
+                        id="threshold"
+                        type="number"
+                        min="0"
+                        step="50"
+                        value={threshold}
+                        onChange={(e) => {
+                          setThreshold(e.target.value);
+                          setUsingDefault(false);
+                        }}
+                        className="pl-7"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 shrink-0"
+                      disabled={usingDefault}
+                      onClick={() => {
+                        setThreshold(String(config.default_threshold));
+                        setUsingDefault(true);
+                      }}
+                    >
+                      {t("parent.lowBalanceAlert.useDefault", "Use default")}
+                    </Button>
                   </div>
+                  <p className="text-xs text-slate-400">
+                    {usingDefault
+                      ? t(
+                        "parent.lowBalanceAlert.followingDefault",
+                        "Following the school default — this updates automatically if the school changes it.",
+                      )
+                      : t(
+                        "parent.lowBalanceAlert.customThreshold",
+                        "Your own amount. School default is ฿{{amount}}.",
+                        { amount: config.default_threshold },
+                      )}
+                  </p>
                   <p className="text-xs text-slate-400">
                     {t("parent.lowBalanceAlert.cooldownNote", "Repeat alerts are sent at most every 4 hours to avoid spam.")}
                   </p>

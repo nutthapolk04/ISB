@@ -2793,7 +2793,7 @@
     },
     "lowBalanceAlert": {
       "cooldownNote": "When your wallet balance drops below the set threshold after a transaction, an alert email will be sent at 7:00 PM on the day of the transaction.",
-      "invalidThreshold": "Enter a balance threshold to alert on",
+      "invalidThreshold": "Enter a balance above 0, or use the school default",
       "lastSent": "Last alert sent",
       "neverSent": "Never sent yet",
       "saveFailed": "Failed to save",
@@ -2801,7 +2801,11 @@
       "sendTo": "Send to",
       "thresholdLabel": "Alert when balance is below (THB)",
       "title": "Low-balance email alerts",
-      "toggleLabel": "Email me when the balance drops below the threshold"
+      "toggleLabel": "Email our family when the balance drops below the threshold",
+      "familyScopeNote": "This setting is shared with every guardian of this student. Each child is set separately.",
+      "useDefault": "Use default",
+      "followingDefault": "Following the school default — this updates automatically if the school changes it.",
+      "customThreshold": "Your own amount. School default is ฿{{amount}}."
     },
     "childSettings": {
       "title": "Daily Spending Limits",
