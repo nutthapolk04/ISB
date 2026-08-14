@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
 import { api, ApiError } from "@/lib/api";
+import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +82,7 @@ const REQUESTER_ROLES = ["staff", "manager", "cashier", "kitchen", "admin"];
 export default function StoreRequisition() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const schoolInfo = useSchoolInfo();
   const requesterPickerRef = useRef<UserPickerHandle>(null);
 
   const [shops, setShops] = useState<Shop[]>([]);
@@ -309,7 +312,7 @@ export default function StoreRequisition() {
     }
     setSubmitting(true);
     try {
-      await api.post(`/shops/${activeShopId}/requisition`, {
+      const receipt = await api.post<ReceiptApi>(`/shops/${activeShopId}/requisition`, {
         items: cart.map((x) => ({ product_id: x.id, qty: x.qty })),
         requester_user_id: requesterId,
         pay_mode: payMode,
@@ -319,6 +322,17 @@ export default function StoreRequisition() {
       toast.success(t("requisition.success", "Requisition recorded"));
       setCart([]);
       setCheckoutOpen(false);
+
+      // Print receipt
+      if (receipt && schoolInfo) {
+        try {
+          const shopName = shops.find((s) => s.id === activeShopId)?.name || activeShopId;
+          printReceipt(receipt, schoolInfo, shopName, "en");
+        } catch (printErr) {
+          console.error("Failed to print receipt:", printErr);
+          // Don't toast error — receipt is already recorded
+        }
+      }
     } catch (err: any) {
       toast.error(err instanceof ApiError ? err.detail : err?.message || "Failed");
     } finally {
