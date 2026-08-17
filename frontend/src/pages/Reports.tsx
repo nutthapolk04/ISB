@@ -117,6 +117,11 @@ const STORE_ONLY_REPORTS = [
     { type: "bundleReport", icon: Package, needsRange: false },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
+// Cashier-only reports — just the Daily Sales Report (Sales Summary Report)
+const CASHIER_ONLY_REPORTS = [
+    { type: "salesSummaryReport", icon: FileText, needsRange: false },
+] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
+
 const REPORT_DEFS = [...COMMON_REPORTS, ...STORE_ONLY_REPORTS];
 
 const Reports = () => {
@@ -172,10 +177,6 @@ const Reports = () => {
             internalUsedReport: "S015",
             receiveStockReport: "S016",
         };
-    const visibleReports = useMemo(
-        () => (isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS),
-        [isCanteenReportsPage],
-    );
 
     // Shop selector visibility:
     //  - admin / finance: pick any shop in the current module (canteen vs store)
@@ -183,6 +184,7 @@ const Reports = () => {
     //  - other shop users: locked to their own shop (no selector)
     const isAdmin = hasRole("admin");
     const isFinance = hasRole("finance");
+    const isCashier = hasRole("cashier");
     const isCanteenAreaMgr = user?.shopModule === "canteen" && !user?.shopId && !isAdmin && !isFinance;
     const needsShopSelector = isAdmin || isFinance || isCanteenAreaMgr;
     const [canteenStalls, setCanteenStalls] = useState<CanteenShop[]>([]);
@@ -193,6 +195,15 @@ const Reports = () => {
         const module = isCanteenReportsPage ? "canteen" : "store";
         api.get<CanteenShop[]>(`/shops?module=${module}`).then(setCanteenStalls).catch(() => { });
     }, [needsShopSelector, isCanteenReportsPage]);
+
+    // Cashier should only see CASHIER_ONLY_REPORTS (Daily Sales Report only)
+    const visibleReports = useMemo(
+        () => {
+            if (isCashier) return CASHIER_ONLY_REPORTS;
+            return isCanteenReportsPage ? COMMON_REPORTS : REPORT_DEFS;
+        },
+        [isCanteenReportsPage, isCashier],
+    );
 
     const currentDef = REPORT_DEFS.find((d) => d.type === selectedReportType);
     const needsRange = currentDef?.needsRange ?? true;
