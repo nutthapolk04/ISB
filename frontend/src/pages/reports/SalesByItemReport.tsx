@@ -47,6 +47,7 @@ interface SalesByItemRow {
     sales_qty: number;
     sales_amt: number;
     receive_type: string;
+    shop_name: string | null;
     remark: string | null;
     status: string;
 }
@@ -292,18 +293,19 @@ export function SalesByItemReport({
         // ≈ 770pt (table budget). Header strings kept short to avoid the
         // vertical-stack wrapping bug seen at narrower defaults.
         const columns: ReportColumn[] = [
-            { header: "Seq.", key: "seq", format: "number", align: "right", width: 28 },
-            { header: "Date/Time", key: "transaction_date", format: "datetime", width: 95 },
-            { header: "Item NO.", key: "item_no", width: 70 },
-            { header: "Item Name", key: "item_name", width: 130 },
-            { header: "Receipt NO.", key: "receipt_number", width: 85 },
-            { header: "ID.", key: "customer_id", width: 68 },
-            { header: "Name", key: "customer_name", width: 77 },
-            { header: "Sales Qty.", key: "sales_qty", format: "number", align: "right", width: 42 },
-            { header: "Sales AMT.", key: "sales_amt", format: "currency", align: "right", width: 60 },
-            { header: "Receive Type", key: "receive_type", width: 65 },
-            { header: "Remark", key: "remark", width: 60 },
-            { header: "Status", key: "status", width: 50 },
+            { header: "Seq.", key: "seq", format: "number", align: "right", width: 26 },
+            { header: "Date/Time", key: "transaction_date", format: "datetime", width: 82 },
+            { header: "Item NO.", key: "item_no", width: 62 },
+            { header: "Item Name", key: "item_name", width: 118 },
+            { header: "Receipt NO.", key: "receipt_number", width: 80 },
+            { header: "ID.", key: "customer_id", width: 58 },
+            { header: "Name", key: "customer_name", width: 70 },
+            { header: "Sales Qty.", key: "sales_qty", format: "number", align: "right", width: 40 },
+            { header: "Sales AMT.", key: "sales_amt", format: "currency", align: "right", width: 58 },
+            { header: "Receive Type", key: "receive_type", width: 55 },
+            { header: "Shop", key: "shop_name", width: 72 },
+            { header: "Remark", key: "remark", width: 42 },
+            { header: "Status", key: "status", width: 47 },
         ];
         return {
             meta,
@@ -520,6 +522,7 @@ export function SalesByItemReport({
                                                 <th className="px-2 py-2 text-right">Sales Qty.</th>
                                                 <th className="px-2 py-2 text-right">Sales AMT.</th>
                                                 <th className="px-2 py-2 text-left">Receive Type</th>
+                                                <th className="px-2 py-2 text-left">Shop</th>
                                                 <th className="px-2 py-2 text-left">Remark</th>
                                                 <th className="px-2 py-2 text-left">Status</th>
                                             </tr>
@@ -527,7 +530,7 @@ export function SalesByItemReport({
                                         <tbody>
                                             {siData.rows.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={12} className="px-3 py-4 text-center text-muted-foreground">
+                                                    <td colSpan={13} className="px-3 py-4 text-center text-muted-foreground">
                                                         No line items match these filters.
                                                     </td>
                                                 </tr>
@@ -549,6 +552,7 @@ export function SalesByItemReport({
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.sales_qty}</td>
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.sales_amt.toFixed(2)}</td>
                                                         <td className="px-2 py-1.5">{r.receive_type}</td>
+                                                        <td className="px-2 py-1.5 whitespace-nowrap">{r.shop_name ?? "—"}</td>
                                                         <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
                                                         <td className="px-2 py-1.5">
                                                             {r.status === "ACTIVE" ? (
@@ -567,7 +571,7 @@ export function SalesByItemReport({
                                                     <td colSpan={7} className="px-2 py-2 text-left">TOTAL By Item</td>
                                                     <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_qty}</td>
                                                     <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_amt.toFixed(2)}</td>
-                                                    <td colSpan={3} />
+                                                    <td colSpan={4} />
                                                 </tr>
                                             </tfoot>
                                         )}
