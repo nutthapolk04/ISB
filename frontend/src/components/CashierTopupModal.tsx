@@ -148,9 +148,7 @@ export function CashierTopupModal({
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
     const [submitting, setSubmitting] = useState(false);
 
-    // QR & EDC top-up have no backend minimum floor beyond ฿1 (see topup_service.ts);
-    // cash keeps the ฿100 floor since that's a separate, unaffected backend path.
-    const minTopupAmount = paymentMethod === "cash" ? 100 : 1;
+    const minTopupAmount = 100;
 
     const [topupResult, setTopupResult] = useState<TopupSuccessResult | null>(null);
     const [lastPaymentMethod, setLastPaymentMethod] = useState<PaymentMethod>("cash");
@@ -365,7 +363,7 @@ export function CashierTopupModal({
         if (!selectedCustomer) return;
 
         const amountNum = parseFloat(amount);
-        const minAmount = paymentMethod === "cash" ? 100 : 1;
+        const minAmount = minTopupAmount;
         if (isNaN(amountNum) || amountNum < minAmount || amountNum > 50000) {
             toast.error(t("topup.invalidAmount", { min: minAmount, max: 50000, defaultValue: `Amount must be between ฿${minAmount} and ฿50,000` }));
             return;

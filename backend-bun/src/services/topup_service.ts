@@ -290,7 +290,7 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
         (err as { status?: number }).status = 404;
         throw err;
     }
-    const minAmount = 1;
+    const minAmount = 100;
     if (input.amount < minAmount || input.amount > 50000) {
         const err = new Error(`Top-up amount must be between ฿${minAmount} and ฿50,000`);
         (err as { status?: number }).status = 400;
@@ -1055,7 +1055,7 @@ export async function edcTopup(args: {
             throw err;
         }
 
-        const minAmount = 1;
+        const minAmount = 100;
         if (args.amount < minAmount || args.amount > 50000) {
             const err = new Error(`Top-up amount must be between ฿${minAmount} and ฿50,000`);
             (err as { status?: number }).status = 400;

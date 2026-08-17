@@ -78,7 +78,7 @@ export default function WalletDetail() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [amount, setAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<"qr_promptpay" | "credit_card">("qr_promptpay");
-  const minTopupAmount = 1;
+  const minTopupAmount = 100;
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [intent, setIntent] = useState<TopupIntent | null>(null);
