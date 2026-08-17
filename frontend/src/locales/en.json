@@ -530,7 +530,10 @@
       "itemsLoading": "Loading cart…",
       "itemsNone": "No cart snapshot for this attempt",
       "checkNow": "Check with Bank Now",
-      "checkFailed": "Could not check with the bank"
+      "checkFailed": "Could not check with the bank",
+      "verifyEdc": "Verify & Create Receipt",
+      "verified": "Payment verified and receipt created",
+      "verifyFailed": "Could not verify EDC payment"
     },
     "searchReceipt": "Search by receipt ID, name, amount, or date...",
     "searchPanel": {

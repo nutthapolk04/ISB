@@ -307,6 +307,7 @@ export interface ListTransactionsParams {
     pageSize?: number;
     sortBy?: "created_at" | "resolved_at";
     sortOrder?: "asc" | "desc";
+    createdBy?: number;
 }
 
 export interface TransactionDTO {
@@ -375,6 +376,7 @@ function buildTransactionFilters(
     }
     if (p.dateFrom) conds.push(gte(posCheckoutTransactions.createdAt, bangkokDateRange(p.dateFrom, p.dateFrom).start));
     if (p.dateTo) conds.push(lte(posCheckoutTransactions.createdAt, bangkokDateRange(p.dateTo, p.dateTo).end));
+    if (p.createdBy) conds.push(eq(posCheckoutTransactions.cashierUserId, p.createdBy));
     return conds;
 }
 
