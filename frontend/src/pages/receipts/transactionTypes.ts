@@ -14,6 +14,8 @@ export interface TransactionApi {
     cashier_name: string | null;
     payer_kind: string | null;
     payer_id: number | null;
+    payer_label: string | null;
+    payer_code: string | null;
     items_count: number | null;
     amount: number | null;
     receipt_id: number | null;
