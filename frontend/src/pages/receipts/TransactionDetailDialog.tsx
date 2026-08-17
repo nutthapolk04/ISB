@@ -24,6 +24,9 @@ interface TransactionDetailDialogProps {
    */
   onCheckNow?: () => void;
   checking?: boolean;
+  /** For pending EDC transactions — verify status and create receipt if approved. */
+  onVerifyEdcAndCreate?: () => void;
+  verifyingEdc?: boolean;
 }
 
 const STATUS_BADGE: Record<TransactionStatus, "warning" | "success" | "destructive" | "secondary"> = {
@@ -33,7 +36,7 @@ const STATUS_BADGE: Record<TransactionStatus, "warning" | "success" | "destructi
   cancelled: "secondary",
 };
 
-export function TransactionDetailDialog({ transaction, open, onOpenChange, onViewReceipt, onCheckNow, checking }: TransactionDetailDialogProps) {
+export function TransactionDetailDialog({ transaction, open, onOpenChange, onViewReceipt, onCheckNow, checking, onVerifyEdcAndCreate, verifyingEdc }: TransactionDetailDialogProps) {
   const { t } = useTranslation();
 
   return (
@@ -78,6 +81,23 @@ export function TransactionDetailDialog({ transaction, open, onOpenChange, onVie
                     <RefreshCw className="h-4 w-4 mr-2" />
                   )}
                   {t("receipts.transactions.checkNow", "Check with Bank Now")}
+                </Button>
+              )}
+
+              {transaction.status === "pending" && transaction.payment_method === "edc" && transaction.ref_code && onVerifyEdcAndCreate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={onVerifyEdcAndCreate}
+                  disabled={verifyingEdc}
+                >
+                  {verifyingEdc ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  {t("receipts.transactions.verifyEdc", "Verify & Create Receipt")}
                 </Button>
               )}
 

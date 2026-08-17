@@ -169,6 +169,11 @@ export const posEdcIntentAbandon = {
     detail: { tags: ["POS"], summary: "Mark a pending EDC transaction log row as cancelled (cashier gave up)" },
 };
 
+export const posVerifyEdcAndCreate = {
+    params: t.Object({ refCode: t.String() }),
+    detail: { tags: ["POS"], summary: "Verify EDC payment status and create receipt if approved" },
+};
+
 /**
  * EDC bridge telemetry. Every field except `event` and `context` is optional
  * on purpose: this is best-effort forensics written from the browser, and a

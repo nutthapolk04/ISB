@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
+import { logger } from "@/logger";
 import {
     receipts,
     receiptItems,
@@ -293,6 +294,7 @@ export interface ListReceiptsParams {
     page?: number;
     pageSize?: number;
     includeStats?: boolean;
+    createdBy?: number;
 }
 
 export interface ReceiptListStats {
@@ -382,6 +384,10 @@ function buildReceiptFilters(
     if (p.requesterUserId !== undefined) conds.push(eq(receipts.requesterUserId, p.requesterUserId));
     if (p.dateFrom) conds.push(gte(receipts.transactionDate, dateRange(p.dateFrom, p.dateFrom).start));
     if (p.dateTo) conds.push(lte(receipts.transactionDate, dateRange(p.dateTo, p.dateTo).end));
+    if (p.createdBy) {
+        console.log("[buildReceiptFilters] Adding createdBy filter:", p.createdBy);
+        conds.push(eq(receipts.createdBy, p.createdBy));
+    }
     return conds;
 }
 
@@ -401,6 +407,7 @@ async function aggregateActiveSales(conds: SQL[]): Promise<{ count: number; acti
 }
 
 export async function listReceipts(p: ListReceiptsParams): Promise<ListReceiptsResponse> {
+    logger.info(`[listReceipts] params createdBy: ${p.createdBy}`);
     const scope = buildReceiptScope(p);
     const page = Math.max(1, p.page ?? 1);
     const pageSize = Math.min(p.pageSize ?? 50, 500);

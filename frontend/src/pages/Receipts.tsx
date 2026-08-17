@@ -50,6 +50,7 @@ const Receipts = () => {
     // manager's business, not a cashier's. Hiding the tab is presentation —
     // the endpoints refuse a cashier regardless.
     const canSeeUnsuccessful = hasRole("manager") || hasRole("admin");
+    const isCashier = hasRole("cashier");
     const { pathname } = useLocation();
     const schoolInfo = useSchoolInfo();
 
@@ -108,6 +109,7 @@ const Receipts = () => {
     const [selectedTransaction, setSelectedTransaction] = useState<TransactionDetailApi | null>(null);
     const [isTxnDialogOpen, setIsTxnDialogOpen] = useState(false);
     const [txnCheckLoading, setTxnCheckLoading] = useState(false);
+    const [edcVerifyLoading, setEdcVerifyLoading] = useState(false);
     const [voidTarget, setVoidTarget] = useState<ReceiptApi | null>(null);
     const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
     const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
@@ -162,6 +164,10 @@ const Receipts = () => {
             if (appliedSearch.dateFrom) params.set("date_from", appliedSearch.dateFrom);
             if (appliedSearch.dateTo) params.set("date_to", appliedSearch.dateTo);
             if (appliedSearch.paymentType !== "all") params.set("payment_method", appliedSearch.paymentType);
+            // Cashier can only see their own receipts
+            if (isCashier && user?.id) {
+                params.set("created_by", String(user.id));
+            }
 
             const data = await api.get<ReceiptListResponse>(`/pos/receipt?${params.toString()}`);
             setReceipts(data.items);
@@ -174,7 +180,7 @@ const Receipts = () => {
         } finally {
             setLoading(false);
         }
-    }, [queryParams, appliedSearch, currentPage]);
+    }, [queryParams, appliedSearch, currentPage, isCashier, user?.id]);
 
     useEffect(() => { setCurrentPage(1); }, [queryParams]);
 
@@ -260,6 +266,10 @@ const Receipts = () => {
                 params.set("sort_by", txnSortBy);
                 params.set("sort_order", txnSortOrder);
             }
+            // Cashier can only see their own transactions
+            if (isCashier && user?.id) {
+                params.set("created_by", String(user.id));
+            }
             const url = `/pos/transactions?${params.toString()}`;
             const data = await api.get<TransactionListResponse>(url);
             setTransactions(data.items);
@@ -271,7 +281,7 @@ const Receipts = () => {
         } finally {
             setTxnLoading(false);
         }
-    }, [queryParams, txnAppliedSearch, txnCurrentPage, txnSortBy, txnSortOrder]);
+    }, [queryParams, txnAppliedSearch, txnCurrentPage, txnSortBy, txnSortOrder, isCashier, user?.id]);
 
     useEffect(() => { setTxnCurrentPage(1); }, [queryParams]);
 
@@ -349,6 +359,25 @@ const Receipts = () => {
         }
     };
 
+    const handleVerifyEdcAndCreateReceipt = async () => {
+        if (!selectedTransaction?.ref_code) return;
+        setEdcVerifyLoading(true);
+        try {
+            await api.post(`/pos/edc-intent/${selectedTransaction.ref_code}/verify-and-create`, {});
+            const full = await api.get<TransactionDetailApi>(`/pos/transactions/${selectedTransaction.id}`);
+            setSelectedTransaction(full);
+            setTransactions((prev) => prev.map((t) => (t.id === full.id ? full : t)));
+            if (full.status === "success") {
+                toast.success(t("receipts.transactions.verified", "Payment verified and receipt created"));
+            }
+        } catch (err) {
+            const error = err as ApiError;
+            toast.error(error.message || t("receipts.transactions.verifyFailed", "Could not verify EDC payment"));
+        } finally {
+            setEdcVerifyLoading(false);
+        }
+    };
+
     const handleViewReceiptFromTransaction = async (receiptId: number) => {
         setIsTxnDialogOpen(false);
         try {
@@ -387,6 +416,11 @@ const Receipts = () => {
                                 ? t("receipts.scopeCanteen")
                                 : t("receipts.scopeStore")}
                         </Badge>
+                        {isCashier && (
+                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                Your Receipts
+                            </Badge>
+                        )}
                         {moduleScope === "canteen" && !user?.shopId && canteenStalls.length > 0 && (
                             <Select value={pickedCanteenShop} onValueChange={(v) => { setPickedCanteenShop(v); setCurrentPage(1); }}>
                                 <SelectTrigger className="w-48">
@@ -914,6 +948,8 @@ const Receipts = () => {
                 onViewReceipt={handleViewReceiptFromTransaction}
                 onCheckNow={handleCheckTransactionNow}
                 checking={txnCheckLoading}
+                onVerifyEdcAndCreate={handleVerifyEdcAndCreateReceipt}
+                verifyingEdc={edcVerifyLoading}
             />
         </div>
     );
