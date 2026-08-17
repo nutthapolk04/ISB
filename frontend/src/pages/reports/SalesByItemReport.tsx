@@ -295,6 +295,7 @@ export function SalesByItemReport({
         const columns: ReportColumn[] = [
             { header: "Seq.", key: "seq", format: "number", align: "right", width: 26 },
             { header: "Date/Time", key: "transaction_date", format: "datetime", width: 82 },
+            { header: "Shop", key: "shop_name", width: 72 },
             { header: "Item NO.", key: "item_no", width: 62 },
             { header: "Item Name", key: "item_name", width: 118 },
             { header: "Receipt NO.", key: "receipt_number", width: 80 },
@@ -303,7 +304,6 @@ export function SalesByItemReport({
             { header: "Sales Qty.", key: "sales_qty", format: "number", align: "right", width: 40 },
             { header: "Sales AMT.", key: "sales_amt", format: "currency", align: "right", width: 58 },
             { header: "Receive Type", key: "receive_type", width: 55 },
-            { header: "Shop", key: "shop_name", width: 72 },
             { header: "Remark", key: "remark", width: 42 },
             { header: "Status", key: "status", width: 47 },
         ];
@@ -514,6 +514,7 @@ export function SalesByItemReport({
                                                 ) : (
                                                     <th className="px-2 py-2 text-left">Date/Time</th>
                                                 )}
+                                                <th className="px-2 py-2 text-left">Shop</th>
                                                 <th className="px-2 py-2 text-left">Item NO.</th>
                                                 <th className="px-2 py-2 text-left">Item Name</th>
                                                 <th className="px-2 py-2 text-left">Receipt NO.</th>
@@ -522,7 +523,6 @@ export function SalesByItemReport({
                                                 <th className="px-2 py-2 text-right">Sales Qty.</th>
                                                 <th className="px-2 py-2 text-right">Sales AMT.</th>
                                                 <th className="px-2 py-2 text-left">Receive Type</th>
-                                                <th className="px-2 py-2 text-left">Shop</th>
                                                 <th className="px-2 py-2 text-left">Remark</th>
                                                 <th className="px-2 py-2 text-left">Status</th>
                                             </tr>
@@ -539,6 +539,7 @@ export function SalesByItemReport({
                                                     <tr key={r.seq} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.seq}</td>
                                                         <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.transaction_date)}</td>
+                                                        <td className="px-2 py-1.5 whitespace-nowrap">{r.shop_name ?? "—"}</td>
                                                         <td className="px-2 py-1.5 font-mono">{r.item_no ?? "—"}</td>
                                                         <td className="px-2 py-1.5">
                                                             {r.item_name}
@@ -552,7 +553,6 @@ export function SalesByItemReport({
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.sales_qty}</td>
                                                         <td className="px-2 py-1.5 text-right font-mono">{r.sales_amt.toFixed(2)}</td>
                                                         <td className="px-2 py-1.5">{r.receive_type}</td>
-                                                        <td className="px-2 py-1.5 whitespace-nowrap">{r.shop_name ?? "—"}</td>
                                                         <td className="px-2 py-1.5 text-muted-foreground">{r.remark ?? ""}</td>
                                                         <td className="px-2 py-1.5">
                                                             {r.status === "ACTIVE" ? (
@@ -568,10 +568,10 @@ export function SalesByItemReport({
                                         {siData.rows.length > 0 && (
                                             <tfoot className="bg-muted/30 font-semibold whitespace-nowrap">
                                                 <tr className="border-t">
-                                                    <td colSpan={7} className="px-2 py-2 text-left">TOTAL By Item</td>
+                                                    <td colSpan={8} className="px-2 py-2 text-left">TOTAL By Item</td>
                                                     <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_qty}</td>
                                                     <td className="px-2 py-2 text-right font-mono">{siData.totals.sales_amt.toFixed(2)}</td>
-                                                    <td colSpan={4} />
+                                                    <td colSpan={3} />
                                                 </tr>
                                             </tfoot>
                                         )}
