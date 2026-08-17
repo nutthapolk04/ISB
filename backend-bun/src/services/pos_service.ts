@@ -385,7 +385,6 @@ function buildReceiptFilters(
     if (p.dateFrom) conds.push(gte(receipts.transactionDate, dateRange(p.dateFrom, p.dateFrom).start));
     if (p.dateTo) conds.push(lte(receipts.transactionDate, dateRange(p.dateTo, p.dateTo).end));
     if (p.createdBy) {
-        console.log("[buildReceiptFilters] Adding createdBy filter:", p.createdBy);
         conds.push(eq(receipts.createdBy, p.createdBy));
     }
     return conds;
@@ -407,7 +406,6 @@ async function aggregateActiveSales(conds: SQL[]): Promise<{ count: number; acti
 }
 
 export async function listReceipts(p: ListReceiptsParams): Promise<ListReceiptsResponse> {
-    logger.info(`[listReceipts] params createdBy: ${p.createdBy}`);
     const scope = buildReceiptScope(p);
     const page = Math.max(1, p.page ?? 1);
     const pageSize = Math.min(p.pageSize ?? 50, 500);
@@ -427,13 +425,18 @@ export async function listReceipts(p: ListReceiptsParams): Promise<ListReceiptsR
     ]);
 
     const total = Number(countRow[0]?.total ?? 0);
-    const items = await Promise.all(rows.map((row) => receiptToDTO(row, { includeItems: false })));
+    const items = await Promise.all(rows.map((row, index) =>
+        receiptToDTO(row, { includeItems: false }).then(dto => ({
+            ...dto,
+            seq: (page - 1) * pageSize + index + 1
+        }))
+    ));
 
     let stats: ReceiptListStats | undefined;
     if (p.includeStats) {
         const today = bangkokTodayIso();
         const monthStart = `${today.slice(0, 7)}-01`;
-        const scopeConds = buildReceiptFilters({ ...p, q: undefined, payerQ: undefined, paymentMethod: undefined, dateFrom: undefined, dateTo: undefined }, scope);
+        const scopeConds = buildReceiptFilters({ ...p, q: undefined, payerQ: undefined, paymentMethod: undefined, dateFrom: undefined, dateTo: undefined, createdBy: p.createdBy }, scope);
         const todayRange = bangkokDateRange(today, today);
         const monthRange = bangkokDateRange(monthStart, today);
         const [todayAgg, monthAgg, filteredAgg] = await Promise.all([

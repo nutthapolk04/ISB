@@ -444,7 +444,7 @@ export async function listTransactions(p: ListTransactionsParams): Promise<ListT
     const userNameById = new Map(userRows.map((u) => [u.id, { name: u.fullName, code: u.externalId ?? u.username ?? null }]));
     const deptNameById = new Map(deptRows.map((d) => [d.id, { name: d.departmentName, code: d.departmentCode ?? null }]));
 
-    const items: TransactionDTO[] = rows.map((r) => {
+    const items: TransactionDTO[] = rows.map((r, index) => {
         let payer_label: string | null = null;
         let payer_code: string | null = null;
         if (r.payerKind === "customer" && r.payerId) {
@@ -462,6 +462,7 @@ export async function listTransactions(p: ListTransactionsParams): Promise<ListT
         }
 
         return {
+            seq: (page - 1) * pageSize + index + 1,
             id: r.id,
             ref_code: r.refCode,
             status: r.status,

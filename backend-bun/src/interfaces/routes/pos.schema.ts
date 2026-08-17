@@ -44,6 +44,7 @@ export const posListReceipts = {
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
         include_stats: t.Optional(t.Nullable(t.String())),
+        created_by: t.Optional(t.Nullable(t.String())),
     }),
     detail: { tags: ["POS"], summary: "List receipts" },
 };
@@ -65,6 +66,7 @@ export const posListTransactions = {
         page_size: t.Optional(t.Nullable(t.String())),
         sort_by: t.Optional(t.Nullable(t.String())),
         sort_order: t.Optional(t.Nullable(t.String())),
+        created_by: t.Optional(t.Nullable(t.String())),
     }),
     detail: { tags: ["POS"], summary: "List checkout transactions (all statuses, all payment methods)" },
 };

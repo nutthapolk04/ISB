@@ -551,7 +551,7 @@ const Receipts = () => {
                             <TableBody>
                                 {displayRows.map(({ receipt, leg }, idx) => (
                                     <TableRow key={`${receipt.id}-${leg}`} className={leg === "void" ? "bg-destructive/5" : undefined}>
-                                        <TableCell className="text-right font-mono text-sm text-muted-foreground">{idx + 1}</TableCell>
+                                        <TableCell className="text-right font-mono text-sm text-muted-foreground">{(receipt as any).seq ?? idx + 1}</TableCell>
                                         <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
                                         <TableCell>{fmtDate(leg === "sale" ? receipt.transaction_date : (receipt.voided_at ?? receipt.transaction_date))}</TableCell>
                                         {!user?.shopId && (
@@ -802,7 +802,7 @@ const Receipts = () => {
                                     <TableBody>
                                         {transactions.map((txn, idx) => (
                                             <TableRow key={txn.id}>
-                                                <TableCell className="text-right font-mono text-sm text-muted-foreground">{(txnSafePage - 1) * PAGE_SIZE + idx + 1}</TableCell>
+                                                <TableCell className="text-right font-mono text-sm text-muted-foreground">{(txn as any).seq ?? (txnSafePage - 1) * PAGE_SIZE + idx + 1}</TableCell>
                                                 <TableCell>{fmtDate(txn.created_at)}</TableCell>
                                                 <TableCell>
                                                     {txn.resolved_at ? (

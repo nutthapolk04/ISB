@@ -70,6 +70,7 @@ export interface ReceiptApi {
     voided_at: string | null;
     voided_by: number | null;
     voided_reason: string | null;
+    seq?: number;
     items: ReceiptItemApi[];
 }
 

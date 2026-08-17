@@ -23,6 +23,7 @@ export interface TransactionApi {
     error_message: string | null;
     created_at: string;
     resolved_at: string | null;
+    seq?: number;
 }
 
 export interface TransactionListResponse {
