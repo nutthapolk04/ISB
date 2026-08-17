@@ -260,7 +260,8 @@ const Receipts = () => {
                 params.set("sort_by", txnSortBy);
                 params.set("sort_order", txnSortOrder);
             }
-            const data = await api.get<TransactionListResponse>(`/pos/transactions?${params.toString()}`);
+            const url = `/pos/transactions?${params.toString()}`;
+            const data = await api.get<TransactionListResponse>(url);
             setTransactions(data.items);
             setTxnTotal(data.total);
             setTxnPages(data.pages);
@@ -499,6 +500,7 @@ const Receipts = () => {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-12">Seq.</TableHead>
                                     <TableHead>{t("receipts.receiptId")}</TableHead>
                                     <TableHead>{t("receipts.dateTime")}</TableHead>
                                     {!user?.shopId && (
@@ -513,8 +515,9 @@ const Receipts = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {displayRows.map(({ receipt, leg }) => (
+                                {displayRows.map(({ receipt, leg }, idx) => (
                                     <TableRow key={`${receipt.id}-${leg}`} className={leg === "void" ? "bg-destructive/5" : undefined}>
+                                        <TableCell className="text-right font-mono text-sm text-muted-foreground">{idx + 1}</TableCell>
                                         <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
                                         <TableCell>{fmtDate(leg === "sale" ? receipt.transaction_date : (receipt.voided_at ?? receipt.transaction_date))}</TableCell>
                                         {!user?.shopId && (
@@ -730,6 +733,7 @@ const Receipts = () => {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
+                                            <TableHead className="w-12">Seq.</TableHead>
                                             <TableHead
                                                 className="cursor-pointer hover:bg-muted/50 select-none"
                                                 onClick={() => handleTxnSortChange("created_at")}
@@ -762,8 +766,9 @@ const Receipts = () => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {transactions.map((txn) => (
+                                        {transactions.map((txn, idx) => (
                                             <TableRow key={txn.id}>
+                                                <TableCell className="text-right font-mono text-sm text-muted-foreground">{(txnSafePage - 1) * PAGE_SIZE + idx + 1}</TableCell>
                                                 <TableCell>{fmtDate(txn.created_at)}</TableCell>
                                                 <TableCell>
                                                     {txn.resolved_at ? (

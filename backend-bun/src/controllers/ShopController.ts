@@ -935,7 +935,6 @@ export const ShopController = {
 				.from(users)
 				.where(eq(users.shopId, params.shopId));
 
-			console.log(`[listCashiers] Shop ${params.shopId} has ${rows.length} users:`, rows);
 			logger.info(`[${reqContext.requestId} (SH-28)] ShopController.listCashiers() found ${rows.length} cashiers for shop ${params.shopId}`);
 
 			// Format response with user_id as string, using username for filter matching
@@ -944,7 +943,6 @@ export const ShopController = {
 				username: r.username,
 				full_name: r.full_name,
 			}));
-			console.log(`[listCashiers] Returning:`, result);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (SH-28)] ShopController.listCashiers() error:`, e);

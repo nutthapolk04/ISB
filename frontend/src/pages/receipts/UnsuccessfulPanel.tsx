@@ -197,6 +197,7 @@ export function UnsuccessfulPanel({ dateFrom, dateTo, shopId }: Props) {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-12">Seq.</TableHead>
                                     <TableHead>{t("receipts.dateTime")}</TableHead>
                                     <TableHead>POS REF</TableHead>
                                     <TableHead>{t("receipts.paymentMethod")}</TableHead>
@@ -206,13 +207,14 @@ export function UnsuccessfulPanel({ dateFrom, dateTo, shopId }: Props) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {rows.map((r) => (
+                                {rows.map((r, idx) => (
                                     <>
                                         <TableRow
                                             key={r.key}
                                             className="cursor-pointer"
                                             onClick={() => setExpanded(expanded === r.key ? null : r.key)}
                                         >
+                                            <TableCell className="text-right font-mono text-sm text-muted-foreground">{idx + 1}</TableCell>
                                             <TableCell className="whitespace-nowrap text-sm">
                                                 {fmtDateTime(r.createdAt)}
                                             </TableCell>
@@ -232,7 +234,7 @@ export function UnsuccessfulPanel({ dateFrom, dateTo, shopId }: Props) {
                                         </TableRow>
                                         {expanded === r.key && (
                                             <TableRow key={`${r.key}-d`}>
-                                                <TableCell colSpan={6} className="bg-muted/30">
+                                                <TableCell colSpan={7} className="bg-muted/30">
                                                     {r.items && r.items.length > 0 ? (
                                                         <table className="w-full text-xs">
                                                             <tbody>

@@ -170,7 +170,6 @@ export function SalesSummaryReport({
                 const data = await api.get<Array<{ user_id: string; username: string; full_name: string }>>(
                     `/shops/${shopId}/cashiers`
                 );
-                console.log("Cashiers loaded:", data);
                 setSsCashiers(data || []);
                 // Reset cashier filter when shop changes
                 setSsCashierId("");
