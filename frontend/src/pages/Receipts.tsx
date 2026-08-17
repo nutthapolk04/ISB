@@ -197,6 +197,8 @@ const Receipts = () => {
     const [txnTotal, setTxnTotal] = useState(0);
     const [txnPages, setTxnPages] = useState(1);
     const [txnCurrentPage, setTxnCurrentPage] = useState(1);
+    const [txnSortBy, setTxnSortBy] = useState<"created_at" | "resolved_at" | null>(null);
+    const [txnSortOrder, setTxnSortOrder] = useState<"asc" | "desc">("desc");
 
     const [txnSearchDateFrom, setTxnSearchDateFrom] = useState("");
     const [txnSearchDateTo, setTxnSearchDateTo] = useState("");
@@ -234,6 +236,16 @@ const Receipts = () => {
         txnAppliedSearch.paymentType !== "all" ||
         txnAppliedSearch.status !== "all";
 
+    const handleTxnSortChange = (column: "created_at" | "resolved_at") => {
+        if (txnSortBy === column) {
+            setTxnSortOrder(txnSortOrder === "asc" ? "desc" : "asc");
+        } else {
+            setTxnSortBy(column);
+            setTxnSortOrder("desc");
+        }
+        setTxnCurrentPage(1);
+    };
+
     const fetchTransactions = useCallback(async () => {
         try {
             setTxnLoading(true);
@@ -244,7 +256,10 @@ const Receipts = () => {
             if (txnAppliedSearch.dateTo) params.set("date_to", txnAppliedSearch.dateTo);
             if (txnAppliedSearch.paymentType !== "all") params.set("payment_method", txnAppliedSearch.paymentType);
             if (txnAppliedSearch.status !== "all") params.set("status", txnAppliedSearch.status);
-
+            if (txnSortBy) {
+                params.set("sort_by", txnSortBy);
+                params.set("sort_order", txnSortOrder);
+            }
             const data = await api.get<TransactionListResponse>(`/pos/transactions?${params.toString()}`);
             setTransactions(data.items);
             setTxnTotal(data.total);
@@ -255,7 +270,7 @@ const Receipts = () => {
         } finally {
             setTxnLoading(false);
         }
-    }, [queryParams, txnAppliedSearch, txnCurrentPage]);
+    }, [queryParams, txnAppliedSearch, txnCurrentPage, txnSortBy, txnSortOrder]);
 
     useEffect(() => { setTxnCurrentPage(1); }, [queryParams]);
 
@@ -715,13 +730,30 @@ const Receipts = () => {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>{t("receipts.transactions.startedAt", "Start Time")}</TableHead>
-                                            <TableHead>{t("receipts.transactions.endedAt", "End Time")}</TableHead>
+                                            <TableHead
+                                                className="cursor-pointer hover:bg-muted/50 select-none"
+                                                onClick={() => handleTxnSortChange("created_at")}
+                                            >
+                                                {t("receipts.transactions.startedAt", "Start Time")}
+                                                {txnSortBy === "created_at" && (
+                                                    <span className="ml-1 text-xs">{txnSortOrder === "asc" ? "↑" : "↓"}</span>
+                                                )}
+                                            </TableHead>
+                                            <TableHead
+                                                className="cursor-pointer hover:bg-muted/50 select-none"
+                                                onClick={() => handleTxnSortChange("resolved_at")}
+                                            >
+                                                {t("receipts.transactions.endedAt", "End Time")}
+                                                {txnSortBy === "resolved_at" && (
+                                                    <span className="ml-1 text-xs">{txnSortOrder === "asc" ? "↑" : "↓"}</span>
+                                                )}
+                                            </TableHead>
                                             {!user?.shopId && (
                                                 <TableHead>{t("receipts.shop", "Shop")}</TableHead>
                                             )}
                                             <TableHead>{t("receipts.seller")}</TableHead>
                                             <TableHead>{t("receipts.paymentMethod")}</TableHead>
+                                            <TableHead>{t("receipts.buyer")}</TableHead>
                                             <TableHead>{t("receipts.transactions.bankRef", "Bank Ref. No.")}</TableHead>
                                             <TableHead className="text-right">{t("receipts.total")}</TableHead>
                                             <TableHead className="text-center">{t("receipts.transactions.status", "Status")}</TableHead>
@@ -750,6 +782,12 @@ const Receipts = () => {
                                                     <Badge variant="secondary">
                                                         {formatPaymentMethodLabel(t, txn.payment_method)}
                                                     </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    <div className="flex flex-col">
+                                                        <span>{txn.payer_label ?? "—"}</span>
+                                                        {txn.payer_code && <span className="text-xs text-muted-foreground">{txn.payer_code}</span>}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-sm">
                                                     {/* The reference tied to the bank/gateway side of the sale —

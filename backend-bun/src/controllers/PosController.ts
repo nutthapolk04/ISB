@@ -100,6 +100,8 @@ export const PosController = {
 				dateTo: query.date_to ?? undefined,
 				page: query.page ? Number(query.page) : undefined,
 				pageSize: query.page_size ? Number(query.page_size) : undefined,
+				sortBy: (query.sort_by === "created_at" || query.sort_by === "resolved_at") ? query.sort_by : undefined,
+				sortOrder: (query.sort_order === "asc" || query.sort_order === "desc") ? query.sort_order : undefined,
 			});
 			logger.info(`[${reqContext.requestId} (PC-11)] PosController.listTransactions() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);

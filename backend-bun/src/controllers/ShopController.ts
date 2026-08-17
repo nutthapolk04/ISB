@@ -912,4 +912,43 @@ export const ShopController = {
 			return errorFromService(reqContext, e);
 		}
 	},
+
+	listCashiers: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (SH-28)] ShopController.listCashiers() called.`);
+		// Allow if user is accessing their own shop or if they're admin/manager
+		const userShop = user.shop_id ?? null;
+		const isOwnShop = userShop === params.shopId;
+		const isAdmin = hasRole(user.roles, "admin", "manager");
+		if (!isOwnShop && !isAdmin) {
+			logger.warn(`[${reqContext.requestId} (SH-28)] ShopController.listCashiers() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+		try {
+			const rows = await db
+				.select({
+					user_id: users.id,
+					username: users.username,
+					full_name: users.fullName,
+				})
+				.from(users)
+				.where(eq(users.shopId, params.shopId));
+
+			console.log(`[listCashiers] Shop ${params.shopId} has ${rows.length} users:`, rows);
+			logger.info(`[${reqContext.requestId} (SH-28)] ShopController.listCashiers() found ${rows.length} cashiers for shop ${params.shopId}`);
+
+			// Format response with user_id as string, using username for filter matching
+			const result = rows.map((r: any) => ({
+				user_id: String(r.user_id),
+				username: r.username,
+				full_name: r.full_name,
+			}));
+			console.log(`[listCashiers] Returning:`, result);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (SH-28)] ShopController.listCashiers() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
 };
