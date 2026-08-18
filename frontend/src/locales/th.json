@@ -1988,11 +1988,11 @@
       "department": "ตัดงบ",
       "other": "อื่นๆ",
       "wallet": "Campus Card",
-      "card_tap": "Campus Card",
+      "card_tap": "บัตรสมาชิก",
       "qr": "Thai QR",
       "qr_promptpay": "Thai QR",
       "bay_qr": "Thai QR",
-      "bank_transfer": "Thai QR",
+      "bank_transfer": "โอนเงิน",
       "edc": "EDC Credit Card",
       "bay_easypay": "บัตรเครดิต"
     },

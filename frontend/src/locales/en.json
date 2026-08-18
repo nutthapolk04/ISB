@@ -1988,11 +1988,11 @@
       "department": "Budget Deduction",
       "other": "Other",
       "wallet": "Campus Card",
-      "card_tap": "Campus Card",
+      "card_tap": "Member Card",
       "qr": "Thai QR",
       "qr_promptpay": "Thai QR",
       "bay_qr": "Thai QR",
-      "bank_transfer": "Thai QR",
+      "bank_transfer": "Bank Transfer",
       "edc": "EDC Credit Card",
       "bay_easypay": "Credit Card"
     },
