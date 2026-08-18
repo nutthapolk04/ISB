@@ -137,6 +137,17 @@ export default function CardholderList() {
     useRfidListener({
         onCapture: (uid) => setQ(toCanonicalCardUid(uid)),
     });
+
+    const handleSearchChange = (value: string) => {
+        // When user types/pastes/scans into the input (including keyboard wedge),
+        // auto-convert to canonical form if it looks like a complete card UID.
+        const trimmed = value.trim();
+        if (trimmed && /^(\d{8,12}|[0-9A-Fa-f]{8,16})$/.test(trimmed)) {
+            setQ(toCanonicalCardUid(trimmed));
+        } else {
+            setQ(value);
+        }
+    };
     const [school, setSchool] = useState<SchoolFilter>("all");
     const [grade, setGrade] = useState<string>("all");
     const [page, setPage] = useState(1);
@@ -375,6 +386,7 @@ export default function CardholderList() {
                     placeholder={t("cardholders.searchPlaceholder")}
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
+                    onBlur={(e) => handleSearchChange(e.target.value)}
                     className="pl-8"
                 />
             </div>

@@ -259,7 +259,14 @@ async function fetchCustomersPage(
 
 function departmentSearchCond(pattern: string | null) {
     if (!pattern) return undefined;
-    return or(ilike(departments.departmentCode, pattern), ilike(departments.departmentName, pattern));
+    const conds: SQL[] = [
+        ilike(departments.departmentCode, pattern),
+        ilike(departments.departmentName, pattern),
+        ilike(departments.cardUid, pattern),
+    ];
+    const uidCond = cardUidExpansionCond(departments.cardUid, pattern);
+    if (uidCond) conds.push(uidCond);
+    return or(...conds);
 }
 
 async function countDepartments(pattern: string | null): Promise<number> {

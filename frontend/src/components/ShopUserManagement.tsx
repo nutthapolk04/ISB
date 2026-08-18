@@ -29,7 +29,9 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useRfidListener } from "@/hooks/useRfidListener";
 import { toast } from "@/hooks/use-toast";
+import { toCanonicalCardUid } from "@/lib/cardUid";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -608,6 +610,21 @@ function DirectoryTab({ shopId, shopName }: TabProps) {
   const [query, setQuery] = useState("");
   const debounced = useDebounce(query.trim(), 300);
 
+  useRfidListener({
+    onCapture: (uid) => setQuery(toCanonicalCardUid(uid)),
+  });
+
+  const handleQueryChange = (value: string) => {
+    // When user types/pastes/scans into the input (including keyboard wedge),
+    // auto-convert to canonical form if it looks like a complete card UID.
+    const trimmed = value.trim();
+    if (trimmed && /^(\d{8,12}|[0-9A-Fa-f]{8,16})$/.test(trimmed)) {
+      setQuery(toCanonicalCardUid(trimmed));
+    } else {
+      setQuery(value);
+    }
+  };
+
   const searchQuery = useQuery({
     queryKey: ["users-directory", debounced],
     queryFn: () => {
@@ -666,6 +683,7 @@ function DirectoryTab({ shopId, shopName }: TabProps) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onBlur={(e) => handleQueryChange(e.target.value)}
             placeholder={t("shopUsers.directorySearchPlaceholder")}
             className="pl-9"
           />

@@ -113,6 +113,27 @@ export default function CardManagement() {
     },
   });
 
+  const handleSearchChange = (value: string) => {
+    // When user types/pastes/scans into the search input (including keyboard wedge),
+    // auto-convert to canonical form if it looks like a complete card UID.
+    const trimmed = value.trim();
+    if (trimmed && /^(\d{8,12}|[0-9A-Fa-f]{8,16})$/.test(trimmed)) {
+      setSearch(toCanonicalCardUid(trimmed));
+    } else {
+      setSearch(value);
+    }
+  };
+
+  const handleNewUidChange = (value: string) => {
+    // Same for the "Change UID" dialog input
+    const trimmed = value.trim();
+    if (trimmed && /^(\d{8,12}|[0-9A-Fa-f]{8,16})$/.test(trimmed)) {
+      setNewUid(toCanonicalCardUid(trimmed));
+    } else {
+      setNewUid(value);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -389,6 +410,7 @@ export default function CardManagement() {
             placeholder={t("admin.cards.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onBlur={(e) => handleSearchChange(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -556,6 +578,7 @@ export default function CardManagement() {
                 placeholder={t("admin.cards.changeUidPlaceholder")}
                 value={newUid}
                 onChange={(e) => setNewUid(e.target.value)}
+                onBlur={(e) => handleNewUidChange(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleChangeUid()}
                 autoFocus
               />
