@@ -28,7 +28,7 @@ import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
 import { useRfidListener } from "@/hooks/useRfidListener";
 import { expandCardUidCandidates, toCanonicalCardUid } from "@/lib/cardUid";
 
-type CardRole = "all" | "staff" | "parent" | "student" | "admin" | "manager" | "cashier" | "visitor";
+type CardRole = "all" | "staff" | "parent" | "student" | "admin" | "manager" | "cashier" | "visitor" | "department" | "other";
 
 interface UserRow {
   id: number;
@@ -62,8 +62,26 @@ interface StudentRow {
   photo_url?: string | null;
 }
 
+interface DepartmentRow {
+  id: number;
+  department_code: string;
+  department_name: string;
+  card_uid?: string | null;
+  is_active?: boolean;
+}
+
+interface OtherCustomerRow {
+  id: number;
+  name: string;
+  customer_code: string;
+  customer_kind: string;
+  card_uid?: string | null;
+  card_frozen?: boolean;
+  is_active?: boolean;
+}
+
 interface BoundCard {
-  kind: "user" | "customer";
+  kind: "user" | "customer" | "department";
   id: number;
   uid: string;
   name: string;
@@ -83,6 +101,8 @@ export default function CardManagement() {
   const { t } = useTranslation();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [students, setStudents] = useState<StudentRow[]>([]);
+  const [departments, setDepartments] = useState<DepartmentRow[]>([]);
+  const [otherCustomers, setOtherCustomers] = useState<OtherCustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<CardRole>("all");
@@ -113,15 +133,50 @@ export default function CardManagement() {
     },
   });
 
+  const handleSearchChange = (value: string) => {
+    // When user types/pastes/scans into the search input (including keyboard wedge),
+    // auto-convert to canonical form if it looks like a complete card UID.
+    const trimmed = value.trim();
+    if (trimmed && /^(\d{8,12}|[0-9A-Fa-f]{8,16})$/.test(trimmed)) {
+      setSearch(toCanonicalCardUid(trimmed));
+    } else {
+      setSearch(value);
+    }
+  };
+
+  const handleNewUidChange = (value: string) => {
+    // Same for the "Change UID" dialog input
+    const trimmed = value.trim();
+    if (trimmed && /^(\d{8,12}|[0-9A-Fa-f]{8,16})$/.test(trimmed)) {
+      setNewUid(toCanonicalCardUid(trimmed));
+    } else {
+      setNewUid(value);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     try {
-      const [u, s] = await Promise.all([
+      const [u, s, d, cardholders] = await Promise.all([
         api.get<UserRow[]>("/users-admin/"),
         api.get<StudentRow[]>("/users-admin/students"),
+        api.get<DepartmentRow[]>("/departments/?active_only=false"),
+        api.get<any>("/admin/cardholders?kind=other&page_size=500"),
       ]);
       setUsers(u);
       setStudents(s);
+      setDepartments(d);
+      // Get other customers from listCardholders endpoint
+      const others = (cardholders.items || []).map((c: any) => ({
+        id: c.entity_id,
+        name: c.name,
+        customer_code: c.identifier,
+        customer_kind: "other",
+        card_uid: c.card_uid || null,
+        card_frozen: false, // Cardholders endpoint doesn't include freeze status, assume unfrozen
+        is_active: c.is_active ?? true,
+      }));
+      setOtherCustomers(others);
     } catch (e) {
       toast({
         title: t("admin.cards.loadError"),
@@ -173,8 +228,34 @@ export default function CardManagement() {
         photoUrl: c.photo_url,
       });
     }
+    for (const d of departments) {
+      if (!d.card_uid) continue;
+      list.push({
+        kind: "department",
+        id: d.id,
+        uid: d.card_uid,
+        name: d.department_name,
+        role: "department",
+        isFrozen: !(d.is_active ?? true),
+        isActive: d.is_active ?? true,
+        identifier: d.department_code,
+      });
+    }
+    for (const o of otherCustomers) {
+      if (!o.card_uid) continue;
+      list.push({
+        kind: "customer",
+        id: o.id,
+        uid: o.card_uid,
+        name: o.name,
+        role: "other",
+        isFrozen: o.card_frozen ?? false,
+        isActive: o.is_active ?? true,
+        identifier: o.customer_code,
+      });
+    }
     return list.sort((a, b) => a.uid.localeCompare(b.uid));
-  }, [users, students]);
+  }, [users, students, departments, otherCustomers]);
 
   const filteredCards = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -188,7 +269,11 @@ export default function CardManagement() {
     return boundCards.filter((c) => {
       if (roleFilter !== "all") {
         if (roleFilter === "student") {
-          if (c.kind !== "customer") return false;
+          if (c.role !== "student") return false;
+        } else if (roleFilter === "department") {
+          if (c.kind !== "department") return false;
+        } else if (roleFilter === "other") {
+          if (c.role !== "other") return false;
         } else if (c.role !== roleFilter) {
           return false;
         }
@@ -223,11 +308,25 @@ export default function CardManagement() {
     setActionLoading(true);
     const willFreeze = !freezeTarget.isFrozen;
     try {
-      if (freezeTarget.kind === "customer") {
+      if (freezeTarget.kind === "department") {
+        await api.patch(`/admin/departments/${freezeTarget.id}`, {
+          is_active: !willFreeze,
+        });
+        setDepartments((prev) =>
+          prev.map((d) =>
+            d.id === freezeTarget.id ? { ...d, is_active: !willFreeze } : d
+          )
+        );
+      } else if (freezeTarget.kind === "customer") {
         await api.post(`/customers/${freezeTarget.id}/freeze`, { frozen: willFreeze });
         setStudents((prev) =>
           prev.map((s) =>
             s.id === freezeTarget.id ? { ...s, card_frozen: willFreeze } : s
+          )
+        );
+        setOtherCustomers((prev) =>
+          prev.map((o) =>
+            o.id === freezeTarget.id ? { ...o, card_frozen: willFreeze } : o
           )
         );
       } else {
@@ -262,11 +361,23 @@ export default function CardManagement() {
     if (!changeUidTarget || !newUid.trim()) return;
     setActionLoading(true);
     try {
-      if (changeUidTarget.kind === "customer") {
+      if (changeUidTarget.kind === "department") {
+        await api.patch(`/admin/departments/${changeUidTarget.id}/card`, { card_uid: newUid.trim() });
+        setDepartments((prev) =>
+          prev.map((d) =>
+            d.id === changeUidTarget.id ? { ...d, card_uid: newUid.trim() } : d
+          )
+        );
+      } else if (changeUidTarget.kind === "customer") {
         await api.patch(`/customers/${changeUidTarget.id}/card`, { card_uid: newUid.trim() });
         setStudents((prev) =>
           prev.map((s) =>
             s.id === changeUidTarget.id ? { ...s, card_uid: newUid.trim() } : s
+          )
+        );
+        setOtherCustomers((prev) =>
+          prev.map((o) =>
+            o.id === changeUidTarget.id ? { ...o, card_uid: newUid.trim() } : o
           )
         );
       } else {
@@ -293,13 +404,18 @@ export default function CardManagement() {
 
   // ── KPI counts ──────────────────────────────────────────────────────────────
   const totalCount = boundCards.length;
-  const studentCount = boundCards.filter((c) => c.kind === "customer").length;
+  const studentCount = boundCards.filter((c) => c.role === "student").length;
   const staffCount = boundCards.filter((c) => c.kind === "user" && c.role === "staff").length;
   const parentCount = boundCards.filter((c) => c.kind === "user" && c.role === "parent").length;
+  const departmentCount = boundCards.filter((c) => c.kind === "department").length;
+  const otherCount = boundCards.filter((c) => c.role === "other").length;
   const frozenCount = boundCards.filter((c) => c.isFrozen || !c.isActive).length;
 
-  const detailHref = (c: BoundCard) =>
-    c.kind === "user" ? `/users/${c.id}` : `/admin/customer/${c.id}`;
+  const detailHref = (c: BoundCard) => {
+    if (c.kind === "user") return `/users/${c.id}`;
+    if (c.kind === "department") return `/admin/department/${c.id}`;
+    return `/admin/customer/${c.id}`;
+  };
 
   const roleBadge = (c: BoundCard) => {
     if (c.kind === "customer") {
@@ -349,7 +465,7 @@ export default function CardManagement() {
         {t("admin.cards.info.intro.body")}
       </InfoCallout>
 
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-7">
         <Card className="kpi-card">
           <CardContent className="pt-5">
             <p className="kpi-label">{t("admin.cards.kpiTotal")}</p>
@@ -374,6 +490,18 @@ export default function CardManagement() {
             <p className="kpi-value">{parentCount}</p>
           </CardContent>
         </Card>
+        <Card className="kpi-card">
+          <CardContent className="pt-5">
+            <p className="kpi-label">{t("admin.cards.kpiDepartments", "Departments")}</p>
+            <p className="kpi-value">{departmentCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="kpi-card">
+          <CardContent className="pt-5">
+            <p className="kpi-label">{t("admin.cards.kpiOther", "Other")}</p>
+            <p className="kpi-value">{otherCount}</p>
+          </CardContent>
+        </Card>
         <Card className="kpi-card border-destructive/30">
           <CardContent className="pt-5">
             <p className="kpi-label text-destructive">{t("admin.cards.statusFrozen")}</p>
@@ -389,6 +517,7 @@ export default function CardManagement() {
             placeholder={t("admin.cards.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onBlur={(e) => handleSearchChange(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -399,9 +528,11 @@ export default function CardManagement() {
             <SelectItem value="student">{t("admin.cards.role.student")}</SelectItem>
             <SelectItem value="staff">{t("admin.cards.role.staff")}</SelectItem>
             <SelectItem value="parent">{t("admin.cards.role.parent")}</SelectItem>
-            <SelectItem value="admin">{t("admin.cards.role.admin")}</SelectItem>
+            {/* <SelectItem value="admin">{t("admin.cards.role.admin")}</SelectItem>
             <SelectItem value="manager">{t("admin.cards.role.manager")}</SelectItem>
-            <SelectItem value="cashier">{t("admin.cards.role.cashier")}</SelectItem>
+            <SelectItem value="cashier">{t("admin.cards.role.cashier")}</SelectItem> */}
+            <SelectItem value="department">{t("admin.cards.role.department", "Department")}</SelectItem>
+            <SelectItem value="other">{t("admin.cards.role.other", "Other")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -556,6 +687,7 @@ export default function CardManagement() {
                 placeholder={t("admin.cards.changeUidPlaceholder")}
                 value={newUid}
                 onChange={(e) => setNewUid(e.target.value)}
+                onBlur={(e) => handleNewUidChange(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleChangeUid()}
                 autoFocus
               />

@@ -1511,15 +1511,15 @@ export default function AdminReports() {
                                                 <SelectContent>
                                                     <SelectItem value="all">{t("admin.adminReports.paymentMethodAll", "All")}</SelectItem>
                                                     <SelectItem value="CASH">{t("common.paymentMethods.cash", "Cash")}</SelectItem>
-                                                    <SelectItem value="WALLET">{t("common.paymentMethods.campus_card", "Campus Card")}</SelectItem>
-                                                    <SelectItem value="CARD_TAP">{t("common.paymentMethods.campus_card", "Campus Card")}</SelectItem>
-                                                    <SelectItem value="CREDIT_CARD">{t("common.paymentMethods.credit_card", "Credit Card")}</SelectItem>
-                                                    <SelectItem value="DEBIT_CARD">{t("common.paymentMethods.debit_card", "Debit Card")}</SelectItem>
-                                                    <SelectItem value="QR_PROMPTPAY">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
-                                                    <SelectItem value="BANK_TRANSFER">{t("common.paymentMethods.thai_qr", "Thai QR")}</SelectItem>
+                                                    <SelectItem value="WALLET">{t("common.paymentMethods.wallet", "Campus Card")}</SelectItem>
+                                                    {/* <SelectItem value="CARD_TAP">{t("common.paymentMethods.card_tap", "Member Card")}</SelectItem> */}
+                                                    {/* <SelectItem value="CREDIT_CARD">{t("common.paymentMethods.credit_card", "Credit Card")}</SelectItem> */}
+                                                    {/* <SelectItem value="DEBIT_CARD">{t("common.paymentMethods.debit_card", "Debit Card")}</SelectItem> */}
+                                                    <SelectItem value="QR_PROMPTPAY">{t("common.paymentMethods.qr_promptpay", "Thai QR")}</SelectItem>
+                                                    {/* <SelectItem value="BANK_TRANSFER">{t("common.paymentMethods.bank_transfer", "Bank Transfer")}</SelectItem> */}
                                                     <SelectItem value="EDC">{t("common.paymentMethods.edc", "EDC Credit Card")}</SelectItem>
                                                     <SelectItem value="DEPARTMENT">{t("common.paymentMethods.department", "Budget Deduction")}</SelectItem>
-                                                    <SelectItem value="OTHER">{t("common.paymentMethods.other", "Other")}</SelectItem>
+                                                    {/* <SelectItem value="OTHER">{t("common.paymentMethods.other", "Other")}</SelectItem> */}
                                                 </SelectContent>
                                             </Select>
                                         </div>
