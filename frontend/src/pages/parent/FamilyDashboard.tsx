@@ -538,9 +538,9 @@ export default function FamilyDashboard() {
                                         </div>
                                     </div>
 
-                                    {card.kind === "child" && card.customerId && (
+                                    {/* {card.kind === "child" && card.customerId && (
                                         <ChildTodayActivity customerId={card.customerId} />
-                                    )}
+                                    )} */}
 
                                     {card.allergies && (
                                         <div className="flex items-start gap-2 rounded-md bg-red-900/30 border border-red-400/30 p-2 text-xs text-red-200 mt-3 relative z-10">
