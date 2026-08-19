@@ -160,7 +160,7 @@ export function CartPanel({
                             return (
                                 <div className="w-48 shrink-0 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
                                     <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                                        Daily Spending Limit
+                                        Daily Spending Remaining / Limit
                                     </div>
                                     {rows.map(({ label, limit, spent }) => {
                                         const remaining = Math.max(0, limit - spent);
