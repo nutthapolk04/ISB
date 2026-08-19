@@ -21,6 +21,15 @@ import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
 import { maskReceiptPayerName } from '../lib/maskReceiptPayerName';
 import { playTopupSuccessSound, stopTopupSuccessSound } from '../lib/topupSuccessSound';
 import QRCode from 'qrcode';
+import {
+    CASH_IDLE_TOTAL_SEC,
+    cashDisplayTime as computeCashDisplayTime,
+    cashIdleHoldSeconds,
+    cashProgress as computeCashProgress,
+    resolveCashIdleExpiry,
+    shouldSkipIdleCountdownTick,
+} from '../lib/cashIdleTimer';
+import { resolveCashCreditAmount, shouldStartCashFinalize } from '../lib/cashTopupFinalize';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -407,15 +416,12 @@ const clearQrTimer = () => {
 };
 
 // --- Cash idle timeout (kiosk only — no touch/bill activity) ---
-const CASH_IDLE_DISPLAY_SEC = 15;
-const CASH_IDLE_TOTAL_SEC = 20;
-const CASH_IDLE_GRACE_SEC = CASH_IDLE_TOTAL_SEC - CASH_IDLE_DISPLAY_SEC;
 const cashTimeLeft = ref(CASH_IDLE_TOTAL_SEC);
 let cashIdleInterval: number | null = null;
 
 /** Visible countdown — stays at 0 during the grace window for in-flight bill processing. */
-const cashDisplayTime = computed(() => Math.max(0, cashTimeLeft.value - CASH_IDLE_GRACE_SEC));
-const cashProgress = computed(() => cashDisplayTime.value / CASH_IDLE_DISPLAY_SEC);
+const cashDisplayTime = computed(() => computeCashDisplayTime(cashTimeLeft.value));
+const cashProgress = computed(() => computeCashProgress(cashTimeLeft.value));
 
 const clearCashIdleTimer = () => {
     if (cashIdleInterval != null) {
@@ -426,8 +432,8 @@ const clearCashIdleTimer = () => {
 
 const handleCashIdleExpired = () => {
     if (currentStep.value !== 'cash-confirm') return;
-    if (bill.billInFlight.value) {
-        cashTimeLeft.value = 1;
+    if (resolveCashIdleExpiry(bill.billInFlight.value) === 'hold') {
+        cashTimeLeft.value = cashIdleHoldSeconds();
         return;
     }
     clearCashIdleTimer();
@@ -443,7 +449,7 @@ const resetCashIdleTimer = () => {
     if (currentStep.value !== 'cash-confirm') return;
     cashTimeLeft.value = CASH_IDLE_TOTAL_SEC;
     cashIdleInterval = window.setInterval(() => {
-        if (bill.billInFlight.value) return;
+        if (shouldSkipIdleCountdownTick(bill.billInFlight.value)) return;
         cashTimeLeft.value--;
         if (cashTimeLeft.value <= 0) {
             handleCashIdleExpired();
@@ -582,14 +588,14 @@ onMounted(() => {
 
 // Auto-finalize when the acceptor reports the target is met.
 watch(bill.collectComplete, async (done) => {
-    if (done && currentStep.value === 'cash-confirm' && !cashFinalizeStarted) {
+    if (done && currentStep.value === 'cash-confirm' && shouldStartCashFinalize(cashFinalizeStarted)) {
         bill.acknowledgeCollectComplete();
         await finalizeCashTopUp();
     }
 });
 
 const finalizeCashTopUp = async (): Promise<boolean> => {
-    if (cashFinalizeStarted) return false;
+    if (!shouldStartCashFinalize(cashFinalizeStarted)) return false;
     cashFinalizeStarted = true;
 
     const walletId = store.currentWallet?.id;
@@ -606,7 +612,7 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
     try {
         // Wait for any in-flight escrow to stack (or return) before reading the total.
         await bill.stop();
-        amount = bill.collectedThb.value;
+        amount = resolveCashCreditAmount(bill.collectedThb.value);
         if (amount <= 0 || !ref || !ctx) {
             cashFinalizeStarted = false;
             return false;

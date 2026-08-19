@@ -18,4 +18,9 @@ describe('applyBillInFlight', () => {
         expect(applyBillInFlight('exception', true)).toBe(true);
         expect(applyBillInFlight('error', false)).toBe(false);
     });
+
+    test('rejected keeps prior in-flight state', () => {
+        expect(applyBillInFlight('rejected', true)).toBe(true);
+        expect(applyBillInFlight('rejected', false)).toBe(false);
+    });
 });

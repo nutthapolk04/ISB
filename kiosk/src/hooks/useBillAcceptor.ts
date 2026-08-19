@@ -388,3 +388,27 @@ export function useBillAcceptor() {
 export function setBillSessionMember(_memberLogId: string | null): void {
     /* no-op — audit logs use payer_id / receiver_id */
 }
+
+export function __test__resetBillAcceptorState(): void {
+    resetSessionState();
+    billActivityTick.value = 0;
+    lastHardwareError.value = null;
+    hardwareReady.value = false;
+}
+
+export function __test__dispatchBillEvent(event: BillEvent): void {
+    handleBillEvent(event);
+}
+
+export function __test__readBillAcceptorState() {
+    return {
+        collecting: collecting.value,
+        targetThb: targetThb.value,
+        collectedThb: collectedThb.value,
+        billInFlight: billInFlight.value,
+        billActivityTick: billActivityTick.value,
+        collectComplete: collectComplete.value,
+        overpayPending: overpayPending.value,
+        stackedBills: getStackedBillsCount(),
+    };
+}
