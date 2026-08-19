@@ -839,7 +839,7 @@ export async function getSpendingGroupsUsageToday(customerId: number): Promise<S
         .where(
             and(
                 eq(receipts.customerId, customerId),
-                eq(receipts.transactionDate, today),
+                sql`DATE(${receipts.transactionDate}::TIMESTAMPTZ AT TIME ZONE 'Asia/Bangkok')::TEXT = ${today}`,
                 isNotNull(receipts.spendingGroupId),
                 sql`${receipts.status} = 'ACTIVE'`,
             )
@@ -915,17 +915,18 @@ export async function getSpendingGroupUsageToday(
     }
 
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+    const dateCondition = sql`DATE(${receipts.transactionDate}::TIMESTAMPTZ AT TIME ZONE 'Asia/Bangkok')::TEXT = ${today}`;
     const cond = customerId
         ? and(
             eq(receipts.customerId, customerId),
             eq(receipts.spendingGroupId, groupId),
-            eq(receipts.transactionDate, today),
+            dateCondition,
             sql`${receipts.status} = 'ACTIVE'`,
         )
         : and(
             eq(receipts.payerUserId, userId!),
             eq(receipts.spendingGroupId, groupId),
-            eq(receipts.transactionDate, today),
+            dateCondition,
             sql`${receipts.status} = 'ACTIVE'`,
         );
 
