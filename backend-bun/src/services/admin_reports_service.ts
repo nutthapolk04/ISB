@@ -1664,7 +1664,10 @@ export async function internalUsedReport(args: {
     const dateFrom = args.dateFrom?.trim() || null;
     const dateTo = args.dateTo?.trim() || null;
 
-    const conds = [eq(receipts.transactionMode, "INTERNAL_ISSUE")];
+    const conds = [
+        eq(receipts.transactionMode, "INTERNAL_ISSUE"),
+        sql`${receipts.status} IN ('ACTIVE', 'VOIDED')`,
+    ];
     if (dateFrom) conds.push(gte(receipts.transactionDate, bangkokRangeStart(dateFrom)));
     if (dateTo) conds.push(lt(receipts.transactionDate, bangkokRangeEndExclusive(dateTo)));
     if (args.departmentId != null) conds.push(eq(receipts.payerDepartmentId, args.departmentId));
@@ -1713,33 +1716,40 @@ export async function internalUsedReport(args: {
     const groupMap = new Map<number, InternalUsedDepartmentGroup>();
     let grandTotal = 0;
     for (const r of rows) {
-        // A voided requisition shows as a negative amount — same convention
-        // as every other report (transactionReport, salesByItemReport, ...).
-        const amount = (pgNumber(r.total) ?? 0) * (r.status === "VOIDED" ? -1 : 1);
-        let group = groupMap.get(r.departmentId!);
-        if (!group) {
-            group = {
-                department_id: r.departmentId!,
-                department_code: r.departmentCode!,
-                department_name: r.departmentName!,
-                rows: [],
-                subtotal: 0,
-            };
-            groupMap.set(r.departmentId!, group);
+        // For voided receipts, display 2 rows: original sale + void
+        // This provides audit trail visibility (sale happened, then voided)
+        const totalAmount = pgNumber(r.total) ?? 0;
+        const isVoided = r.status === "VOIDED";
+        const amounts = isVoided ? [totalAmount, -totalAmount] : [totalAmount];
+        const statuses = isVoided ? ["sale", "voided"] : ["sale"];
+
+        for (let i = 0; i < amounts.length; i++) {
+            const amount = amounts[i];
+            let group = groupMap.get(r.departmentId!);
+            if (!group) {
+                group = {
+                    department_id: r.departmentId!,
+                    department_code: r.departmentCode!,
+                    department_name: r.departmentName!,
+                    rows: [],
+                    subtotal: 0,
+                };
+                groupMap.set(r.departmentId!, group);
+            }
+            group.rows.push({
+                id: r.id,
+                created_at: pgToIso(r.transactionDate)!,
+                receipt_number: r.receiptNumber,
+                amount,
+                isb_id: r.requesterExternalId ?? "—",
+                staff_name: r.requesterFullName || r.requesterUsername || "—",
+                remarks: r.notes ?? null,
+                status: statuses[i],
+                cashier_id: r.cashierUsername ?? "—",
+            });
+            group.subtotal += amount;
+            grandTotal += amount;
         }
-        group.rows.push({
-            id: r.id,
-            created_at: pgToIso(r.transactionDate)!,
-            receipt_number: r.receiptNumber,
-            amount,
-            isb_id: r.requesterExternalId ?? "—",
-            staff_name: r.requesterFullName || r.requesterUsername || "—",
-            remarks: r.notes ?? null,
-            status: String(r.status ?? ""),
-            cashier_id: r.cashierUsername ?? "—",
-        });
-        group.subtotal += amount;
-        grandTotal += amount;
     }
 
     const groups = [...groupMap.values()];
