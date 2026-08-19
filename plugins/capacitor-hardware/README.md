@@ -106,6 +106,7 @@ stopCollecting() => Promise<void>
 ```
 
 End the session and inhibit the acceptor so no further bills are taken.
+Blocks until an in-flight accepted bill has stacked (or a short timeout).
 
 --------------------
 

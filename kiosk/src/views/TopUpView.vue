@@ -311,6 +311,7 @@ const balanceBefore = ref(0);
 type PrintState = 'idle' | 'printing' | 'done' | 'error';
 const printState = ref<PrintState>('idle');
 let autoPrinted = false;
+let cashFinalizeStarted = false;
 
 const recoverySnapshot = ref<RecoveryTopupSnapshot | null>(null);
 const recoverySecondsLeft = ref(0);
@@ -337,6 +338,7 @@ const selectMethod = async (key: string) => {
     receiptBalanceAfter.value = null;
     printState.value = 'idle';
     autoPrinted = false;
+    cashFinalizeStarted = false;
     if (key === 'cash') {
         currentStep.value = 'cash-confirm';
         try {
@@ -424,6 +426,10 @@ const clearCashIdleTimer = () => {
 
 const handleCashIdleExpired = () => {
     if (currentStep.value !== 'cash-confirm') return;
+    if (bill.billInFlight.value) {
+        cashTimeLeft.value = 1;
+        return;
+    }
     clearCashIdleTimer();
     const ref = bill.getCashSessionRef();
     if (ref && bill.collectedThb.value <= 0) {
@@ -437,6 +443,7 @@ const resetCashIdleTimer = () => {
     if (currentStep.value !== 'cash-confirm') return;
     cashTimeLeft.value = CASH_IDLE_TOTAL_SEC;
     cashIdleInterval = window.setInterval(() => {
+        if (bill.billInFlight.value) return;
         cashTimeLeft.value--;
         if (cashTimeLeft.value <= 0) {
             handleCashIdleExpired();
@@ -575,24 +582,35 @@ onMounted(() => {
 
 // Auto-finalize when the acceptor reports the target is met.
 watch(bill.collectComplete, async (done) => {
-    if (done && currentStep.value === 'cash-confirm' && !isProcessing.value) {
+    if (done && currentStep.value === 'cash-confirm' && !cashFinalizeStarted) {
         bill.acknowledgeCollectComplete();
         await finalizeCashTopUp();
     }
 });
 
 const finalizeCashTopUp = async (): Promise<boolean> => {
+    if (cashFinalizeStarted) return false;
+    cashFinalizeStarted = true;
+
     const walletId = store.currentWallet?.id;
-    const amount = bill.collectedThb.value;
-    if (!walletId || amount <= 0) return false;
+    if (!walletId) {
+        cashFinalizeStarted = false;
+        return false;
+    }
 
     isProcessing.value = true;
     failDetail.value = null;
     const ref = bill.getCashSessionRef();
     const ctx = ref ? cashTopupContext(ref) : null;
+    let amount = 0;
     try {
+        // Wait for any in-flight escrow to stack (or return) before reading the total.
         await bill.stop();
-        if (!ref || !ctx) return false;
+        amount = bill.collectedThb.value;
+        if (amount <= 0 || !ref || !ctx) {
+            cashFinalizeStarted = false;
+            return false;
+        }
         const res = await bill.finalizeTopUp(
             walletId,
             amount,
@@ -909,6 +927,10 @@ watch(currentStep, (step) => {
 });
 
 watch(() => bill.collectedThb.value, () => {
+    if (currentStep.value === 'cash-confirm') resetCashIdleTimer();
+});
+
+watch(() => bill.billActivityTick.value, () => {
     if (currentStep.value === 'cash-confirm') resetCashIdleTimer();
 });
 

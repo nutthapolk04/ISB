@@ -92,8 +92,40 @@ const lastHardwareError = ref<string | null>(null);
 
 let cashSessionRef: string | null = null;
 const stackedBillAmounts: number[] = [];
+const billInFlight = ref(false);
+const billActivityTick = ref(0);
 
 let listenerHandle: PluginListenerHandle | null = null;
+
+/** True while a bill is in escrow / stacking — do not finalize idle yet. */
+export function applyBillInFlight(type: BillEvent['type'], currentlyInFlight: boolean): boolean {
+    switch (type) {
+        case 'escrowPending':
+        case 'accepted':
+        case 'overpayPending':
+            return true;
+        case 'stacked':
+        case 'returned':
+        case 'collectComplete':
+            return false;
+        default:
+            return currentlyInFlight;
+    }
+}
+
+function noteBillActivity(type: BillEvent['type']): void {
+    if (
+        type === 'escrowPending'
+        || type === 'accepted'
+        || type === 'overpayPending'
+        || type === 'stacked'
+        || type === 'returned'
+        || type === 'exception'
+        || type === 'rejected'
+    ) {
+        billActivityTick.value += 1;
+    }
+}
 
 export function getCashSessionRef(): string | null {
     return cashSessionRef;
@@ -112,6 +144,8 @@ function resetBillCounts(): void {
 }
 
 function handleBillEvent(event: BillEvent) {
+    noteBillActivity(event.type);
+    billInFlight.value = applyBillInFlight(event.type, billInFlight.value);
     switch (event.type) {
         case 'ready':
             hardwareReady.value = true;
@@ -166,6 +200,7 @@ function resetSessionState() {
     overpayPending.value = null;
     collectComplete.value = false;
     cashSessionRef = null;
+    billInFlight.value = false;
     resetBillCounts();
 }
 
@@ -261,11 +296,14 @@ export function useBillAcceptor() {
     }
 
     async function stop() {
-        if (collecting.value) {
+        try {
             await Hardware.stopCollecting();
+        } catch (e) {
+            console.warn('[BillAcceptor] stopCollecting failed:', e);
         }
         collecting.value = false;
         overpayPending.value = null;
+        billInFlight.value = false;
     }
 
     async function acceptOverpay() {
@@ -329,6 +367,8 @@ export function useBillAcceptor() {
         collectComplete,
         hardwareReady,
         lastHardwareError,
+        billInFlight,
+        billActivityTick,
         canConfirm,
         isTargetMet,
         start,
