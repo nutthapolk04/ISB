@@ -86,6 +86,7 @@ const isbSyncPlugin = new Elysia({ name: "isb-sync", prefix: "/api/v1" })
     .post("/sync/staffs", IsbSyncController.staffs, IsbSyncSchema.isbSyncStaffs)
     .post("/sync/families", IsbSyncController.families, IsbSyncSchema.isbSyncFamilies)
     .post("/sync/departments", IsbSyncController.departments, IsbSyncSchema.isbSyncDepartments)
+    .post("/sync/others", IsbSyncController.others, IsbSyncSchema.isbSyncOthers)
     .post("/wallet/adjust-balance", VendorWalletController.adjustBalance, VendorWalletSchema.adjustBalance);
 
 /**

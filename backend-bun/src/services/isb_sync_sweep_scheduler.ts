@@ -1,6 +1,7 @@
 import { sweepStaleFamilies } from "./family_sweep_service";
 import { sweepStaleStaff } from "./staff_sweep_service";
 import { sweepStaleDepartments } from "./department_sweep_service";
+import { sweepStaleOthers } from "./other_sweep_service";
 import { logger } from "@/logger";
 
 // How often the sweeps run. Sweeping is idempotent (re-running with the same
@@ -20,11 +21,13 @@ const SWEEP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_CUTOFF_HOURS = 3;
 
 /**
- * Runs all three ISB-sync staleness sweeps on the same tick — family
+ * Runs all four ISB-sync staleness sweeps on the same tick — family
  * membership (orphan parent/staff, deactivate student), staff (deactivate),
- * department (deactivate). Each has its own "is the pipeline actually alive
- * right now" safety gate (see the individual services) and silently skips
- * itself if not, so one channel being quiet doesn't block the others.
+ * other/visitor cards (deactivate), department (deactivate). Each has its
+ * own "is the pipeline actually alive right now" safety gate, scoped to the
+ * rows that sweep is allowed to touch (see the individual services), and
+ * silently skips itself if not satisfied — so one channel being quiet
+ * neither blocks the others nor authorises a sweep of them.
  */
 export function startIsbSyncSweepScheduler(): void {
     const cutoffHours = Number(process.env.ISB_SYNC_SWEEP_CUTOFF_HOURS ?? DEFAULT_CUTOFF_HOURS);
@@ -34,6 +37,9 @@ export function startIsbSyncSweepScheduler(): void {
         });
         sweepStaleStaff(cutoffHours).catch((err) => {
             logger.error("[staff sweep] scheduler tick failed", err);
+        });
+        sweepStaleOthers(cutoffHours).catch((err) => {
+            logger.error("[other sweep] scheduler tick failed", err);
         });
         sweepStaleDepartments(cutoffHours).catch((err) => {
             logger.error("[department sweep] scheduler tick failed", err);

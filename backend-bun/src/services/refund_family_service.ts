@@ -9,7 +9,7 @@
  * JOIN so missing wallet rows surface as `wallet_id=null, wallet_balance=0`
  * instead of being filtered out.
  */
-import { and, asc, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNotNull, ne, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { customers, users, wallets } from "@/db/schema";
 import { pgNumber } from "@/lib/dates";
@@ -146,7 +146,10 @@ export async function searchRefundFamilies(
             isActive: users.isActive,
         })
         .from(users)
-        .where(inArray(users.familyCode, familyCodeList));
+        // Excluded for the same reason as familyRefundDetail's own user query
+        // below — an ISB "other" card is not a household member, so it must
+        // not inflate a family's member_count here either.
+        .where(and(inArray(users.familyCode, familyCodeList), ne(users.role, "other")));
 
     type Slot = {
         member_count: number;
@@ -214,11 +217,17 @@ export async function getRefundFamilyRoster(
         .where(eq(customers.familyCode, familyCode))
         .orderBy(asc(customers.isGraduated), asc(customers.name));
 
+    // ISB "other" cards (visitor purchase cards) carry a family_code
+    // verbatim from ISB, but they are NOT family members — family_code is
+    // descriptive metadata for them, never a shared-wallet relationship. See
+    // powerschool_sync.upsertOther.
+    // Including one here would sweep a visitor card's balance into an
+    // unrelated household's refund.
     const userRows = await db
         .select({ u: users, w: wallets })
         .from(users)
         .leftJoin(wallets, eq(wallets.userId, users.id))
-        .where(eq(users.familyCode, familyCode))
+        .where(and(eq(users.familyCode, familyCode), ne(users.role, "other")))
         .orderBy(asc(users.fullName));
 
     if (customerRows.length === 0 && userRows.length === 0) return null;

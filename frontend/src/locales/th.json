@@ -3226,7 +3226,8 @@
     "typeTeacher": "ครู",
     "typeVisitor": "ผู้เยี่ยมชม",
     "typeDepartment": "แผนก",
-    "typeOther": "อื่นๆ"
+    "typeOther": "อื่นๆ",
+    "typeUnknown": "เจ้าของบัตรถูกลบ"
   },
   "relation": {
     "grandparent": "ปู่/ย่า/ตา/ยาย",

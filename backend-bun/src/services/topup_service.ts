@@ -185,11 +185,22 @@ export async function userCanAccessWallet(
     const callerId = Number(caller.sub);
     if (w.userId !== null && w.userId === callerId) return true;
 
-    // Co-parents: same family_code on user wallets
+    // Co-parents: same family_code on user wallets.
+    //
+    // ISB "other" cards (visitor purchase cards) carry a family_code
+    // verbatim from ISB, but they are NOT family members — family_code is
+    // descriptive metadata for them, never a shared-wallet relationship. See
+    // powerschool_sync.upsertOther.
+    // A matching code must therefore grant nothing, so both sides of the
+    // comparison exclude the role.
     if (w.userId !== null) {
-        const meRows = await db.select({ familyCode: users.familyCode }).from(users).where(eq(users.id, callerId)).limit(1);
-        const ownerRows = await db.select({ familyCode: users.familyCode }).from(users).where(eq(users.id, w.userId)).limit(1);
-        if (meRows[0]?.familyCode && ownerRows[0]?.familyCode && meRows[0].familyCode === ownerRows[0].familyCode) {
+        const meRows = await db.select({ familyCode: users.familyCode, role: users.role }).from(users).where(eq(users.id, callerId)).limit(1);
+        const ownerRows = await db.select({ familyCode: users.familyCode, role: users.role }).from(users).where(eq(users.id, w.userId)).limit(1);
+        if (
+            meRows[0]?.familyCode && ownerRows[0]?.familyCode
+            && meRows[0].familyCode === ownerRows[0].familyCode
+            && meRows[0].role !== "other" && ownerRows[0].role !== "other"
+        ) {
             return true;
         }
         // POS terminal (cashier/manager) can facilitate top-up for any staff/

@@ -167,7 +167,7 @@ export interface LoginAttemptMeta {
 }
 
 function logLoginFailure(
-    reason: "user_not_found" | "password_mismatch" | "inactive" | "placeholder_password_blocked",
+    reason: "user_not_found" | "password_mismatch" | "inactive" | "placeholder_password_blocked" | "non_login_role",
     attemptedUsername: string,
     meta: LoginAttemptMeta | undefined,
     user?: typeof users.$inferSelect | null,
@@ -183,6 +183,34 @@ function logLoginFailure(
     });
 }
 
+/**
+ * Roles that can never authenticate, on any environment, by any mechanism.
+ *
+ * `other` = ISB-synced visitor purchase cards (see
+ * powerschool_sync.upsertOther). These rows exist only to own a wallet and a
+ * card number; they have no real email and no password anybody knows. The
+ * 2026-08 requirement was that "cannot log in" must hold in EVERY
+ * environment, which rules out leaning on
+ * passwordLoginBlockedInCurrentEnv() (prod/uat only) or on the synthetic
+ * address being unreachable — so the role itself is refused here, before any
+ * credential is examined.
+ *
+ * Enforced at the top of every entry point (login / mockSso /
+ * loginWithGoogleEmail) AND inside createTokens(), which every one of them
+ * funnels through, so a future login path cannot forget it.
+ */
+const NON_LOGIN_ROLES = new Set(["other"]);
+
+function assertRoleMayLogin(user: typeof users.$inferSelect): void {
+    if (!user.role || !NON_LOGIN_ROLES.has(user.role)) return;
+    // Deliberately the same opaque message the "no such user" and "wrong
+    // password" paths use — a caller must not be able to tell a non-login
+    // role apart from a nonexistent account.
+    const err = new Error("Invalid username or password");
+    (err as { status?: number }).status = 401;
+    throw err;
+}
+
 export async function login(
     username: string,
     password: string,
@@ -194,6 +222,11 @@ export async function login(
         const err = new Error("Invalid username or password");
         (err as { status?: number }).status = 401;
         throw err;
+    }
+    // Before the password is even examined — see assertRoleMayLogin.
+    if (user.role && NON_LOGIN_ROLES.has(user.role)) {
+        logLoginFailure("non_login_role", username, meta, user);
+        assertRoleMayLogin(user);
     }
     // Bun.password.verify handles bcrypt $2a / $2b / $2y prefixes natively.
     const ok = await Bun.password.verify(password, user.hashedPassword);
@@ -222,6 +255,11 @@ export async function login(
 }
 
 export async function createTokens(user: typeof users.$inferSelect): Promise<TokenResponseDTO> {
+    // Backstop: every login path funnels through here, so a new entry point
+    // that forgets its own check still cannot mint a token for a non-login
+    // role. refresh() lands here too, which also invalidates any token that
+    // predates a row being converted into an "other" card.
+    assertRoleMayLogin(user);
     const sid = generateSessionToken();
     await db.update(users).set({ sessionToken: sid }).where(eq(users.id, user.id));
 
@@ -460,7 +498,10 @@ export async function mockSso(email: string): Promise<TokenResponseDTO> {
         throw err;
     }
     const user = await findUserByAnyLoginEmail(trimmed);
-    if (!user) {
+    // A non-login role must be indistinguishable from an unregistered
+    // address here — same message, same 404 — so `!user` and the role check
+    // share one branch (see assertRoleMayLogin).
+    if (!user || (user.role && NON_LOGIN_ROLES.has(user.role))) {
         const err = new Error("This email is not registered in the system. Please contact your school administrator.");
         (err as { status?: number }).status = 404;
         throw err;
@@ -486,7 +527,8 @@ async function loginWithGoogleEmail(email: string, emailVerified: boolean): Prom
         throw err;
     }
     const user = await findUserByAnyLoginEmail(trimmed);
-    if (!user) {
+    // Same reasoning as mockSso: a non-login role reads as unregistered.
+    if (!user || (user.role && NON_LOGIN_ROLES.has(user.role))) {
         const err = new Error("This Google account is not registered in the system. Please contact your school administrator.");
         (err as { status?: number }).status = 404;
         throw err;

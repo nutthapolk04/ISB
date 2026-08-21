@@ -1,4 +1,4 @@
-/** ISB → vendor sync batches — staffs, families, departments (public; x-api-key) */
+/** ISB → vendor sync batches — staffs, families, departments, others (public; x-api-key) */
 import { publicCtx } from "@/interfaces/ServiceRequest";
 import { logger } from "@/logger";
 import {
@@ -10,6 +10,7 @@ import {
 import {
 	processDepartmentBatch,
 	processFamilyBatch,
+	processOthersBatch,
 	processStaffBatch,
 } from "@/services/isb_sync_service";
 import { captureSyncBatch } from "@/services/sync_capture_service";
@@ -66,6 +67,31 @@ export const IsbSyncController = {
 			return await handleBatchResult(reqContext.set, result);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (IS-02)] IsbSyncController.families() error:`, e);
+			reqContext.set.status = 500;
+			return {
+				status: "FAILED" as const,
+				code: "500",
+				message: (e as Error).message,
+			};
+		}
+	},
+
+	others: async (ctx: any) => {
+		const reqContext = publicCtx(ctx);
+		const { body, headers } = reqContext;
+		logger.info(`[${reqContext.requestId} (IS-04)] IsbSyncController.others() called.`);
+		if (!checkApiKey(headers as Record<string, string | undefined>)) {
+			logger.warn(`[${reqContext.requestId} (IS-04)] IsbSyncController.others() auth failed.`);
+			return syncAuthFailed(reqContext.set);
+		}
+		try {
+			await captureSyncBatch("others", body);
+			logger.info(`[${reqContext.requestId} (IS-04)] IsbSyncController.others() calling processOthersBatch().`);
+			const result = await processOthersBatch(body.others);
+			logger.info(`[${reqContext.requestId} (IS-04)] IsbSyncController.others() completed.`);
+			return await handleBatchResult(reqContext.set, result);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (IS-04)] IsbSyncController.others() error:`, e);
 			reqContext.set.status = 500;
 			return {
 				status: "FAILED" as const,

@@ -220,14 +220,18 @@ export async function searchCustomers(p: SearchCustomersParams): Promise<Student
         .orderBy(asc(customers.name))
         .limit(limit);
 
-    // Parents / staff / teachers / visitors
+    // Parents / staff / teachers / visitors / ISB "other" cards
     const userRows = await db
         .select()
         .from(users)
         .where(
             and(
                 eq(users.isActive, true),
-                inArray(users.role, ["parent", "staff", "teacher", "visitor"]),
+                // "other" = ISB visitor purchase cards. Needed here so a Store
+                // cashier can find one by name to top it up; the by-card path
+                // is CashierTopupModal's /users/by-card fallback. is_active
+                // above is what makes a deactivated card un-findable.
+                inArray(users.role, ["parent", "staff", "teacher", "visitor", "other"]),
                 p.narrow
                     ? or(
                         ilike(users.fullName, pattern),

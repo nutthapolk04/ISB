@@ -3228,7 +3228,8 @@
     "typeTeacher": "Teacher",
     "typeVisitor": "Visitor",
     "typeDepartment": "Department",
-    "typeOther": "Other"
+    "typeOther": "Other",
+    "typeUnknown": "Unknown owner"
   },
   "relation": {
     "grandparent": "Grandparent",

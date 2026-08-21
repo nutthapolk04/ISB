@@ -164,10 +164,15 @@ export default function WalletAdjust() {
     const [rptDirection, setRptDirection] = useState<"all" | "credit" | "debit">("all");
     // Type filter sent to /wallets/admin/adjustment-report?type=...; 'student'
     // maps directly to entity_type, and each user-owned role (parent/staff/
-    // teacher/visitor) gets its own bucket too. Department adjustments live
-    // on a separate page (/admin/department-adjust) and are excluded from
-    // this report.
-    const [rptType, setRptType] = useState<"all" | "student" | "parent" | "staff" | "teacher" | "visitor" | "other">("all");
+    // teacher/visitor/other) gets its own bucket too. Department adjustments
+    // live on a separate page (/admin/department-adjust) and are excluded
+    // from this report.
+    //
+    // 'other' means the ISB visitor purchase card role (users.role='other').
+    // 'unknown' is the separate placeholder for a row whose wallet owner no
+    // longer exists — the two used to share the 'other' bucket, which made
+    // the filter ambiguous once 'other' became a real role.
+    const [rptType, setRptType] = useState<"all" | "student" | "parent" | "staff" | "teacher" | "visitor" | "other" | "unknown">("all");
     const [rptRows, setRptRows] = useState<AdjustmentRow[]>([]);
     const [rptLoading, setRptLoading] = useState(false);
     const [rptSearched, setRptSearched] = useState(false);
@@ -648,6 +653,7 @@ export default function WalletAdjust() {
                                         <SelectItem value="teacher">{t("adjustmentReport.typeTeacher", "Teacher")}</SelectItem>
                                         <SelectItem value="visitor">{t("adjustmentReport.typeVisitor", "Visitor")}</SelectItem>
                                         <SelectItem value="other">{t("adjustmentReport.typeOther", "Other")}</SelectItem>
+                                        <SelectItem value="unknown">{t("adjustmentReport.typeUnknown", "Unknown owner")}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

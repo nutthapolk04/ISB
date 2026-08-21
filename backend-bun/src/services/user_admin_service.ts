@@ -310,7 +310,16 @@ async function resolveFamily(family_code: string | null): Promise<FamilyMemberDT
         // reconcileFamilyStudents' known-gap comment in powerschool_sync.ts)
         // if it isn't cleared there too. Mirrors family_service.ts's
         // myCoparents(), which already excludes students the same way.
-        db.select().from(users).where(and(eq(users.familyCode, family_code), ne(users.role, "student"))),
+        // ne(role,"other") for the same reason as ne(role,"student") above:
+        // ISB "other" cards (visitor purchase cards) carry a family_code
+    // verbatim from ISB, but they are NOT family members — family_code is
+    // descriptive metadata for them, never a shared-wallet relationship. See
+    // powerschool_sync.upsertOther.
+        db.select().from(users).where(and(
+            eq(users.familyCode, family_code),
+            ne(users.role, "student"),
+            ne(users.role, "other"),
+        )),
         parentRankMap(family_code),
     ]);
     const members: FamilyMemberDTO[] = [];

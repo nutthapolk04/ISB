@@ -56,6 +56,19 @@ const departmentItemSchema = t.Object({
     smartCard: t.Optional(smartCardSchema),
 });
 
+const otherItemSchema = t.Object({
+    customerId: t.Number(),
+    customerType: t.Literal("Other"),
+    familyCode: t.Number(),
+    firstName: t.String(),
+    lastName: t.String(),
+    smartCard: smartCardSchema,
+    // Always [] from ISB — role "other" is non-login by design. Accepted so a
+    // non-empty array doesn't 422 the whole batch, but never honoured; see
+    // powerschool_sync.upsertOther for why that is deliberate.
+    login: t.Array(t.String()),
+});
+
 export const isbSyncStaffs = {
     body: t.Object({
         staffs: t.Array(staffItemSchema),
@@ -83,4 +96,11 @@ export const isbSyncDepartments = {
         departments: t.Array(departmentItemSchema),
     }),
     detail: { tags: ["ISB Sync"], summary: "Sync departments batch (x-api-key)" },
+};
+
+export const isbSyncOthers = {
+    body: t.Object({
+        others: t.Array(otherItemSchema),
+    }),
+    detail: { tags: ["ISB Sync"], summary: "Sync other/visitor cardholder batch (x-api-key)" },
 };

@@ -1,7 +1,7 @@
 /**
  * ISB → Vendor Sync API
  *
- * Accepts Staff / Family / Department batches pushed by ISB.
+ * Accepts Staff / Family / Department / Other batches pushed by ISB.
  * Reuses upsert primitives from powerschool_sync.ts (no fault simulation,
  * no fixture loading — data comes from the HTTP request body).
  *
@@ -26,9 +26,11 @@ import {
     upsertLink,
     upsertParent,
     upsertStaff,
+    upsertOther,
     upsertStaffParentRef,
     upsertStudent,
     type FamilyBatchCtx,
+    type OtherPayload,
     type StaffPayload,
     type StudentPayload,
 } from "@/services/powerschool_sync";
@@ -542,6 +544,88 @@ export async function processDepartmentBatch(depts: IsbDepartment[], triggeredBy
         success,
         failed,
         totalMs: Math.round(totalMs),
+    });
+    return { success, failed, errors };
+}
+
+// ── Other batch (visitor purchase cards) ──────────────────────────────────
+
+/**
+ * `login` is always `[]` from ISB and is deliberately never used — see
+ * upsertOther's header for why that is a security property, not an
+ * oversight. Kept in the type (and in the TypeBox schema) so a non-empty
+ * array from ISB is still accepted and logged rather than 422-ing the whole
+ * batch.
+ */
+export interface IsbOther {
+    customerId: number;
+    customerType: "Other";
+    familyCode: number;
+    firstName: string;
+    lastName: string;
+    smartCard: { cardNumber: string };
+    login: string[];
+}
+
+export async function processOthersBatch(others: IsbOther[], triggeredById: number | null = null): Promise<BatchResult> {
+    if (others.length === 0) {
+        return { success: 0, failed: 0, errors: [] };
+    }
+    const batchStart = performance.now();
+    const logId = await createSyncLog("isb_other", triggeredById);
+    let success = 0, failed = 0;
+    const errors: BatchResult["errors"] = [];
+
+    // Same reactivation bookkeeping as processStaffBatch: snapshot is_active
+    // BEFORE upserting so the timing log can tell a card coming back from an
+    // other_sweep_service deactivation apart from an ordinary touch.
+    // Deactivation never happens here — only the sweep does that.
+    const extIds = others.map((o) => String(o.customerId));
+    const wasActiveByExtId = new Map(
+        (await db.select({ externalId: users.externalId, isActive: users.isActive }).from(users).where(inArray(users.externalId, extIds)))
+            .filter((r): r is { externalId: string; isActive: boolean } => r.externalId !== null)
+            .map((r) => [r.externalId, r.isActive] as const),
+    );
+
+    let reactivated = 0;
+    await processInChunks(others, async (o, i) => {
+        try {
+            const payload: OtherPayload = {
+                customerId: o.customerId,
+                customerType: o.customerType,
+                familyCode: o.familyCode,
+                firstName: o.firstName,
+                lastName: o.lastName,
+                smartCard: { cardNumber: o.smartCard?.cardNumber || "" },
+                login: o.login ?? [],
+            };
+            if (payload.login.length > 0) {
+                // Not an error — just never honoured. Logged because it means
+                // ISB's contract for this channel has changed and someone
+                // should decide whether these cards are meant to log in now.
+                logger.warn(
+                    `[isb other sync] external_id ${payload.customerId} arrived with ${payload.login.length} login address(es); ` +
+                    "ignoring — role \"other\" is non-login by design (see upsertOther).",
+                );
+            }
+            const user = await upsertOther(payload, logId);
+            if (wasActiveByExtId.get(String(o.customerId)) === false && user.isActive) {
+                reactivated++;
+            }
+            success++;
+        } catch (e) {
+            failed++;
+            errors.push({ index: i, id: o.customerId, error: (e as Error).message });
+        }
+    });
+
+    await finishSyncLog(logId, others.length, success, failed, errors.map((e) => `other[${e.index}] ${e.id}: ${e.error}`));
+    logger.info("isb other sync batch timing", {
+        others: others.length,
+        success,
+        failed,
+        reactivated,
+        totalMs: Math.round(performance.now() - batchStart),
     });
     return { success, failed, errors };
 }

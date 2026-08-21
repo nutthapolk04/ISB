@@ -26,7 +26,7 @@ import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import * as path from "node:path";
 import { logger } from "@/logger";
 
-export type SyncChannel = "families" | "staffs" | "departments";
+export type SyncChannel = "families" | "staffs" | "departments" | "others";
 
 const CAPTURE_ROOT = path.join(process.cwd(), "data", "sync_captures");
 const ROUND_GAP_MS = 60 * 60 * 1000; // 1 hour
@@ -36,6 +36,7 @@ const CHANNEL_ARRAY_KEY: Record<SyncChannel, string> = {
     families: "families",
     staffs: "staffs",
     departments: "departments",
+    others: "others",
 };
 
 function channelDir(channel: SyncChannel): string {

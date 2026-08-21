@@ -95,12 +95,17 @@ function blank(): Omit<CardholderDTO, "key" | "kind" | "entity_type" | "entity_i
 // never requires fetching (or even counting-in-memory) the full table — this
 // matters once a school's combined cardholder count runs into the thousands.
 
-type UserKind = "staff" | "parent" | "finance";
+type UserKind = "staff" | "parent" | "finance" | "other";
 type CustomerKind = "student" | "other";
 
 function userRoleSetFor(kind: UserKind): string[] {
     if (kind === "parent") return ["parent"];
     if (kind === "finance") return ["finance"];
+    // ISB visitor purchase cards. They share the "other" tab with
+    // customer_kind='other' customers (2026-08 decision) — two entity types,
+    // one bucket, because to an admin they are the same thing: a card that
+    // isn't a student, a parent or an employee. See fetchOtherPage.
+    if (kind === "other") return ["other"];
     return [...STAFF_ROLES, "admin"];
 }
 
@@ -143,7 +148,10 @@ async function toUserDTOs(uRows: Array<typeof users.$inferSelect>): Promise<Card
     return uRows.map((u) => {
         const w = walletByUser.get(u.id) ?? null;
         const role = u.role ?? "";
-        const kind: CardholderKind = role === "parent" ? "parent" : role === "finance" ? "finance" : "staff";
+        const kind: CardholderKind = role === "parent" ? "parent"
+            : role === "finance" ? "finance"
+            : role === "other" ? "other"
+            : "staff";
         return {
             ...blank(),
             key: `u-${u.id}`,
@@ -257,6 +265,40 @@ async function fetchCustomersPage(
     return toCustomerDTOs(cRows);
 }
 
+/**
+ * The "other" bucket is the one kind backed by two tables: customers with
+ * customer_kind='other' AND users with role='other' (ISB visitor cards).
+ * Concatenated customers-first with the same offset arithmetic the "all" tab
+ * uses to stitch kinds together, so DB-level pagination still holds and no
+ * page ever fetches more than `limit` rows from either side.
+ */
+async function countOther(pattern: string | null, hasWallet?: boolean): Promise<number> {
+    const [c, u] = await Promise.all([
+        countCustomers("other", pattern, undefined, undefined, hasWallet),
+        countUsers("other", pattern, undefined, hasWallet),
+    ]);
+    return c + u;
+}
+
+async function fetchOtherPage(
+    pattern: string | null, offset: number, limit: number, hasWallet?: boolean,
+): Promise<CardholderDTO[]> {
+    if (limit <= 0) return [];
+    const custTotal = await countCustomers("other", pattern, undefined, undefined, hasWallet);
+    const out: CardholderDTO[] = [];
+    if (offset < custTotal) {
+        const take = Math.min(limit, custTotal - offset);
+        out.push(...await fetchCustomersPage("other", pattern, offset, take, undefined, undefined, hasWallet));
+    }
+    const remaining = limit - out.length;
+    if (remaining > 0) {
+        // Offset into the users side: whatever the customers side didn't cover.
+        const userOffset = Math.max(0, offset - custTotal);
+        out.push(...await fetchUsersPage("other", pattern, userOffset, remaining, undefined, hasWallet));
+    }
+    return out;
+}
+
 function departmentSearchCond(pattern: string | null) {
     if (!pattern) return undefined;
     const conds: SQL[] = [
@@ -323,7 +365,7 @@ async function getCounts(pattern: string | null, hasWallet?: boolean): Promise<R
         countUsers("parent", pattern, undefined, hasWallet),
         countUsers("finance", pattern, undefined, hasWallet),
         countCustomers("student", pattern, undefined, undefined, hasWallet),
-        countCustomers("other", pattern, undefined, undefined, hasWallet),
+        countOther(pattern, hasWallet),
         countDepartments(pattern),
     ]);
     return { staff: staffN, parent: parentN, finance: financeN, student: studentN, other: otherN, department: deptN };
@@ -399,6 +441,11 @@ export async function listCardholders(args: {
                 fetchUsersPage(kindFilter, pattern, offset, args.pageSize, args.shopId, hasWallet),
                 countUsers(kindFilter, pattern, args.shopId, hasWallet),
             ]);
+        } else if (kindFilter === "other") {
+            [items, total] = await Promise.all([
+                fetchOtherPage(pattern, offset, args.pageSize, hasWallet),
+                countOther(pattern, hasWallet),
+            ]);
         } else if (kindFilter === "department") {
             [items, total] = await Promise.all([
                 fetchDepartmentsPage(pattern, offset, args.pageSize),
@@ -435,6 +482,8 @@ export async function listCardholders(args: {
         const localLimit = overlapEnd - overlapStart;
         if (k === "staff" || k === "parent" || k === "finance") {
             items.push(...await fetchUsersPage(k, pattern, localOffset, localLimit, args.shopId, hasWallet));
+        } else if (k === "other") {
+            items.push(...await fetchOtherPage(pattern, localOffset, localLimit, hasWallet));
         } else if (k === "department") {
             items.push(...await fetchDepartmentsPage(pattern, localOffset, localLimit));
         } else {

@@ -1013,3 +1013,168 @@ export async function reconcileFamilyMembership(
     }
 }
 
+
+// ── ISB "Other" cardholders (visitor purchase cards) ──────────────────────
+//
+// A distinct role, NOT `role="parent" + customer_type="Other"` — every
+// wallet/family/report code path keys off `users.role`, so overloading an
+// existing role would silently grant these cards parent-portal semantics.
+//
+// Three properties this function must guarantee, in order of importance:
+//
+//  1. NO LOGIN, IN ANY ENVIRONMENT. `payload.login` is accepted by the
+//     schema (ISB always sends `[]`) and then deliberately IGNORED — it is
+//     never written to users.email/username and never to user_login_emails,
+//     so neither SSO lookup in auth_service.findUserByAnyLoginEmail can
+//     ever reach this row. The stored password hash is over a discarded
+//     random secret, so password login cannot succeed either. Those are the
+//     second and third lines of defence: the first is the outright role
+//     rejection in auth_service.login()/ssoLogin()/mockSso(), which holds
+//     regardless of APP_ENV (unlike passwordLoginBlockedInCurrentEnv,
+//     which only covers prod/uat).
+//
+//  2. NOT A FAMILY MEMBER. family_code is stored verbatim as ISB sends it
+//     (per 2026-08 decision), but `users.family_code` is an authorization
+//     boundary elsewhere — topup_service/wallet_service grant wallet access
+//     on a family_code match, and refund/co-parent listings enumerate by
+//     it. Those five call sites now exclude role="other" explicitly, so
+//     storing the code is safe: it stays descriptive metadata here.
+//
+//  3. is_active IS THE ONLY KILL SWITCH. There is no card-freeze column for
+//     users; deactivating is how a card stops working (getUserPayerByCard,
+//     resolveScan and every cashier/POS search all gate on is_active).
+//
+// KNOWN OPEN ISSUE (2026-08), deliberately not addressed here: users.card_uid
+// is not unique — unlike customers.card_uid — so if ISB sends one card number
+// for two people, both rows are created and a tap resolves to whichever
+// getUserPayerByCard's `.limit(1)` (no ORDER BY) happens to return, which can
+// differ between deploys. Adding the unique index was drafted and dropped
+// twice: ISB's real batches were confirmed to contain duplicate cards, so
+// enforcing it would fail those records on every sync and the staleness sweep
+// would then deactivate the people involved — strictly worse than the current
+// behaviour until ISB clarifies whether the duplicates are intentional. The
+// duplicate-tolerant behaviour is pinned in tests/isb_sync_others.test.ts so
+// revisiting it is a visible test change rather than a silent one.
+
+/** ISB's `others` batch record. `login` is always `[]` — see (1) above. */
+export interface OtherPayload {
+    customerId: number;
+    customerType: "Other";
+    familyCode: number;
+    firstName: string;
+    lastName: string;
+    smartCard: { cardNumber: string };
+    login: string[];
+}
+
+/**
+ * Password hash over a per-record random secret that is generated, hashed
+ * and thrown away without ever being stored or logged. Deliberately NOT
+ * `SYNC_PLACEHOLDER_PASSWORD` (2026-08 decision): that value is well-known
+ * ("parent") and is only rejected on prod/uat, so reusing it would leave
+ * these cards password-loginable on every other environment. Cost 10 for
+ * the same reason as PLACEHOLDER_ACCOUNT_BCRYPT_COST — there is no secret
+ * worth protecting here, since nobody (including us) knows the plaintext.
+ */
+async function unusablePasswordHash(): Promise<string> {
+    const secret = `${crypto.randomUUID()}${crypto.randomUUID()}`;
+    return Bun.password.hash(secret, { algorithm: "bcrypt", cost: PLACEHOLDER_ACCOUNT_BCRYPT_COST });
+}
+
+export async function upsertOther(payload: OtherPayload, syncLogId: number): Promise<typeof users.$inferSelect> {
+    const extId = String(payload.customerId);
+    const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+    // "" (no card on file) must become null, not stored as-is. Note that
+    // upsertStaff's and upsertParent's matching comments give the wrong
+    // reason: they claim users.card_uid is uniquely indexed, which is true of
+    // customers.card_uid but NOT of this table. The normalisation is still
+    // right, just for a plainer reason: "" is not a card number, and storing
+    // it would let a scan of "" match every cardless row at once.
+    const cardUid = payload.smartCard?.cardNumber || null;
+    const familyCode = String(payload.familyCode);
+    // Synthetic identity: users.email and users.username are both NOT NULL
+    // and uniquely indexed, so a value is unavoidable. The `other-` prefix
+    // keeps it clear of the `{extId}@parents.isb.ac.th` convention that
+    // upsertParent derives its username from, so the two channels can never
+    // collide on username even if ISB's id ranges ever overlap.
+    const email = `other-${extId}@others.isb.ac.th`;
+    const username = `other-${extId}`;
+
+    // Match on external_id ONLY. The email/username fallbacks that upsertStaff
+    // and upsertParent use exist to reunite one person's two SSO addresses;
+    // this channel has no SSO addresses at all, so matching on a synthetic
+    // value we generated ourselves would only ever produce false positives.
+    const existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
+    const created = !existing;
+    const before = snapshot(existing as unknown as Record<string, unknown> | null, USER_AUDIT_FIELDS);
+
+    let userRow: typeof users.$inferSelect;
+    if (created) {
+        const hash = await unusablePasswordHash();
+        // Race-safety net — same reasoning as upsertStaff: external_id's
+        // unique index makes Postgres, not us, resolve two concurrent syncs
+        // reporting this id for the first time.
+        const [u] = await db.insert(users).values({
+            username, email, fullName,
+            hashedPassword: hash,
+            isActive: true, isSuperuser: false,
+            role: "other", status: "active",
+            externalId: extId, familyCode,
+            customerType: "Other",
+            cardUid,
+            photoUrl: null,
+            lastSyncedAt: new Date().toISOString(),
+        }).onConflictDoUpdate({
+            target: users.externalId,
+            set: {
+                familyCode, fullName,
+                role: "other", customerType: "Other",
+                isActive: true, status: "active",
+                lastSyncedAt: new Date().toISOString(),
+            },
+        }).returning();
+        userRow = u;
+    } else {
+        const updates: Record<string, unknown> = {
+            externalId: extId,
+            familyCode,
+            fullName,
+            role: "other",
+            customerType: "Other",
+            lastSyncedAt: new Date().toISOString(),
+            // Appearing in a current batch is proof of life for
+            // other_sweep_service.ts, exactly as upsertStaff does for the
+            // staff sweep. `status` moves with `is_active` so the two
+            // columns never drift apart.
+            isActive: true,
+            status: "active",
+        };
+        // email/username are never updated: they are derived purely from
+        // external_id (which is the match key), so they cannot have changed,
+        // and rewriting them would be the only way this channel could ever
+        // introduce a real, SSO-resolvable address onto the row.
+        if (cardUid) updates.cardUid = cardUid;
+        // This row is becoming an "other" card. If it previously held a real
+        // identity (a reused external_id), any outstanding JWT for it must
+        // stop working — see upsertStaff's matching comment.
+        if (existing!.role !== "other") updates.sessionToken = null;
+        await db.update(users).set(updates).where(eq(users.id, existing!.id));
+        userRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof users.$inferSelect;
+    }
+
+    // Belt-and-braces for property (1): purge EVERY login email on this
+    // user_id, whatever channel wrote it. Unlike upsertParent's
+    // source-scoped reconcile, this is unconditional — an "other" row must
+    // never have an SSO-resolvable address on file, so there is no source
+    // whose rows are legitimate to keep.
+    await db.delete(userLoginEmails).where(eq(userLoginEmails.userId, userRow.id));
+
+    const after = snapshot(userRow as unknown as Record<string, unknown>, USER_AUDIT_FIELDS);
+    await emitAudit({
+        syncLogId, entityType: "user", entityId: userRow.id,
+        entityName: userRow.fullName, externalId: extId,
+        before, after, fields: USER_AUDIT_FIELDS, created,
+    });
+    await ensureUserWallet(userRow.id);
+    return userRow;
+}

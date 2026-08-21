@@ -27,6 +27,7 @@ import {
     Printer,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { lookupUserByCard } from "@/lib/posCardLookup";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
 import { resolveAvatarUrl, getFallbackAvatar } from "@/lib/avatarFallback";
@@ -217,6 +218,32 @@ export function CashierTopupModal({
                     customer = result;
                 } catch (e) {
                     if (!(e instanceof ApiError && e.status === 404)) throw e;
+                }
+            }
+
+            // 3. Try the users table. Steps 1-2 only ever search `customers`,
+            //    so any card bound to a users row — a staff/parent card, and
+            //    every ISB "other" (visitor purchase) card, which has no
+            //    customers row at all — was unfindable here even though the
+            //    top-up itself supports them (see the /users/:id/cashier-topup
+            //    branch in submitTopup below, keyed off user_id).
+            //    lookupUserByCard also retries the alternate card-UID formats,
+            //    which the two raw lookups above do not.
+            if (!customer) {
+                const u = await lookupUserByCard(q);
+                if (u) {
+                    customer = {
+                        id: u.user_id,
+                        name: u.full_name,
+                        // The modal's own search results use customer_code as
+                        // the visible identifier; for a users row the ISB id is
+                        // the meaningful one, falling back to the username.
+                        customer_code: u.external_id ?? u.username,
+                        photo_url: u.photo_url ?? null,
+                        wallet_balance: u.wallet_balance,
+                        wallet_id: u.wallet_id,
+                        user_id: u.user_id,
+                    };
                 }
             }
 

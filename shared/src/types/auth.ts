@@ -10,7 +10,11 @@ export type UserRole =
   | "canteen_owner"
   | "refund_officer"
   | "kiosk"
-  | "finance";
+  | "finance"
+  // ISB-synced visitor purchase card: no email, no login in ANY environment
+  // (auth_service.ts rejects the role outright), tops up at kiosk or at a
+  // Store shop with allow_topup, spends normally at POS.
+  | "other";
 
 export type ShopId = string;
 

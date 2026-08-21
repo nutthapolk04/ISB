@@ -7,9 +7,12 @@ import { getSyncLog, listSyncStatuses, listSyncAudit } from "@/services/cardhold
 import {
 	processDepartmentBatch,
 	processFamilyBatch,
+	processOthersBatch,
 	processStaffBatch,
+	type BatchResult,
 	type IsbDepartment,
 	type IsbFamily,
+	type IsbOther,
 	type IsbStaff,
 } from "@/services/isb_sync_service";
 import { listRounds, loadRoundRecords, type SyncChannel } from "@/services/sync_capture_service";
@@ -95,11 +98,31 @@ export const SyncController = {
 			const rawRecords = await loadRoundRecords(channel, params.roundId);
 			const triggeredById = Number(user.sub);
 			logger.info(`[${reqContext.requestId} (SY-08)] SyncController.runCapture() running ${channel} Manual Sync (${rawRecords.length} records).`);
-			const result = channel === "families"
-				? await processFamilyBatch(dedupeByKeyKeepLast(rawRecords as IsbFamily[], (f) => f.familyCode), triggeredById)
-				: channel === "staffs"
-					? await processStaffBatch(dedupeByKeyKeepLast(rawRecords as IsbStaff[], (s) => s.customerId), triggeredById)
-					: await processDepartmentBatch(dedupeByKeyKeepLast(rawRecords as IsbDepartment[], (d) => d.departmentId), triggeredById);
+			// Explicit per-channel dispatch rather than a ternary chain with a
+			// catch-all tail: the tail used to be processDepartmentBatch, so
+			// adding a channel without touching this line would silently
+			// replay it through the wrong processor.
+			let result: BatchResult;
+			switch (channel) {
+				case "families":
+					result = await processFamilyBatch(dedupeByKeyKeepLast(rawRecords as IsbFamily[], (f) => f.familyCode), triggeredById);
+					break;
+				case "staffs":
+					result = await processStaffBatch(dedupeByKeyKeepLast(rawRecords as IsbStaff[], (s) => s.customerId), triggeredById);
+					break;
+				case "departments":
+					result = await processDepartmentBatch(dedupeByKeyKeepLast(rawRecords as IsbDepartment[], (d) => d.departmentId), triggeredById);
+					break;
+				case "others":
+					result = await processOthersBatch(dedupeByKeyKeepLast(rawRecords as IsbOther[], (o) => o.customerId), triggeredById);
+					break;
+				default: {
+					// Exhaustiveness check — a new SyncChannel that forgets a
+					// case here fails the build instead of 500-ing at runtime.
+					const unreachable: never = channel;
+					throw new Error(`Unsupported sync channel: ${String(unreachable)}`);
+				}
+			}
 			logger.info(`[${reqContext.requestId} (SY-08)] SyncController.runCapture() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {

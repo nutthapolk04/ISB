@@ -246,10 +246,16 @@ export async function adjustmentReport(args: {
         if (args.typeFilter) {
             const wanted = args.typeFilter.trim().toLowerCase();
             // entityType for a user-owned wallet is users.role verbatim
-            // ("parent", "staff", "teacher", "visitor", ...) — each role gets
+            // ("parent", "staff", "teacher", "other", ...) — each role gets
             // its own bucket instead of bundling them all under "staff".
-            const bucket = entityType === "unknown" ? "other" : entityType;
-            if (wanted !== bucket) continue;
+            //
+            // The unreachable-owner placeholder keeps its own "unknown"
+            // bucket rather than folding into "other": since the ISB "other"
+            // role landed, "other" is a real role with real rows, so mapping
+            // deleted-owner rows there too would make one filter mean two
+            // unrelated things (a visitor card vs. a row whose wallet owner
+            // no longer exists) and silently mix them in the same export.
+            if (wanted !== entityType) continue;
         }
 
         filtered.push({

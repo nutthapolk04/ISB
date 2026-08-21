@@ -155,6 +155,11 @@ export async function myCoparents(parentUserId: number, familyCode: string | nul
             ne(users.id, parentUserId),
             eq(users.isActive, true),
             ne(users.role, "student"),
+            // ISB "other" cards (visitor purchase cards) carry a family_code
+    // verbatim from ISB, but they are NOT family members — family_code is
+    // descriptive metadata for them, never a shared-wallet relationship. See
+    // powerschool_sync.upsertOther.
+            ne(users.role, "other"),
         ));
 
     const results: CoParentSummaryDTO[] = [];

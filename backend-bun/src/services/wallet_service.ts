@@ -233,9 +233,13 @@ async function userCanAccessWallet(
     if (wallet.departmentId !== null) return false;
     const callerId = Number(caller.sub);
     if (wallet.userId !== null && wallet.userId === callerId) return true;
-    if (wallet.userId !== null && caller.family_code) {
-        const owner = await db.select({ familyCode: users.familyCode }).from(users).where(eq(users.id, wallet.userId)).limit(1);
-        if (owner[0]?.familyCode && owner[0].familyCode === caller.family_code) return true;
+    // ISB "other" cards (visitor purchase cards) carry a family_code
+    // verbatim from ISB, but they are NOT family members — family_code is
+    // descriptive metadata for them, never a shared-wallet relationship. See
+    // powerschool_sync.upsertOther.
+    if (wallet.userId !== null && caller.family_code && !caller.roles.includes("other")) {
+        const owner = await db.select({ familyCode: users.familyCode, role: users.role }).from(users).where(eq(users.id, wallet.userId)).limit(1);
+        if (owner[0]?.familyCode && owner[0].familyCode === caller.family_code && owner[0].role !== "other") return true;
     }
     if (wallet.userId !== null && (caller.roles.includes("cashier") || caller.roles.includes("manager"))) {
         return true;

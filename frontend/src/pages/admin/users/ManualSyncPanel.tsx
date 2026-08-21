@@ -42,7 +42,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "@/hooks/use-toast";
 import { RefreshCw, Eye, Play, ChevronDown, Loader2, CheckCircle2, XCircle } from "lucide-react";
 
-type SyncChannel = "families" | "staffs" | "departments";
+type SyncChannel = "families" | "staffs" | "departments" | "others";
 
 interface RoundSummary {
   roundId: string;
@@ -62,6 +62,8 @@ const CHANNELS: { value: SyncChannel; labelKey: string; label: string }[] = [
   { value: "families", labelKey: "manualSync.channelFamilies", label: "Families" },
   { value: "staffs", labelKey: "manualSync.channelStaffs", label: "Staffs" },
   { value: "departments", labelKey: "manualSync.channelDepartments", label: "Departments" },
+  // ISB "other" cardholders (visitor purchase cards) — role="other".
+  { value: "others", labelKey: "manualSync.channelOthers", label: "Others" },
 ];
 
 export default function ManualSyncPanel() {

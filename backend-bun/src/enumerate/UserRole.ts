@@ -14,6 +14,7 @@ export enum Role {
 	RefundOfficer = "refund_officer",
 	Kiosk = "kiosk",
 	Finance = "finance",
+	Other = "other",
 }
 
 export type { UserRole };
