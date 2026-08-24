@@ -15,6 +15,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
     Search,
     Loader2,
     Wallet,
@@ -160,6 +164,20 @@ export function CashierTopupModal({
     const [intent, setIntent] = useState<TopupIntent | null>(null);
     const [qrStatus, setQrStatus] = useState<QrStatus>("waiting");
     const [confirming, setConfirming] = useState(false);
+    // Pre-submit confirmation. Cash is irreversible once the drawer is open, a
+    // mistyped amount is invisible on the form (see blurOnWheel — a scroll used
+    // to change it silently), and neither the bank's QR screen nor the EDC
+    // terminal ever shows WHO the wallet belongs to — so "wrong receiver" is an
+    // error only this dialog can catch.
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmAmount, setConfirmAmount] = useState(0);
+    /** Balance re-read when the dialog opens, so the figures the cashier checks
+     *  are current. `selectedCustomer.wallet_balance` was captured at lookup
+     *  time and drifts as soon as the customer spends or another till tops up —
+     *  verifying against a stale number would create a new error class instead
+     *  of removing one. Null = the re-read failed, fall back to the cached one. */
+    const [confirmBalance, setConfirmBalance] = useState<number | null>(null);
+    const [confirmLoading, setConfirmLoading] = useState(false);
     const [edcOpen, setEdcOpen] = useState(false);
     const [edcAmount, setEdcAmount] = useState(0);
     const cashAttemptRef = useRef<CashTopupAttempt | null>(null);
@@ -186,6 +204,9 @@ export function CashierTopupModal({
             printedForResultRef.current = null;
             setIntent(null);
             setQrStatus("waiting");
+            setConfirmOpen(false);
+            setConfirmBalance(null);
+            setConfirmLoading(false);
             clearCashAttempt();
         }
     }, [open, clearCashAttempt]);
@@ -387,15 +408,54 @@ export function CashierTopupModal({
         }
     };
 
-    const handleSubmitTopup = async () => {
-        if (!selectedCustomer) return;
-
+    /** Shared by the confirm dialog and the submit itself, so a value that
+     *  slipped past the form (or changed while the dialog was open) still can't
+     *  reach the API. Returns null once it has told the cashier why. */
+    const validatedAmount = useCallback((): number | null => {
         const amountNum = parseFloat(amount);
         const minAmount = minTopupAmount;
         if (isNaN(amountNum) || amountNum < minAmount || amountNum > 50000) {
             toast.error(t("topup.invalidAmount", { min: minAmount, max: 50000, defaultValue: `Amount must be between ฿${minAmount} and ฿50,000` }));
+            return null;
+        }
+        return amountNum;
+    }, [amount, minTopupAmount, t]);
+
+    const openConfirm = async () => {
+        if (!selectedCustomer) return;
+        const amountNum = validatedAmount();
+        if (amountNum === null) return;
+
+        setConfirmAmount(amountNum);
+        setConfirmBalance(null);
+        setConfirmOpen(true);
+
+        // A wallet-less customer has nothing to re-read; their balance starts at
+        // zero and the wallet is created by the top-up itself.
+        if (!selectedCustomer.wallet_id) {
+            setConfirmBalance(0);
             return;
         }
+        setConfirmLoading(true);
+        try {
+            const wallet = await api.get<WalletBalance>(`/wallets/${selectedCustomer.wallet_id}`);
+            setConfirmBalance(wallet.balance);
+        } catch {
+            // Deliberately non-blocking: the amount is the field that matters
+            // most and it needs no server call, so a failed re-read must not
+            // stop the cashier. The dialog falls back to the cached balance and
+            // says so.
+            setConfirmBalance(null);
+        } finally {
+            setConfirmLoading(false);
+        }
+    };
+
+    const handleSubmitTopup = async () => {
+        if (!selectedCustomer) return;
+
+        const amountNum = validatedAmount();
+        if (amountNum === null) return;
 
         // bay_qr & edc require an existing wallet — use cash if no wallet yet (intent needs wallet_id)
         const hasWallet = !!selectedCustomer.wallet_id;
@@ -836,7 +896,7 @@ export function CashierTopupModal({
 
                             {/* Submit button */}
                             <Button
-                                onClick={handleSubmitTopup}
+                                onClick={openConfirm}
                                 disabled={submitting || !amount || parseFloat(amount) < minTopupAmount || parseFloat(amount) > 50000}
                                 className="w-full h-12 text-base font-bold bg-emerald-500 hover:bg-emerald-600"
                             >
@@ -1021,6 +1081,97 @@ export function CashierTopupModal({
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Pre-submit confirmation — see the confirmOpen state comment. */}
+            <AlertDialog open={confirmOpen} onOpenChange={(o) => { if (!submitting) setConfirmOpen(o); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t("topup.confirmTitle", "Confirm this top-up")}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t("topup.confirmSubtitle", "Check the amount and the receiver before taking payment.")}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <div className="space-y-3 py-1">
+                        {/* Receiver first: the bank's QR screen and the EDC
+                            terminal both show the amount, but neither shows who
+                            the money lands on. */}
+                        <div className="rounded-lg border bg-muted/40 p-3">
+                            <div className="text-xs text-muted-foreground">
+                                {t("topup.confirmReceiver", "Receiver")}
+                            </div>
+                            <div className="font-bold text-base leading-tight">
+                                {selectedCustomer?.name}
+                            </div>
+                            {(selectedCustomer?.student_code || selectedCustomer?.customer_code || selectedCustomer?.grade) && (
+                                <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                                    {selectedCustomer?.student_code || selectedCustomer?.customer_code}
+                                    {selectedCustomer?.grade ? ` · Grade ${selectedCustomer.grade}` : ""}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-sm text-muted-foreground">
+                                {t("topup.confirmAmount", "Top-up Amount")}
+                            </span>
+                            <span className="text-2xl font-extrabold tabular-nums text-emerald-600">
+                                ฿{confirmAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
+
+                        <div className="rounded-lg border p-3 space-y-1.5 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                    {t("topup.confirmBalanceBefore", "Balance Before")}
+                                </span>
+                                <span className="tabular-nums">
+                                    {confirmLoading
+                                        ? <Loader2 className="h-4 w-4 animate-spin inline" />
+                                        : `฿${(confirmBalance ?? selectedCustomer?.wallet_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                </span>
+                            </div>
+                            <div className="flex justify-between font-bold border-t pt-1.5">
+                                <span>{t("topup.confirmBalanceAfter", "Balance After")}</span>
+                                <span className="tabular-nums text-emerald-600">
+                                    {confirmLoading
+                                        ? <Loader2 className="h-4 w-4 animate-spin inline" />
+                                        : `฿${((confirmBalance ?? selectedCustomer?.wallet_balance ?? 0) + confirmAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                </span>
+                            </div>
+                            {!confirmLoading && confirmBalance === null && selectedCustomer?.wallet_id && (
+                                // Say so rather than presenting a possibly-stale
+                                // figure as current.
+                                <p className="text-[11px] text-amber-600 pt-1">
+                                    {t("topup.confirmBalanceStale", "Could not refresh the balance just now — the figures above may be out of date. The top-up amount is unaffected.")}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={submitting}>
+                            {t("topup.confirmBack", "Back")}
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={submitting || confirmLoading}
+                            onClick={(e) => {
+                                // Keep the dialog mounted while the request runs
+                                // so the cashier can't fire a second one, and so
+                                // a failure leaves them on this screen with the
+                                // amount still entered.
+                                e.preventDefault();
+                                void handleSubmitTopup().finally(() => setConfirmOpen(false));
+                            }}
+                            className="bg-emerald-500 hover:bg-emerald-600"
+                        >
+                            {submitting
+                                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("topup.processing", "Processing...")}</>
+                                : t("topup.confirmProceed", "Confirm")}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <EdcPaymentModal
                 open={edcOpen}
