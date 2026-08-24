@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { createHash } from "node:crypto";
 import { SYNC_PLACEHOLDER_PASSWORD } from "@/lib/placeholder_password";
+import { logger } from "@/logger";
 
 const PARENT_DEFAULT_PASSWORD = SYNC_PLACEHOLDER_PASSWORD;
 
@@ -38,6 +39,33 @@ const PARENT_DEFAULT_PASSWORD = SYNC_PLACEHOLDER_PASSWORD;
  * no effect), so this was the only real lever short of removing salting.
  */
 const PLACEHOLDER_ACCOUNT_BCRYPT_COST = 10;
+
+/**
+ * Which roles an ISB sync round is allowed to overwrite.
+ *
+ * WHY THIS EXISTS: upsertStaff's UPDATE path never set `role` at all — only
+ * its INSERT did. So once ISB moved somebody from "other" back to staff, the
+ * row kept role="other" forever: auth_service rejects that role outright, so
+ * a real employee could never log in again, while customer_type read "Staff"
+ * and their login email was restored, making the cause invisible to an admin
+ * looking at the record. Worse, other_sweep_service still owned the row and
+ * deactivated it every cycle while /sync/staffs reactivated it on the next —
+ * an endless flip-flop. (upsertParent and upsertStaffParentRef already set
+ * role; only the plain staff channel didn't.)
+ *
+ * Setting it unconditionally would trade that for a worse bug. upsertStaff
+ * falls back to matching on email/username, so an in-app admin who also
+ * appears in ISB's staff batch would be silently demoted to plain staff.
+ * Only the roles ISB actually owns may be overwritten — the same distinction
+ * family_sweep_service.ts draws when it refuses to touch non-sync roles.
+ */
+const SYNC_OWNED_ROLES = new Set(["parent", "staff", "student", "other"]);
+
+/** The role a sync round should write, given what the row already holds. */
+function nextSyncedRole(existingRole: string | null | undefined, target: "staff" | "parent"): string {
+    if (!existingRole) return target;
+    return SYNC_OWNED_ROLES.has(existingRole) ? target : existingRole;
+}
 
 /**
  * Placeholder-account password hashes, precomputed in parallel BEFORE the
@@ -343,6 +371,9 @@ export async function upsertStaff(payload: StaffPayload, syncLogId: number): Pro
             externalId: extId,
             familyCode,
             fullName,
+            // See nextSyncedRole: without this an "other" -> staff transition
+            // left the row stuck at role="other" for good.
+            role: nextSyncedRole(existing!.role, "staff"),
             customerType: "Staff",
             staffType: payload.staffType ?? existing!.staffType ?? null,
             psDepartment: payload.department ?? existing!.psDepartment ?? null,
@@ -456,7 +487,7 @@ export async function upsertParent(payload: StaffPayload, familyCode: string, lo
         const wasStaff = existing!.role === "staff";
         const updates: Record<string, unknown> = {
             externalId: extId, familyCode, fullName,
-            customerType: "Parent", role: "parent",
+            customerType: "Parent", role: nextSyncedRole(existing!.role, "parent"),
             photoUrl: existing!.photoUrl ?? photoUrl,
             lastSyncedAt: new Date().toISOString(),
             // Staff-only metadata must not linger once this row is no longer
@@ -572,7 +603,7 @@ export async function upsertStaffParentRef(payload: StaffPayload, familyCode: st
         // despite ISB now reporting this person as Staff.
         const updates: Record<string, unknown> = {
             externalId: extId, familyCode, fullName,
-            role: "staff", customerType: "Staff",
+            role: nextSyncedRole(existing!.role, "staff"), customerType: "Staff",
             // Reactivate — being listed as this family's Staff-type parent
             // is itself proof of life for staff_sweep_service.ts's purposes
             // (see that file's shared-lastSyncedAt reasoning), so a prior
@@ -1024,9 +1055,11 @@ export async function reconcileFamilyMembership(
 //
 //  1. NO LOGIN, IN ANY ENVIRONMENT. `payload.login` is accepted by the
 //     schema (ISB always sends `[]`) and then deliberately IGNORED — it is
-//     never written to users.email/username and never to user_login_emails,
-//     so neither SSO lookup in auth_service.findUserByAnyLoginEmail can
-//     ever reach this row. The stored password hash is over a discarded
+//     never written to users.email/username and never to user_login_emails.
+//     On a row ISB has just MOVED here from staff/parent, the synthetic
+//     address is written over whatever real one it held, so neither SSO
+//     lookup in auth_service.findUserByAnyLoginEmail can reach this row in
+//     either case. The stored password hash is over a discarded
 //     random secret, so password login cannot succeed either. Those are the
 //     second and third lines of defence: the first is the outright role
 //     rejection in auth_service.login()/ssoLogin()/mockSso(), which holds
@@ -1043,6 +1076,16 @@ export async function reconcileFamilyMembership(
 //  3. is_active IS THE ONLY KILL SWITCH. There is no card-freeze column for
 //     users; deactivating is how a card stops working (getUserPayerByCard,
 //     resolveScan and every cashier/POS search all gate on is_active).
+//
+// ROLE TRANSITIONS (2026-08). ISB re-uses one external_id across role
+// changes and sends a person through exactly one batch per round, so
+// staff -> other and parent -> other simply stop appearing on their old
+// channel and start appearing here; the reverse directions are handled by
+// upsertStaff/upsertParent, which restore the real login from
+// `payload.login` and reset the role (see nextSyncedRole — the plain staff
+// channel used to leave it stuck at "other"). What this function clears on
+// the way in is limited to what ISB's own payload can put back; see the
+// update path for the fields deliberately left alone and why.
 //
 // KNOWN OPEN ISSUE (2026-08), deliberately not addressed here: users.card_uid
 // is not unique — unlike customers.card_uid — so if ISB sends one card number
@@ -1100,6 +1143,35 @@ export async function upsertOther(payload: OtherPayload, syncLogId: number): Pro
     const email = `other-${extId}@others.isb.ac.th`;
     const username = `other-${extId}`;
 
+    // Guard: refuse an external_id that an ACTIVE customer already owns.
+    //
+    // Students live in `customers`, not `users` — but upsertStudent also
+    // creates a login shell in `users` under the same external_id, and
+    // upsertOther matches on external_id. So a student id arriving here would
+    // convert that shell into an "other" card with its own fresh zero-balance
+    // wallet, while the student's real customers row (and its money) stayed
+    // put and active. Nothing would error: resolveScan checks users.card_uid
+    // BEFORE customers.card_uid, so the same physical card would silently
+    // start charging the empty wallet and the real balance would be
+    // unreachable. Reproduced 2026-08 with a 875.00 balance stranded.
+    //
+    // ISB confirmed this transition cannot happen as a matter of business
+    // rule, so this is a backstop against a bad payload, not a supported
+    // path — hence a failed record (visible in the sync log) rather than any
+    // attempt to migrate a balance across tables.
+    const clashingCustomer = (await db
+        .select({ id: customers.id, name: customers.name, kind: customers.customerKind })
+        .from(customers)
+        .where(and(eq(customers.externalId, extId), eq(customers.isActive, true)))
+        .limit(1))[0];
+    if (clashingCustomer) {
+        throw new Error(
+            `external_id ${extId} already belongs to an active ${clashingCustomer.kind ?? "customer"} ` +
+            `("${clashingCustomer.name}", customer id ${clashingCustomer.id}); refusing to create an "other" ` +
+            "card that would shadow their card and wallet",
+        );
+    }
+
     // Match on external_id ONLY. The email/username fallbacks that upsertStaff
     // and upsertParent use exist to reunite one person's two SSO addresses;
     // this channel has no SSO addresses at all, so matching on a synthetic
@@ -1149,15 +1221,55 @@ export async function upsertOther(payload: OtherPayload, syncLogId: number): Pro
             isActive: true,
             status: "active",
         };
-        // email/username are never updated: they are derived purely from
-        // external_id (which is the match key), so they cannot have changed,
-        // and rewriting them would be the only way this channel could ever
-        // introduce a real, SSO-resolvable address onto the row.
+        // Overwrite email/username with the synthetic pair every round. On a
+        // row that was always "other" this is a no-op; on one ISB just moved
+        // HERE from staff/parent it is the whole point — that row still holds
+        // a real, SSO-resolvable address, which property (1) says an "other"
+        // row must never have. Writing it unconditionally also self-heals rows
+        // that transitioned before this existed. Safe to clobber because
+        // upsertStaff/upsertParent write the real address back from
+        // `payload.login` the moment ISB reports this person on either of
+        // those channels again.
+        updates.email = email;
+        updates.username = username;
+        // Employment metadata that is now false. Cleared rather than left to
+        // rot because an admin screen reading it would present a visitor card
+        // as a serving member of some department — and because ISB's own
+        // payload restores both (`payload.staffType ?? existing.staffType`)
+        // if this person is ever staff again, so clearing loses nothing.
+        //
+        // Deliberately NOT cleared: shop_id, shop_module, department_id,
+        // user_roles and is_superuser. Nothing in ISB's payload can restore
+        // those — they are granted inside the app — so clearing them would be
+        // irreversible data loss on a round trip, exactly the reasoning that
+        // kept parent_child_links intact (2026-08). All of them are inert
+        // while role="other": login is refused outright, so no session can
+        // ever carry the RBAC rows or the superuser flag, the shop columns
+        // only ever scope a CALLER's own POS access, and payerView() now
+        // withholds the department fields for this role so the POS can't
+        // render a stale department badge either.
+        updates.staffType = null;
+        updates.psDepartment = null;
         if (cardUid) updates.cardUid = cardUid;
         // This row is becoming an "other" card. If it previously held a real
         // identity (a reused external_id), any outstanding JWT for it must
         // stop working — see upsertStaff's matching comment.
-        if (existing!.role !== "other") updates.sessionToken = null;
+        if (existing!.role !== "other") {
+            updates.sessionToken = null;
+            // A role ISB does not own (admin, manager, cashier, ...) being
+            // turned into a visitor card is honoured — ISB is authoritative
+            // for identity and "cannot log in" is the stronger guarantee —
+            // but it is almost certainly a data problem upstream, so say so
+            // rather than converting an operator account in silence. The
+            // reverse direction refuses instead; see nextSyncedRole.
+            if (existing!.role && !SYNC_OWNED_ROLES.has(existing!.role)) {
+                logger.warn(
+                    `[isb other sync] external_id ${extId} had in-app role "${existing!.role}"; ` +
+                    "converting to \"other\" as ISB reports, which revokes its ability to log in. " +
+                    "user_roles and is_superuser are left intact and sync cannot restore the role itself.",
+                );
+            }
+        }
         await db.update(users).set(updates).where(eq(users.id, existing!.id));
         userRow = { ...existing!, ...(updates as Partial<typeof existing>) } as typeof users.$inferSelect;
     }

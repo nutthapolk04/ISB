@@ -1,6 +1,6 @@
 import { db } from "@/db/client";
 import { parentChildLinks, users, customers, familyProfiles, emailAlertsLog, wallets } from "@/db/schema";
-import { eq, and, gte, inArray, isNull, ilike } from "drizzle-orm";
+import { eq, and, gte, inArray, isNull, ilike, ne } from "drizzle-orm";
 import { emailDeliveryStatusFromError, sendEmail } from "./email_service";
 import { getRaw } from "./settings_service";
 import { pgNumber } from "@/lib/dates";
@@ -48,6 +48,13 @@ export async function checkAndSendLowBalanceAlerts(
         .limit(1);
     if (!student) return;
 
+    // ne(role,"other") — an ISB "other" card is a visitor purchase card, not a
+    // guardian. When ISB moves a parent to that role the row keeps its real
+    // email and its parent_child_links (reconcileParentLinks drops the link
+    // only when the family is still in the batch with another parent, which a
+    // sole guardian's family is not), so without this filter the fallback
+    // branch below would mail a child's balance to a former guardian, and
+    // their stale link would still satisfy the opt-in check.
     const parents = await db
         .select({
             parentUserId: parentChildLinks.parentUserId,
@@ -57,7 +64,7 @@ export async function checkAndSendLowBalanceAlerts(
         })
         .from(parentChildLinks)
         .innerJoin(users, eq(users.id, parentChildLinks.parentUserId))
-        .where(eq(parentChildLinks.childCustomerId, customerId));
+        .where(and(eq(parentChildLinks.childCustomerId, customerId), ne(users.role, "other")));
 
     // The family has to have opted in. Both switches must be on: the school's,
     // checked above, and this child's — off by default, so nothing goes out
@@ -194,13 +201,17 @@ async function reasonToSkipAtSendTime(childCustomerId: number | null): Promise<s
     // rather than silently dropping them.
     if (childCustomerId === null) return null;
 
+    // Same ne(role,"other") filter as the queueing path above — a stale link
+    // belonging to a former guardian who is now a visitor card must not be
+    // what keeps a family's alerts alive, or decide the threshold.
     const links = await db
         .select({
             enabled: parentChildLinks.lowBalanceAlertEnabled,
             threshold: parentChildLinks.lowBalanceThreshold,
         })
         .from(parentChildLinks)
-        .where(eq(parentChildLinks.childCustomerId, childCustomerId));
+        .innerJoin(users, eq(users.id, parentChildLinks.parentUserId))
+        .where(and(eq(parentChildLinks.childCustomerId, childCustomerId), ne(users.role, "other")));
 
     if (links.length === 0) return "No guardian is linked to this student any more";
     // Same `some` rule as queueing: a guardian added after opt-in starts with a

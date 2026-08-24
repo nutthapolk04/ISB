@@ -219,7 +219,14 @@ async function payerView(target: typeof users.$inferSelect): Promise<UserPayerLo
     console.log("[payerView] wallet found:", wallet?.id, "balance:", wallet?.balance);
     let deptCode: string | null = null;
     let deptName: string | null = null;
-    if (target.departmentId !== null) {
+    // role "other" (ISB visitor purchase card) never charges a department, and
+    // a row ISB moved here from staff keeps whatever department_id it had —
+    // sync cannot restore that column, so upsertOther deliberately leaves it
+    // rather than destroy it. Withholding it at the read point instead is what
+    // stops the POS rendering a stale "Ops (OPS)" badge beside a visitor card
+    // (RfidPaymentModal keys that badge purely off department_name).
+    const isOtherCard = target.role === "other";
+    if (target.departmentId !== null && !isOtherCard) {
         const dept = await db
             .select({ code: departments.departmentCode, name: departments.departmentName })
             .from(departments)
@@ -250,7 +257,7 @@ async function payerView(target: typeof users.$inferSelect): Promise<UserPayerLo
         wallet_id: wallet.id,
         wallet_balance: pgNumber(wallet.balance) ?? 0,
         is_active: target.isActive,
-        department_id: target.departmentId ?? null,
+        department_id: isOtherCard ? null : (target.departmentId ?? null),
         department_code: deptCode,
         department_name: deptName,
         staff_type: staffType,
