@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { blurOnWheel } from "@/lib/numberInputGuards";
+import { topupConfirmFigures } from "./cashierTopupHelpers";
 import { lookupUserByCard } from "@/lib/posCardLookup";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
@@ -430,12 +431,9 @@ export function CashierTopupModal({
         setConfirmBalance(null);
         setConfirmOpen(true);
 
-        // A wallet-less customer has nothing to re-read; their balance starts at
-        // zero and the wallet is created by the top-up itself.
-        if (!selectedCustomer.wallet_id) {
-            setConfirmBalance(0);
-            return;
-        }
+        // A wallet-less customer has nothing to re-read — topupConfirmFigures
+        // reports zero for them from `hasWallet` alone.
+        if (!selectedCustomer.wallet_id) return;
         setConfirmLoading(true);
         try {
             const wallet = await api.get<WalletBalance>(`/wallets/${selectedCustomer.wallet_id}`);
@@ -610,6 +608,13 @@ export function CashierTopupModal({
 
     // Quick amount buttons
     const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
+
+    const confirmFigures = topupConfirmFigures({
+        amount: confirmAmount,
+        fetchedBalance: confirmBalance,
+        cachedBalance: selectedCustomer?.wallet_balance,
+        hasWallet: !!selectedCustomer?.wallet_id,
+    });
 
     return (
         <>
@@ -1128,7 +1133,7 @@ export function CashierTopupModal({
                                 <span className="tabular-nums">
                                     {confirmLoading
                                         ? <Loader2 className="h-4 w-4 animate-spin inline" />
-                                        : `฿${(confirmBalance ?? selectedCustomer?.wallet_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        : `฿${confirmFigures.balanceBefore.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                 </span>
                             </div>
                             <div className="flex justify-between font-bold border-t pt-1.5">
@@ -1136,10 +1141,10 @@ export function CashierTopupModal({
                                 <span className="tabular-nums text-emerald-600">
                                     {confirmLoading
                                         ? <Loader2 className="h-4 w-4 animate-spin inline" />
-                                        : `฿${((confirmBalance ?? selectedCustomer?.wallet_balance ?? 0) + confirmAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        : `฿${confirmFigures.balanceAfter.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                 </span>
                             </div>
-                            {!confirmLoading && confirmBalance === null && selectedCustomer?.wallet_id && (
+                            {!confirmLoading && confirmFigures.stale && (
                                 // Say so rather than presenting a possibly-stale
                                 // figure as current.
                                 <p className="text-[11px] text-amber-600 pt-1">
