@@ -717,6 +717,8 @@
     "salesByItemReportDesc": "Per-item sales activity grouped by SKU with quantity and amount totals",
     "salesByPaymentReport": "Sales by Payment Method",
     "salesByPaymentReportDesc": "Sales broken down by payment method (cash, wallet, EDC, QR, department) with receipt counts and totals",
+    "salesByCashierReport": "Today's Sale Report",
+    "salesByCashierReportDesc": "Sales broken down by cashier, with a payment-method breakdown per cashier and a shop grand total. Cashiers see their own total only; managers see every cashier.",
     "stockCard": {
       "variantId": "Product Variant ID",
       "load": "Load",

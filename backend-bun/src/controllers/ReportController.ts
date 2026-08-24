@@ -4,6 +4,7 @@ import ResponseStatus from "@/constants/ResponseStatus";
 import {
 	salesReport,
 	salesByPaymentReport,
+	salesByCashierReport,
 	stockReport,
 	returnsReport,
 	voidReport,
@@ -58,6 +59,27 @@ export const ReportController = {
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
 			logger.error(`[${reqContext.requestId} (RP-02)] ReportController.salesByPayment() error:`, e);
+			return errorFromService(reqContext, e);
+		}
+	},
+
+	salesByCashier: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { query } = reqContext;
+		logger.info(`[${reqContext.requestId} (RP-11)] ReportController.salesByCashier() called.`);
+		try {
+			logger.info(`[${reqContext.requestId} (RP-11)] ReportController.salesByCashier() calling salesByCashierReport().`);
+			const result = await salesByCashierReport({
+				user,
+				dateFrom: query.date_from,
+				dateTo: query.date_to,
+				shopId: query.shop_id ?? undefined,
+				module: query.module ?? undefined,
+			});
+			logger.info(`[${reqContext.requestId} (RP-11)] ReportController.salesByCashier() completed.`);
+			return successResponse(reqContext, result, ResponseStatus.OK);
+		} catch (e) {
+			logger.error(`[${reqContext.requestId} (RP-11)] ReportController.salesByCashier() error:`, e);
 			return errorFromService(reqContext, e);
 		}
 	},

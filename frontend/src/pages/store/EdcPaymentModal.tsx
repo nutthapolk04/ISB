@@ -193,7 +193,7 @@ export function EdcPaymentModal({
         setEdcMode(mode);
         resetAttemptState();
         setStep("processing");
-        console.log(`[EDC] attempt #${attemptId} start`, { mode, idempotencyKey: idempotencyKeyRef.current, total });
+        // console.log(`[EDC] attempt #${attemptId} start`, { mode, idempotencyKey: idempotencyKeyRef.current, total });
 
         // Card swipe/tap carries a 3% surcharge the customer pays on top of
         // the goods total — QR never does. Backend recomputes and stores
@@ -225,7 +225,7 @@ export function EdcPaymentModal({
         try {
             await readyEdc();
             if (!isCurrent()) return;
-            console.log(`[EDC] attempt #${attemptId} bridge ready`);
+            // console.log(`[EDC] attempt #${attemptId} bridge ready`);
 
             const edc = getEdcClient();
             const satang = Math.round(chargeAmount * 100);
@@ -259,7 +259,7 @@ export function EdcPaymentModal({
 
             for await (const ev of stream) {
                 if (!isCurrent()) return;
-                console.log(`[EDC] attempt #${attemptId} event:`, ev.kind, ev);
+                // console.log(`[EDC] attempt #${attemptId} event:`, ev.kind, ev);
 
                 if (ev.kind === "qr-shown") {
                     // LinkPOS does not emit this — keep it as a nice-to-have, never depended on.
@@ -323,9 +323,9 @@ export function EdcPaymentModal({
                         // finished. Don't assume "nothing happened" — leave the pending
                         // Transactions-tab row as-is (no abandon call) so a manager can
                         // reconcile it once the terminal's own state is confirmed.
-                        console.log(
-                            `[EDC] attempt #${attemptId} ${isBlankResult ? "blank result" : "QR timeout"} — outcome unknown`,
-                        );
+                        // console.log(
+                        //     `[EDC] attempt #${attemptId} ${isBlankResult ? "blank result" : "QR timeout"} — outcome unknown`,
+                        // );
                         setConnectionLost(true);
                         setDeclineInfo({
                             code: isBlankResult ? "" : "TO",
@@ -348,10 +348,10 @@ export function EdcPaymentModal({
                             if (nextApprovalCode.trim().length > 0) {
                                 // Auto-confirm — no manual entry needed when the terminal already
                                 // gave us an approval code.
-                                console.log(`[EDC] attempt #${attemptId} approved`, {
-                                    terminalRef: nextTerminalRef.trim() || undefined,
-                                    maskedCard: nextMaskedCard.trim() || undefined,
-                                });
+                                // console.log(`[EDC] attempt #${attemptId} approved`, {
+                                //     terminalRef: nextTerminalRef.trim() || undefined,
+                                //     maskedCard: nextMaskedCard.trim() || undefined,
+                                // });
                                 setStep("approved");
                                 if (!pendingRef.current) {
                                     pendingRef.current = true;
@@ -363,7 +363,7 @@ export function EdcPaymentModal({
                                             mode,
                                             edc_pending_ref: await pendingTxnPromise,
                                         });
-                                        console.log(`[EDC] attempt #${attemptId} onConfirm recorded`);
+                                        // console.log(`[EDC] attempt #${attemptId} onConfirm recorded`);
                                     } catch (err) {
                                         // onConfirm already closes the modal and shows its own error
                                         // toast — this catch only prevents an unhandled rejection.
@@ -398,7 +398,7 @@ export function EdcPaymentModal({
                                 // receipt with — cannot auto-confirm, and manual entry is
                                 // intentionally not offered (see below). Surfaced as a distinct
                                 // "approved but unrecorded" state so cashiers never retry blindly.
-                                console.log(`[EDC] attempt #${attemptId} approved but no approval code returned`);
+                                // console.log(`[EDC] attempt #${attemptId} approved but no approval code returned`);
                                 setApprovedNoRecord(true);
                                 setDeclineInfo({
                                     // Show the raw code for the non-"00" approvals (offline /
@@ -418,12 +418,12 @@ export function EdcPaymentModal({
                         // charged, and there's only one EDC method now, so skip both
                         // the decline card AND the single-button card choice screen —
                         // straight back out to the POS's own payment-method picker.
-                        console.log(`[EDC] attempt #${attemptId} cancelled at terminal — back to payment picker`, ev.responseCode);
+                        // console.log(`[EDC] attempt #${attemptId} cancelled at terminal — back to payment picker`, ev.responseCode);
                         void pendingTxnPromise.then(abandonPendingRef);
                         resetAttemptState();
                         onBack();
                     } else {
-                        console.log(`[EDC] attempt #${attemptId} declined`, ev.responseCode, ev.responseMessage);
+                        // console.log(`[EDC] attempt #${attemptId} declined`, ev.responseCode, ev.responseMessage);
                         void pendingTxnPromise.then(abandonPendingRef);
                         setDeclineInfo({
                             code: String(ev.responseCode),
@@ -451,7 +451,7 @@ export function EdcPaymentModal({
             if (!isCurrent()) return;
             // Never log full card data — the SDK never exposes it, but keep this guard in mind.
             console.error("[EDC] bridge/transaction error", err);
-            console.log(`[EDC] attempt #${attemptId} connection lost — outcome unknown`);
+            // console.log(`[EDC] attempt #${attemptId} connection lost — outcome unknown`);
             // We never got a result event, so the terminal may still be
             // mid-sale (e.g. a QR still live on-screen, customer yet to
             // scan) — leave the pending Transactions-tab row as-is (no
@@ -469,12 +469,12 @@ export function EdcPaymentModal({
     };
 
     const handleSelectMode = (mode: EdcMode) => {
-        console.log("[EDC] mode selected:", mode);
+        // console.log("[EDC] mode selected:", mode);
         void runAttempt(mode);
     };
 
     const handleBackToChoice = () => {
-        console.log("[EDC] back to choice");
+        // console.log("[EDC] back to choice");
         attemptRef.current += 1;
         resetAttemptState();
         setStep("choice");
@@ -482,7 +482,7 @@ export function EdcPaymentModal({
     };
 
     const handleTryAgain = () => {
-        console.log("[EDC] try again:", edcMode);
+        // console.log("[EDC] try again:", edcMode);
         if (edcMode) void runAttempt(edcMode);
     };
 
