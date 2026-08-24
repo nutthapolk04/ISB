@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
+import { logger } from "@/logger";
 import {
     receipts,
     receiptItems,
@@ -293,6 +294,7 @@ export interface ListReceiptsParams {
     page?: number;
     pageSize?: number;
     includeStats?: boolean;
+    createdBy?: number;
 }
 
 export interface ReceiptListStats {
@@ -382,6 +384,9 @@ function buildReceiptFilters(
     if (p.requesterUserId !== undefined) conds.push(eq(receipts.requesterUserId, p.requesterUserId));
     if (p.dateFrom) conds.push(gte(receipts.transactionDate, dateRange(p.dateFrom, p.dateFrom).start));
     if (p.dateTo) conds.push(lte(receipts.transactionDate, dateRange(p.dateTo, p.dateTo).end));
+    if (p.createdBy) {
+        conds.push(eq(receipts.createdBy, p.createdBy));
+    }
     return conds;
 }
 
@@ -420,13 +425,18 @@ export async function listReceipts(p: ListReceiptsParams): Promise<ListReceiptsR
     ]);
 
     const total = Number(countRow[0]?.total ?? 0);
-    const items = await Promise.all(rows.map((row) => receiptToDTO(row, { includeItems: false })));
+    const items = await Promise.all(rows.map((row, index) =>
+        receiptToDTO(row, { includeItems: false }).then(dto => ({
+            ...dto,
+            seq: (page - 1) * pageSize + index + 1
+        }))
+    ));
 
     let stats: ReceiptListStats | undefined;
     if (p.includeStats) {
         const today = bangkokTodayIso();
         const monthStart = `${today.slice(0, 7)}-01`;
-        const scopeConds = buildReceiptFilters({ ...p, q: undefined, payerQ: undefined, paymentMethod: undefined, dateFrom: undefined, dateTo: undefined }, scope);
+        const scopeConds = buildReceiptFilters({ ...p, q: undefined, payerQ: undefined, paymentMethod: undefined, dateFrom: undefined, dateTo: undefined, createdBy: p.createdBy }, scope);
         const todayRange = bangkokDateRange(today, today);
         const monthRange = bangkokDateRange(monthStart, today);
         const [todayAgg, monthAgg, filteredAgg] = await Promise.all([

@@ -84,6 +84,13 @@ export default function CustomerDisplay() {
     // (just swaps the document), so it can't misfire there. Poll instead of
     // trying to catch this from the opener's side, since a window that's
     // truly closing can't reliably run cleanup code for another window.
+    //
+    // This poll is the fallback path — it only ticks once a second, so a
+    // cashier-window close landing between ticks can still lose the race
+    // against the beforeunload guard above and pop "Leave site?". The
+    // BroadcastChannel listener below is the fast path: customerDisplayWindow.ts
+    // announces the cashier window's own beforeunload the instant it fires,
+    // so we normally never fall through to this poll at all.
     useEffect(() => {
         if (!window.opener) return;
         const interval = window.setInterval(() => {
@@ -94,6 +101,18 @@ export default function CustomerDisplay() {
             }
         }, 1000);
         return () => window.clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (typeof BroadcastChannel === "undefined") return;
+        const ch = new BroadcastChannel("pos-display-control");
+        ch.onmessage = (e) => {
+            if (e?.data?.type === "cashier-closing") {
+                selfClosing.current = true;
+                window.close();
+            }
+        };
+        return () => ch.close();
     }, []);
 
     // Whenever a fresh non-terminal state arrives, clear the "force standby"

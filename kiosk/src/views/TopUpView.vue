@@ -21,6 +21,15 @@ import { KIOSK_RECEIPT_LOGO_URL } from '../lib/escpos';
 import { maskReceiptPayerName } from '../lib/maskReceiptPayerName';
 import { playTopupSuccessSound, stopTopupSuccessSound } from '../lib/topupSuccessSound';
 import QRCode from 'qrcode';
+import {
+    CASH_IDLE_TOTAL_SEC,
+    cashDisplayTime as computeCashDisplayTime,
+    cashIdleHoldSeconds,
+    cashProgress as computeCashProgress,
+    resolveCashIdleExpiry,
+    shouldSkipIdleCountdownTick,
+} from '../lib/cashIdleTimer';
+import { resolveCashCreditAmount, shouldStartCashFinalize } from '../lib/cashTopupFinalize';
 
 const router = useRouter();
 const store = useKioskStore();
@@ -305,10 +314,13 @@ const printer = usePrinter();
 
 // --- Receipt printing ---
 const receiptTxId = ref<number | null>(null);
+/** Authoritative balance after top-up from API — used for receipt (not stale store). */
+const receiptBalanceAfter = ref<number | null>(null);
 const balanceBefore = ref(0);
 type PrintState = 'idle' | 'printing' | 'done' | 'error';
 const printState = ref<PrintState>('idle');
 let autoPrinted = false;
+let cashFinalizeStarted = false;
 
 const recoverySnapshot = ref<RecoveryTopupSnapshot | null>(null);
 const recoverySecondsLeft = ref(0);
@@ -332,8 +344,10 @@ const selectMethod = async (key: string) => {
     selectedMethod.value = key;
     balanceBefore.value = store.currentWallet?.balance ?? 0;
     receiptTxId.value = null;
+    receiptBalanceAfter.value = null;
     printState.value = 'idle';
     autoPrinted = false;
+    cashFinalizeStarted = false;
     if (key === 'cash') {
         currentStep.value = 'cash-confirm';
         try {
@@ -402,15 +416,12 @@ const clearQrTimer = () => {
 };
 
 // --- Cash idle timeout (kiosk only — no touch/bill activity) ---
-const CASH_IDLE_DISPLAY_SEC = 15;
-const CASH_IDLE_TOTAL_SEC = 20;
-const CASH_IDLE_GRACE_SEC = CASH_IDLE_TOTAL_SEC - CASH_IDLE_DISPLAY_SEC;
 const cashTimeLeft = ref(CASH_IDLE_TOTAL_SEC);
 let cashIdleInterval: number | null = null;
 
 /** Visible countdown — stays at 0 during the grace window for in-flight bill processing. */
-const cashDisplayTime = computed(() => Math.max(0, cashTimeLeft.value - CASH_IDLE_GRACE_SEC));
-const cashProgress = computed(() => cashDisplayTime.value / CASH_IDLE_DISPLAY_SEC);
+const cashDisplayTime = computed(() => computeCashDisplayTime(cashTimeLeft.value));
+const cashProgress = computed(() => computeCashProgress(cashTimeLeft.value));
 
 const clearCashIdleTimer = () => {
     if (cashIdleInterval != null) {
@@ -421,6 +432,10 @@ const clearCashIdleTimer = () => {
 
 const handleCashIdleExpired = () => {
     if (currentStep.value !== 'cash-confirm') return;
+    if (resolveCashIdleExpiry(bill.billInFlight.value) === 'hold') {
+        cashTimeLeft.value = cashIdleHoldSeconds();
+        return;
+    }
     clearCashIdleTimer();
     const ref = bill.getCashSessionRef();
     if (ref && bill.collectedThb.value <= 0) {
@@ -434,6 +449,7 @@ const resetCashIdleTimer = () => {
     if (currentStep.value !== 'cash-confirm') return;
     cashTimeLeft.value = CASH_IDLE_TOTAL_SEC;
     cashIdleInterval = window.setInterval(() => {
+        if (shouldSkipIdleCountdownTick(bill.billInFlight.value)) return;
         cashTimeLeft.value--;
         if (cashTimeLeft.value <= 0) {
             handleCashIdleExpired();
@@ -488,7 +504,13 @@ const startPolling = () => {
                     receiptTxId.value = s.transaction_id;
                 }
                 creditedAmount.value = s.amount;
+                if (s.balance_after != null) {
+                    receiptBalanceAfter.value = s.balance_after;
+                } else {
+                    receiptBalanceAfter.value = balanceBefore.value + s.amount;
+                }
                 await store.refreshBalance();
+                store.applyWalletBalance(receiptBalanceAfter.value, store.currentWallet?.id);
                 currentStep.value = 'success';
             } else if (s.status === 'cancelled') {
                 stopPolling();
@@ -566,24 +588,35 @@ onMounted(() => {
 
 // Auto-finalize when the acceptor reports the target is met.
 watch(bill.collectComplete, async (done) => {
-    if (done && currentStep.value === 'cash-confirm' && !isProcessing.value) {
+    if (done && currentStep.value === 'cash-confirm' && shouldStartCashFinalize(cashFinalizeStarted)) {
         bill.acknowledgeCollectComplete();
         await finalizeCashTopUp();
     }
 });
 
 const finalizeCashTopUp = async (): Promise<boolean> => {
+    if (!shouldStartCashFinalize(cashFinalizeStarted)) return false;
+    cashFinalizeStarted = true;
+
     const walletId = store.currentWallet?.id;
-    const amount = bill.collectedThb.value;
-    if (!walletId || amount <= 0) return false;
+    if (!walletId) {
+        cashFinalizeStarted = false;
+        return false;
+    }
 
     isProcessing.value = true;
     failDetail.value = null;
     const ref = bill.getCashSessionRef();
     const ctx = ref ? cashTopupContext(ref) : null;
+    let amount = 0;
     try {
+        // Wait for any in-flight escrow to stack (or return) before reading the total.
         await bill.stop();
-        if (!ref || !ctx) return false;
+        amount = resolveCashCreditAmount(bill.collectedThb.value);
+        if (amount <= 0 || !ref || !ctx) {
+            cashFinalizeStarted = false;
+            return false;
+        }
         const res = await bill.finalizeTopUp(
             walletId,
             amount,
@@ -593,7 +626,9 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
         );
         receiptTxId.value = res.transaction_id;
         creditedAmount.value = amount;
+        receiptBalanceAfter.value = res.balance_after;
         await store.refreshBalance();
+        store.applyWalletBalance(res.balance_after, walletId);
         currentStep.value = 'success';
         return true;
     } catch (e) {
@@ -826,7 +861,8 @@ const buildReceiptData = (): TopupReceiptData => {
     const wallet = store.currentWallet;
     const methodLabel = selectedMethod.value ? (tt as any)[selectedMethod.value] : '';
     const amount = creditedNumber.value;
-    const balAfter = wallet?.balance ?? balanceBefore.value + amount;
+    // Prefer API balance_after; never trust possibly-stale store alone.
+    const balAfter = receiptBalanceAfter.value ?? (balanceBefore.value + amount);
 
     const rows: ReceiptRow[] = [];
     if (receiptTxId.value != null) {
@@ -897,6 +933,10 @@ watch(currentStep, (step) => {
 });
 
 watch(() => bill.collectedThb.value, () => {
+    if (currentStep.value === 'cash-confirm') resetCashIdleTimer();
+});
+
+watch(() => bill.billActivityTick.value, () => {
     if (currentStep.value === 'cash-confirm') resetCashIdleTimer();
 });
 

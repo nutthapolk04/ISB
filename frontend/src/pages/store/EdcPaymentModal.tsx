@@ -277,7 +277,16 @@ export function EdcPaymentModal({
                     // what put a "Try again" button in front of a cashier whose
                     // customer had already been charged.
                     const outcome = classifyEdcResponse(ev.responseCode);
-                    const isQrTimeout = mode === "qr" && String(ev.responseCode).trim().toUpperCase() === "TO";
+                    const rawCode = String(ev.responseCode ?? "").trim();
+                    const isQrTimeout = mode === "qr" && rawCode.toUpperCase() === "TO";
+                    // The bridge answered (HTTP 200, no fetch/WS error) but with no
+                    // response code at all — a genuine decline always carries one
+                    // (even an unrecognised one), so a blank code means the bridge
+                    // gave up waiting on a terminal that never replied at all. Same
+                    // "don't guess, don't offer Try again" treatment as isQrTimeout:
+                    // the terminal never told us anything, so it may still be
+                    // mid-transaction.
+                    const isBlankResult = !isQrTimeout && outcome === "declined" && rawCode.length === 0;
                     const willAttemptCheckout =
                         outcome === "approved" && nextApprovalCode.trim().length > 0 && isCurrent();
 
@@ -307,21 +316,28 @@ export function EdcPaymentModal({
                         checkout_attempted: willAttemptCheckout,
                     });
 
-                    if (isQrTimeout) {
+                    if (isQrTimeout || isBlankResult) {
                         // Our request has no timeout of its own (see classifyEdcResponse's
-                        // doc comment) — TO here is whatever the bridge/terminal decided,
-                        // which can fire before the terminal's own ~3-minute on-screen QR
-                        // window ends. Don't assume "nothing happened" — leave the pending
+                        // doc comment) — this outcome is whatever the bridge/terminal
+                        // decided, which can fire before the terminal has actually
+                        // finished. Don't assume "nothing happened" — leave the pending
                         // Transactions-tab row as-is (no abandon call) so a manager can
-                        // reconcile it once the terminal's own window has actually elapsed.
-                        console.log(`[EDC] attempt #${attemptId} QR timeout — outcome unknown`);
+                        // reconcile it once the terminal's own state is confirmed.
+                        console.log(
+                            `[EDC] attempt #${attemptId} ${isBlankResult ? "blank result" : "QR timeout"} — outcome unknown`,
+                        );
                         setConnectionLost(true);
                         setDeclineInfo({
-                            code: "TO",
-                            message: t(
-                                "storePos.edcQrTimeoutChecking",
-                                "หมดเวลารอสแกน QR ฝั่งเรา — เครื่อง EDC อาจยังทำรายการค้างอยู่จริง (ยังไม่ครบ 3 นาทีของเครื่อง) ห้ามลองรายการใหม่จนกว่าจะตรวจสอบกับเครื่องก่อน",
-                            ),
+                            code: isBlankResult ? "" : "TO",
+                            message: isBlankResult
+                                ? t(
+                                    "storePos.edcBlankResult",
+                                    "เครื่อง EDC ไม่ตอบกลับผลการทำรายการเลย (อาจค้างหรือไม่ตื่น) — เครื่องอาจยังทำรายการค้างอยู่จริง ห้ามลองรายการใหม่จนกว่าจะตรวจสอบกับเครื่องก่อน",
+                                )
+                                : t(
+                                    "storePos.edcQrTimeoutChecking",
+                                    "หมดเวลารอสแกน QR ฝั่งเรา — เครื่อง EDC อาจยังทำรายการค้างอยู่จริง (ยังไม่ครบ 3 นาทีของเครื่อง) ห้ามลองรายการใหม่จนกว่าจะตรวจสอบกับเครื่องก่อน",
+                                ),
                         });
                         setStep("declined");
                     } else if (outcome === "approved") {

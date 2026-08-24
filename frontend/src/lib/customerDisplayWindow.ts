@@ -69,6 +69,33 @@ function tryFullscreenPopup(w: Window): void {
 let trackedWindow: Window | null = null;
 let watchdogTimer: ReturnType<typeof setInterval> | null = null;
 
+// ── Close signal: tell the display window the instant we're unloading ──────
+//
+// CustomerDisplay.tsx's own beforeunload guard blocks by default and only
+// suppresses itself once it notices `window.opener.closed` — but that's
+// polled every 1s, so a cashier-window close that lands between polls (or a
+// whole-browser quit that tears down every window near-simultaneously) can
+// still lose the race and pop the browser's native "Leave site?" prompt on
+// the customer's screen. Broadcasting our own beforeunload here closes that
+// gap: the display window hears it immediately instead of waiting for the
+// next poll tick. The poll stays in place as a fallback for the cases this
+// can't cover (a crash or OS-level kill never fires beforeunload here either).
+const CLOSE_CHANNEL_NAME = "pos-display-control";
+let closeSignalArmed = false;
+
+function armCloseSignal(): void {
+  if (closeSignalArmed || typeof BroadcastChannel === "undefined") return;
+  closeSignalArmed = true;
+  const ch = new BroadcastChannel(CLOSE_CHANNEL_NAME);
+  window.addEventListener("beforeunload", () => {
+    try {
+      ch.postMessage({ type: "cashier-closing" });
+    } catch {
+      /* channel closed — the opener-poll fallback still covers this */
+    }
+  });
+}
+
 function trackAndWatch(w: Window): void {
   trackedWindow = w;
   if (watchdogTimer) return;
@@ -139,6 +166,7 @@ async function hasSecondaryMonitor(): Promise<boolean> {
  */
 export async function openCustomerDisplayWindow(): Promise<boolean> {
   if (typeof window === "undefined") return false;
+  armCloseSignal();
 
   // Already holding a live reference (e.g. the cashier navigated away from
   // the POS page and back, re-triggering the auto-open effect) — just bring

@@ -1,21 +1,45 @@
 import { db } from "@/db/client";
-import { parentChildLinks, users, customers, familyProfiles, emailAlertsLog } from "@/db/schema";
+import { parentChildLinks, users, customers, familyProfiles, emailAlertsLog, wallets } from "@/db/schema";
 import { eq, and, gte, inArray, isNull, ilike } from "drizzle-orm";
 import { emailDeliveryStatusFromError, sendEmail } from "./email_service";
 import { getRaw } from "./settings_service";
+import { pgNumber } from "@/lib/dates";
+
+/**
+ * The balance this child is alerted at.
+ *
+ * `parent_child_links.low_balance_threshold` is what a guardian sets on
+ * /parent/alerts/:id; the system setting is the school-wide default used when
+ * they haven't set one. Guardians override the AMOUNT only — whether alerts run
+ * at all stays with the admin toggle, checked by the caller before this.
+ *
+ * A child can have more than one guardian link. In practice they carry the same
+ * value (the family's own setting), but the tie-break has to be deterministic:
+ * take the highest, which alerts earlier. Missing sooner beats missing entirely
+ * for a "your child can't buy lunch" warning.
+ */
+export function resolveLowBalanceThreshold(
+    linkThresholds: Array<string | number | null>,
+    adminDefault: number,
+): number {
+    const set = linkThresholds
+        .map((v) => (typeof v === "number" ? v : pgNumber(v)))
+        .filter((v): v is number => v !== null && v > 0);
+    return set.length > 0 ? Math.max(...set) : adminDefault;
+}
 
 /** Called immediately after POS checkout — queues a pending alert if needed. */
 export async function checkAndSendLowBalanceAlerts(
     customerId: number,
     newBalance: number,
 ): Promise<void> {
+    // Master switch. A guardian's own setting cannot turn alerting back on when
+    // the school has it off — they only choose the amount.
     const alertEnabled = (await getRaw("low_balance_alert_enabled")) as boolean | null;
     if (!alertEnabled) return;
 
     const rawThreshold = (await getRaw("low_balance_threshold")) as number | null;
-    const threshold = typeof rawThreshold === "number" && rawThreshold > 0 ? rawThreshold : 100;
-
-    if (newBalance >= threshold) return;
+    const adminThreshold = typeof rawThreshold === "number" && rawThreshold > 0 ? rawThreshold : 100;
 
     const [student] = await db
         .select({ name: customers.name, familyCode: customers.familyCode })
@@ -28,10 +52,28 @@ export async function checkAndSendLowBalanceAlerts(
         .select({
             parentUserId: parentChildLinks.parentUserId,
             email: users.email,
+            linkThreshold: parentChildLinks.lowBalanceThreshold,
+            linkEnabled: parentChildLinks.lowBalanceAlertEnabled,
         })
         .from(parentChildLinks)
         .innerJoin(users, eq(users.id, parentChildLinks.parentUserId))
         .where(eq(parentChildLinks.childCustomerId, customerId));
+
+    // The family has to have opted in. Both switches must be on: the school's,
+    // checked above, and this child's — off by default, so nothing goes out
+    // until a guardian turns it on at /parent/alerts/:id.
+    //
+    // `some`, not `every`: updateLowBalanceAlert() writes every link for the
+    // child in one statement so they always agree, but a guardian added LATER
+    // gets a fresh link defaulting to false — requiring all of them would let
+    // adding a co-parent silently mute a family that had alerts on.
+    if (!parents.some((p) => p.linkEnabled)) return;
+
+    // The threshold test has to come AFTER the links are read — it used to run
+    // on the school-wide value alone, which is why anything a guardian saved on
+    // /parent/alerts/:id was stored and then never consulted.
+    const threshold = resolveLowBalanceThreshold(parents.map((p) => p.linkThreshold), adminThreshold);
+    if (newBalance >= threshold) return;
 
     // The family profile's notification emails (PowerSchool-synced) and
     // admin-added extras are the REAL addresses parents actually read — a
@@ -131,7 +173,71 @@ interface LowBalanceAlertLogRow {
     childCustomerId: number | null;
 }
 
+/**
+ * Re-decide, at send time, whether this alert should still go out.
+ *
+ * Queueing happens at checkout; sending happens at the school's configured time,
+ * hours later. Nothing used to be re-checked in between, so an alert queued at
+ * 07:00 still went out at 19:00 even if the family had switched alerts off — or
+ * had topped the wallet back up — in the meantime. A parent who tops up in the
+ * morning and gets "your balance is low" that evening reads it as the system
+ * being broken.
+ *
+ * Everything is read LIVE, including the threshold: if the family changed the
+ * amount during the day, the new amount is what matters. The figures stored on
+ * the log row stay as they were — they record what triggered the alert.
+ *
+ * Returns null to send, or the reason to record against a skipped row.
+ */
+async function reasonToSkipAtSendTime(childCustomerId: number | null): Promise<string | null> {
+    // Legacy rows with no child attached can't be re-evaluated; send as before
+    // rather than silently dropping them.
+    if (childCustomerId === null) return null;
+
+    const links = await db
+        .select({
+            enabled: parentChildLinks.lowBalanceAlertEnabled,
+            threshold: parentChildLinks.lowBalanceThreshold,
+        })
+        .from(parentChildLinks)
+        .where(eq(parentChildLinks.childCustomerId, childCustomerId));
+
+    if (links.length === 0) return "No guardian is linked to this student any more";
+    // Same `some` rule as queueing: a guardian added after opt-in starts with a
+    // link defaulting to off, and must not mute a family that asked for alerts.
+    if (!links.some((l) => l.enabled)) return "The family turned low-balance alerts off before this was sent";
+
+    const rawThreshold = (await getRaw("low_balance_threshold")) as number | null;
+    const adminThreshold = typeof rawThreshold === "number" && rawThreshold > 0 ? rawThreshold : 100;
+    const threshold = resolveLowBalanceThreshold(links.map((l) => l.threshold), adminThreshold);
+
+    const [wallet] = await db
+        .select({ balance: wallets.balance })
+        .from(wallets)
+        .where(eq(wallets.customerId, childCustomerId))
+        .limit(1);
+    // No wallet means no balance to have recovered — leave the alert alone.
+    if (!wallet) return null;
+
+    const balance = pgNumber(wallet.balance) ?? 0;
+    if (balance >= threshold) {
+        return `Balance recovered to ${balance.toFixed(2)} before sending (threshold ${threshold.toFixed(2)})`;
+    }
+    return null;
+}
+
 async function sendOneAlertRow(row: LowBalanceAlertLogRow): Promise<void> {
+    // Conditions are re-checked here rather than only at queue time, so this
+    // covers the scheduled send AND the admin "Send now" action.
+    const skipReason = await reasonToSkipAtSendTime(row.childCustomerId);
+    if (skipReason) {
+        await db
+            .update(emailAlertsLog)
+            .set({ status: "skipped", errorMessage: skipReason, sentAt: new Date().toISOString() })
+            .where(eq(emailAlertsLog.id, row.id));
+        return;
+    }
+
     const studentName = row.studentName ?? "your child";
     const studentLabel = row.studentGrade
         ? `${studentName} - Grade ${row.studentGrade}`
@@ -174,10 +280,27 @@ async function sendOneAlertRow(row: LowBalanceAlertLogRow): Promise<void> {
         errorMessage = mapped.errorMessage;
     }
 
+    const now = new Date().toISOString();
     await db
         .update(emailAlertsLog)
-        .set({ status, errorMessage, sentAt: new Date().toISOString() })
+        .set({ status, errorMessage, sentAt: now })
         .where(eq(emailAlertsLog.id, row.id));
+
+    // Stamp the guardian links so /parent/alerts/:id can show when an alert last
+    // went out. The column existed and the page already read it, but nothing
+    // ever wrote it, so it was permanently null.
+    //
+    // Every link for the child is stamped, not just one: the recipients are the
+    // family's notification emails (often admin-added, with no parentUserId at
+    // all) and the mail addresses every guardian by name, so this is a
+    // family-level event. Only on a real send — a "skipped" row (email off in
+    // this environment) must not claim the family was notified.
+    if (status === "sent" && row.childCustomerId) {
+        await db
+            .update(parentChildLinks)
+            .set({ lastLowBalanceAlertAt: now })
+            .where(eq(parentChildLinks.childCustomerId, row.childCustomerId));
+    }
 }
 
 /** Called by the scheduler at the configured send time — flushes all pending alerts. */

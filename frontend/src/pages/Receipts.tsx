@@ -50,6 +50,7 @@ const Receipts = () => {
     // manager's business, not a cashier's. Hiding the tab is presentation —
     // the endpoints refuse a cashier regardless.
     const canSeeUnsuccessful = hasRole("manager") || hasRole("admin");
+    const isCashier = hasRole("cashier");
     const { pathname } = useLocation();
     const schoolInfo = useSchoolInfo();
 
@@ -108,6 +109,7 @@ const Receipts = () => {
     const [selectedTransaction, setSelectedTransaction] = useState<TransactionDetailApi | null>(null);
     const [isTxnDialogOpen, setIsTxnDialogOpen] = useState(false);
     const [txnCheckLoading, setTxnCheckLoading] = useState(false);
+    const [edcVerifyLoading, setEdcVerifyLoading] = useState(false);
     const [voidTarget, setVoidTarget] = useState<ReceiptApi | null>(null);
     const [pickedStoreShop, setPickedStoreShop] = useState<string>("all");
     const [pickedCanteenShop, setPickedCanteenShop] = useState<string>("all");
@@ -162,6 +164,10 @@ const Receipts = () => {
             if (appliedSearch.dateFrom) params.set("date_from", appliedSearch.dateFrom);
             if (appliedSearch.dateTo) params.set("date_to", appliedSearch.dateTo);
             if (appliedSearch.paymentType !== "all") params.set("payment_method", appliedSearch.paymentType);
+            // Cashier can only see their own receipts
+            if (isCashier && user?.id) {
+                params.set("created_by", String(user.id));
+            }
 
             const data = await api.get<ReceiptListResponse>(`/pos/receipt?${params.toString()}`);
             setReceipts(data.items);
@@ -174,7 +180,7 @@ const Receipts = () => {
         } finally {
             setLoading(false);
         }
-    }, [queryParams, appliedSearch, currentPage]);
+    }, [queryParams, appliedSearch, currentPage, isCashier, user?.id]);
 
     useEffect(() => { setCurrentPage(1); }, [queryParams]);
 
@@ -197,6 +203,8 @@ const Receipts = () => {
     const [txnTotal, setTxnTotal] = useState(0);
     const [txnPages, setTxnPages] = useState(1);
     const [txnCurrentPage, setTxnCurrentPage] = useState(1);
+    const [txnSortBy, setTxnSortBy] = useState<"created_at" | "resolved_at" | null>(null);
+    const [txnSortOrder, setTxnSortOrder] = useState<"asc" | "desc">("desc");
 
     const [txnSearchDateFrom, setTxnSearchDateFrom] = useState("");
     const [txnSearchDateTo, setTxnSearchDateTo] = useState("");
@@ -234,6 +242,16 @@ const Receipts = () => {
         txnAppliedSearch.paymentType !== "all" ||
         txnAppliedSearch.status !== "all";
 
+    const handleTxnSortChange = (column: "created_at" | "resolved_at") => {
+        if (txnSortBy === column) {
+            setTxnSortOrder(txnSortOrder === "asc" ? "desc" : "asc");
+        } else {
+            setTxnSortBy(column);
+            setTxnSortOrder("desc");
+        }
+        setTxnCurrentPage(1);
+    };
+
     const fetchTransactions = useCallback(async () => {
         try {
             setTxnLoading(true);
@@ -244,8 +262,16 @@ const Receipts = () => {
             if (txnAppliedSearch.dateTo) params.set("date_to", txnAppliedSearch.dateTo);
             if (txnAppliedSearch.paymentType !== "all") params.set("payment_method", txnAppliedSearch.paymentType);
             if (txnAppliedSearch.status !== "all") params.set("status", txnAppliedSearch.status);
-
-            const data = await api.get<TransactionListResponse>(`/pos/transactions?${params.toString()}`);
+            if (txnSortBy) {
+                params.set("sort_by", txnSortBy);
+                params.set("sort_order", txnSortOrder);
+            }
+            // Cashier can only see their own transactions
+            if (isCashier && user?.id) {
+                params.set("created_by", String(user.id));
+            }
+            const url = `/pos/transactions?${params.toString()}`;
+            const data = await api.get<TransactionListResponse>(url);
             setTransactions(data.items);
             setTxnTotal(data.total);
             setTxnPages(data.pages);
@@ -255,7 +281,7 @@ const Receipts = () => {
         } finally {
             setTxnLoading(false);
         }
-    }, [queryParams, txnAppliedSearch, txnCurrentPage]);
+    }, [queryParams, txnAppliedSearch, txnCurrentPage, txnSortBy, txnSortOrder, isCashier, user?.id]);
 
     useEffect(() => { setTxnCurrentPage(1); }, [queryParams]);
 
@@ -333,6 +359,25 @@ const Receipts = () => {
         }
     };
 
+    const handleVerifyEdcAndCreateReceipt = async () => {
+        if (!selectedTransaction?.ref_code) return;
+        setEdcVerifyLoading(true);
+        try {
+            await api.post(`/pos/edc-intent/${selectedTransaction.ref_code}/verify-and-create`, {});
+            const full = await api.get<TransactionDetailApi>(`/pos/transactions/${selectedTransaction.id}`);
+            setSelectedTransaction(full);
+            setTransactions((prev) => prev.map((t) => (t.id === full.id ? full : t)));
+            if (full.status === "success") {
+                toast.success(t("receipts.transactions.verified", "Payment verified and receipt created"));
+            }
+        } catch (err) {
+            const error = err as ApiError;
+            toast.error(error.message || t("receipts.transactions.verifyFailed", "Could not verify EDC payment"));
+        } finally {
+            setEdcVerifyLoading(false);
+        }
+    };
+
     const handleViewReceiptFromTransaction = async (receiptId: number) => {
         setIsTxnDialogOpen(false);
         try {
@@ -371,6 +416,11 @@ const Receipts = () => {
                                 ? t("receipts.scopeCanteen")
                                 : t("receipts.scopeStore")}
                         </Badge>
+                        {isCashier && (
+                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                Your Receipts
+                            </Badge>
+                        )}
                         {moduleScope === "canteen" && !user?.shopId && canteenStalls.length > 0 && (
                             <Select value={pickedCanteenShop} onValueChange={(v) => { setPickedCanteenShop(v); setCurrentPage(1); }}>
                                 <SelectTrigger className="w-48">
@@ -484,6 +534,7 @@ const Receipts = () => {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-12">Seq.</TableHead>
                                     <TableHead>{t("receipts.receiptId")}</TableHead>
                                     <TableHead>{t("receipts.dateTime")}</TableHead>
                                     {!user?.shopId && (
@@ -498,8 +549,9 @@ const Receipts = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {displayRows.map(({ receipt, leg }) => (
+                                {displayRows.map(({ receipt, leg }, idx) => (
                                     <TableRow key={`${receipt.id}-${leg}`} className={leg === "void" ? "bg-destructive/5" : undefined}>
+                                        <TableCell className="text-right font-mono text-sm text-muted-foreground">{(receipt as any).seq ?? idx + 1}</TableCell>
                                         <TableCell className="font-mono text-sm">{receipt.receipt_number}</TableCell>
                                         <TableCell>{fmtDate(leg === "sale" ? receipt.transaction_date : (receipt.voided_at ?? receipt.transaction_date))}</TableCell>
                                         {!user?.shopId && (
@@ -715,13 +767,31 @@ const Receipts = () => {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>{t("receipts.transactions.startedAt", "Start Time")}</TableHead>
-                                            <TableHead>{t("receipts.transactions.endedAt", "End Time")}</TableHead>
+                                            <TableHead className="w-12">Seq.</TableHead>
+                                            <TableHead
+                                                className="cursor-pointer hover:bg-muted/50 select-none"
+                                                onClick={() => handleTxnSortChange("created_at")}
+                                            >
+                                                {t("receipts.transactions.startedAt", "Start Time")}
+                                                {txnSortBy === "created_at" && (
+                                                    <span className="ml-1 text-xs">{txnSortOrder === "asc" ? "↑" : "↓"}</span>
+                                                )}
+                                            </TableHead>
+                                            <TableHead
+                                                className="cursor-pointer hover:bg-muted/50 select-none"
+                                                onClick={() => handleTxnSortChange("resolved_at")}
+                                            >
+                                                {t("receipts.transactions.endedAt", "End Time")}
+                                                {txnSortBy === "resolved_at" && (
+                                                    <span className="ml-1 text-xs">{txnSortOrder === "asc" ? "↑" : "↓"}</span>
+                                                )}
+                                            </TableHead>
                                             {!user?.shopId && (
                                                 <TableHead>{t("receipts.shop", "Shop")}</TableHead>
                                             )}
                                             <TableHead>{t("receipts.seller")}</TableHead>
                                             <TableHead>{t("receipts.paymentMethod")}</TableHead>
+                                            <TableHead>{t("receipts.buyer")}</TableHead>
                                             <TableHead>{t("receipts.transactions.bankRef", "Bank Ref. No.")}</TableHead>
                                             <TableHead className="text-right">{t("receipts.total")}</TableHead>
                                             <TableHead className="text-center">{t("receipts.transactions.status", "Status")}</TableHead>
@@ -730,8 +800,9 @@ const Receipts = () => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {transactions.map((txn) => (
+                                        {transactions.map((txn, idx) => (
                                             <TableRow key={txn.id}>
+                                                <TableCell className="text-right font-mono text-sm text-muted-foreground">{(txn as any).seq ?? (txnSafePage - 1) * PAGE_SIZE + idx + 1}</TableCell>
                                                 <TableCell>{fmtDate(txn.created_at)}</TableCell>
                                                 <TableCell>
                                                     {txn.resolved_at ? (
@@ -750,6 +821,12 @@ const Receipts = () => {
                                                     <Badge variant="secondary">
                                                         {formatPaymentMethodLabel(t, txn.payment_method)}
                                                     </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    <div className="flex flex-col">
+                                                        <span>{txn.payer_label ?? "—"}</span>
+                                                        {txn.payer_code && <span className="text-xs text-muted-foreground">{txn.payer_code}</span>}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-sm">
                                                     {/* The reference tied to the bank/gateway side of the sale —
@@ -871,6 +948,8 @@ const Receipts = () => {
                 onViewReceipt={handleViewReceiptFromTransaction}
                 onCheckNow={handleCheckTransactionNow}
                 checking={txnCheckLoading}
+                onVerifyEdcAndCreate={handleVerifyEdcAndCreateReceipt}
+                verifyingEdc={edcVerifyLoading}
             />
         </div>
     );

@@ -6,7 +6,6 @@
  */
 
 import type { User, Wallet, Transaction } from './mockApi';
-import { cardUidLookupAttempts } from '../lib/cardUid';
 import { getKioskDeviceId, getKioskDeviceName } from '../lib/kioskLog';
 import { verifyTechnicianPassword as verifyTechnicianPasswordLib } from '../lib/technicianPassword';
 
@@ -31,22 +30,12 @@ interface ISBCustomerLookupResult {
     customer_kind?: string | null;
     grade: string | null;
     photo_url: string | null;
-    wallet_balance: number;
+    wallet_balance: number | null;
     wallet_id: number | null;
     external_id?: string | null;
     card_frozen?: boolean;
     card_uid?: string | null;
-}
-
-interface ISBUserPayerLookup {
-    user_id: number;
-    username: string;
-    full_name: string;
-    role: string;
-    photo_url: string | null;
-    external_id: string | null;
-    wallet_id: number;
-    wallet_balance: number;
+    matched_by?: string;
 }
 
 /** Thrown when a student card is found but blocked (card_frozen). */
@@ -352,31 +341,6 @@ async function requestGetOrNull<T>(path: string): Promise<T | null> {
     }
 }
 
-async function getByCardWithFallback<T>(pathPrefix: string, raw: string): Promise<T | null> {
-    for (const attempt of cardUidLookupAttempts(raw)) {
-        const hit = await requestGetOrNull<T>(`${pathPrefix}/${encodeURIComponent(attempt)}`);
-        if (hit) return hit;
-    }
-    return null;
-}
-
-function userPayerToLookup(user: ISBUserPayerLookup): ISBCustomerLookupResult {
-    return {
-        id: user.user_id,
-        user_id: user.user_id,
-        name: user.full_name,
-        student_code: null,
-        customer_code: user.username,
-        customer_kind: user.role,
-        grade: null,
-        photo_url: user.photo_url,
-        wallet_balance: user.wallet_balance,
-        wallet_id: user.wallet_id,
-        external_id: user.external_id,
-        card_frozen: false,
-    };
-}
-
 async function buildUserFromLookup(exact: ISBCustomerLookupResult): Promise<User> {
     if (exact.card_frozen && exact.user_id == null) {
         throw new CardBlockedError();
@@ -399,51 +363,18 @@ async function buildUserFromLookup(exact: ISBCustomerLookupResult): Promise<User
 export const realApi = {
     /**
      * Look up a member by student code, employee ID, or RFID card UID.
+     * Server expands UID variants and tries users then customers in one call.
      * Returns null if not found.
      */
     async checkBalance(identifier: string): Promise<User | null> {
         const q = identifier.trim();
         if (!q) return null;
 
-        const customerByCard = await getByCardWithFallback<ISBCustomerLookupResult>('/customers/by-card', q);
-        if (customerByCard) {
-            return buildUserFromLookup(customerByCard);
-        }
-
-        const userByCard = await getByCardWithFallback<ISBUserPayerLookup>('/users/by-card', q);
-        if (userByCard) {
-            return buildUserFromLookup(userPayerToLookup(userByCard));
-        }
-
-        const byCode = await requestGetOrNull<ISBCustomerLookupResult>(
-            `/customers/by-code/${encodeURIComponent(q)}`,
+        const exact = await requestGetOrNull<ISBCustomerLookupResult>(
+            `/users/resolve-scan/${encodeURIComponent(q)}`,
         );
-        if (byCode) {
-            return buildUserFromLookup(byCode);
-        }
-
-        const results = await request<ISBCustomerLookupResult[]>(
-            `/customers/search?q=${encodeURIComponent(q)}&limit=10`,
-        );
-        if (results.length === 0) return null;
-
-        const lower = q.toLowerCase();
-        const uidCandidates = new Set(cardUidLookupAttempts(q).map((c) => c.toLowerCase()));
-        const exact = results.find((c) =>
-            c.student_code?.toLowerCase() === lower
-            || c.customer_code?.toLowerCase() === lower
-            || (c.card_uid && uidCandidates.has(c.card_uid.toLowerCase())),
-        );
-
-        if (exact) {
-            return buildUserFromLookup(exact);
-        }
-
-        if (results.length === 1) {
-            return buildUserFromLookup(results[0]);
-        }
-
-        return null;
+        if (!exact) return null;
+        return buildUserFromLookup(exact);
     },
 
     /**
@@ -574,6 +505,7 @@ export const realApi = {
         amount: number;
         payment_method: string;
         transaction_id?: number | null;
+        balance_after?: number | null;
     }> {
         return request(`/wallets/topup/${refCode}/status`);
     },

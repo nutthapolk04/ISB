@@ -1432,6 +1432,10 @@ export interface SalesByItemRow {
     sales_qty: number;
     sales_amt: number;
     receive_type: string;
+    /** Where the sale happened — `receipts.shop_id`, not the product's owning
+     *  shop. Present for canteen and store alike, and shown even when the
+     *  report is filtered to one shop so a printed copy identifies itself. */
+    shop_name: string | null;
     remark: string | null;
     status: string;
 }
@@ -1573,13 +1577,18 @@ export async function salesByItemReport(args: {
             customer: customers,
             payer: users,
             payerDepartment: departments,
+            shop: shops,
         })
         .from(receiptItems)
         .innerJoin(receipts, eq(receipts.id, receiptItems.receiptId))
         .leftJoin(shopProducts, eq(shopProducts.id, receiptItems.productVariantId))
         .leftJoin(customers, eq(customers.id, receipts.customerId))
         .leftJoin(users, eq(users.id, receipts.payerUserId))
-        .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId));
+        .leftJoin(departments, eq(departments.id, receipts.payerDepartmentId))
+        // Joined on the RECEIPT's shop, not shopProducts' — the question a sales
+        // report answers is where it was sold, which can differ from which shop
+        // owns the SKU.
+        .leftJoin(shops, eq(shops.id, receipts.shopId));
 
     const joined = await baseQuery()
         .where(and(...commonConds, ...saleDateConds))
@@ -1631,6 +1640,7 @@ export async function salesByItemReport(args: {
                 edcCardFee: e.receipt.edcCardFee,
                 edcMaskedCard: e.receipt.edcMaskedCard,
             }),
+            shop_name: e.shop?.name ?? e.receipt.shopId ?? null,
             remark: o.remark,
             status: o.status,
         };

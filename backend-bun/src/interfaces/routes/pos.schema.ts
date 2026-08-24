@@ -44,6 +44,7 @@ export const posListReceipts = {
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
         include_stats: t.Optional(t.Nullable(t.String())),
+        created_by: t.Optional(t.Nullable(t.String())),
     }),
     detail: { tags: ["POS"], summary: "List receipts" },
 };
@@ -63,6 +64,9 @@ export const posListTransactions = {
         date_to: t.Optional(t.Nullable(t.String())),
         page: t.Optional(t.Nullable(t.String())),
         page_size: t.Optional(t.Nullable(t.String())),
+        sort_by: t.Optional(t.Nullable(t.String())),
+        sort_order: t.Optional(t.Nullable(t.String())),
+        created_by: t.Optional(t.Nullable(t.String())),
     }),
     detail: { tags: ["POS"], summary: "List checkout transactions (all statuses, all payment methods)" },
 };
@@ -165,6 +169,11 @@ export const posStartEdcAttempt = {
 export const posEdcIntentAbandon = {
     params: t.Object({ refCode: t.String() }),
     detail: { tags: ["POS"], summary: "Mark a pending EDC transaction log row as cancelled (cashier gave up)" },
+};
+
+export const posVerifyEdcAndCreate = {
+    params: t.Object({ refCode: t.String() }),
+    detail: { tags: ["POS"], summary: "Verify EDC payment status and create receipt if approved" },
 };
 
 /**

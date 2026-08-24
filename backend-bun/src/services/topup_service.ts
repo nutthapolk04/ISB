@@ -154,6 +154,8 @@ export interface TopupStatusDTO {
     payment_method: string;
     /** Present when status is `confirmed` — wallet_transactions.id for the TOPUP row. */
     transaction_id?: number | null;
+    /** Present when status is `confirmed` — wallet balance after the TOPUP row. */
+    balance_after?: number | null;
 }
 
 export interface TopupConfirmDTO {
@@ -288,7 +290,7 @@ export async function createTopupIntent(input: CreateTopupInput): Promise<TopupI
         (err as { status?: number }).status = 404;
         throw err;
     }
-    const minAmount = 1;
+    const minAmount = 100;
     if (input.amount < minAmount || input.amount > 50000) {
         const err = new Error(`Top-up amount must be between ฿${minAmount} and ฿50,000`);
         (err as { status?: number }).status = 400;
@@ -734,9 +736,13 @@ export async function getTopupStatus(refCode: string): Promise<{ intent: TopupSt
     }
 
     let transactionId: number | null = null;
+    let balanceAfter: number | null = null;
     if (intent.status === "confirmed") {
         const txRows = await db
-            .select({ id: walletTransactions.id })
+            .select({
+                id: walletTransactions.id,
+                balanceAfter: walletTransactions.balanceAfter,
+            })
             .from(walletTransactions)
             .where(
                 and(
@@ -747,6 +753,7 @@ export async function getTopupStatus(refCode: string): Promise<{ intent: TopupSt
             )
             .limit(1);
         transactionId = txRows[0]?.id ?? null;
+        balanceAfter = txRows[0] ? (pgNumber(txRows[0].balanceAfter) ?? null) : null;
     }
 
     return {
@@ -756,6 +763,7 @@ export async function getTopupStatus(refCode: string): Promise<{ intent: TopupSt
             amount: pgNumber(intent.amount) ?? 0,
             payment_method: intent.paymentMethod,
             transaction_id: transactionId,
+            balance_after: balanceAfter,
         },
         walletId: requireIntentWalletId(intent.walletId, refCode),
     };
@@ -1047,7 +1055,7 @@ export async function edcTopup(args: {
             throw err;
         }
 
-        const minAmount = 1;
+        const minAmount = 100;
         if (args.amount < minAmount || args.amount > 50000) {
             const err = new Error(`Top-up amount must be between ฿${minAmount} and ฿50,000`);
             (err as { status?: number }).status = 400;

@@ -175,6 +175,23 @@ async function upsertProductRow(
   const barcode = coerceStr(row.barcode);
   const priceVal = coerceNum(row.external_price ?? row.price);
   const costVal = coerceNum(row.internal_price ?? row.cost_price);
+  /**
+   * Opening cost basis for a brand-new product.
+   *
+   * `avg_cost` used to be hard-coded to 0 here, and it is only ever set later
+   * by receiveStock() — which processCombinedRows() skips when the row's stock
+   * is 0. A catalog-only row (stock 0, cost filled in) therefore landed with
+   * avg_cost = 0 and stayed there, so the first sales before any delivery were
+   * costed at ฿0 and drove stock negative at zero cost. Everything downstream
+   * followed from that: product 197 sold 33 units at ฿0, then its first real
+   * delivery of 400 @ ฿203.30 had to absorb the whole ฿81,320 across the 367
+   * units left, reporting ฿221.5804.
+   *
+   * `cost_per_unit` is the delivery cost column in the import template and is
+   * what receiveStock() would have used, so it wins; `internal_price` is the
+   * fallback for catalog-only rows that omit it.
+   */
+  const openingCost = coerceNum(row.cost_per_unit) ?? costVal;
 
   if (!name) {
     errors.push({ row: rowIdx, reason: "ต้องระบุ 'product_name' (ชื่อสินค้า)" });
@@ -272,7 +289,7 @@ async function upsertProductRow(
         externalPrice: String(priceVal),
         internalPrice: String(costVal),
         vatPercent: "0.00",
-        avgCost: "0.0000",
+        avgCost: String(openingCost),
         stock: 0,
         minStock: 0,
         isActive: true,

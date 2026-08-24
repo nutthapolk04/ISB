@@ -51,6 +51,7 @@ interface CartPanelProps {
     total: number;
     confirming: boolean;
     onCharge: () => void;
+    headerSlot?: React.ReactNode;
 }
 
 /** Order/cart panel — reused for the desktop rail and the mobile bottom sheet. */
@@ -83,6 +84,7 @@ export function CartPanel({
     total,
     confirming,
     onCharge,
+    headerSlot,
 }: CartPanelProps) {
     const { t } = useTranslation();
 
@@ -107,6 +109,13 @@ export function CartPanel({
                     </button>
                 )}
             </div>
+
+            {/* Header slot (e.g., spending limit chip) */}
+            {headerSlot && (
+                <div className="px-4 py-2">
+                    {headerSlot}
+                </div>
+            )}
 
             {/* Selected Member */}
             {preSelectedMember && (
@@ -151,25 +160,26 @@ export function CartPanel({
                             return (
                                 <div className="w-48 shrink-0 rounded-lg border border-amber-200 bg-white/60 px-3 py-2 space-y-2">
                                     <div className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                                        Daily Spending Limit
+                                        Daily Spending Remaining / Limit
                                     </div>
                                     {rows.map(({ label, limit, spent }) => {
-                                        const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+                                        const remaining = Math.max(0, limit - spent);
+                                        const remainingPct = limit > 0 ? Math.max(0, (remaining / limit) * 100) : 100;
                                         const over = spent >= limit;
-                                        const warn = pct >= 80;
-                                        const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-amber-500";
-                                        const barColor = over ? "bg-red-500" : "bg-amber-500";
+                                        const warn = remainingPct <= 20 && !over;
+                                        const valueColor = over ? "text-red-600" : warn ? "text-amber-600" : "text-green-600";
+                                        const barColor = over ? "bg-red-500" : warn ? "bg-amber-500" : "bg-green-500";
                                         return (
                                             <div key={label} className="space-y-1">
                                                 <div className="flex justify-between items-center text-xs">
                                                     <span className="text-foreground font-medium">{label}</span>
                                                     <span className={cn("font-bold tabular-nums", valueColor)}>
-                                                        {fmt(spent)}{" "}
+                                                        {fmt(remaining)}{" "}
                                                         <span className="font-normal text-muted-foreground">/ {fmt(limit)}</span>
                                                     </span>
                                                 </div>
-                                                <div className="w-full h-1.5 rounded-full bg-amber-100 overflow-hidden">
-                                                    <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${pct}%` }} />
+                                                <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                                                    <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${remainingPct}%` }} />
                                                 </div>
                                             </div>
                                         );

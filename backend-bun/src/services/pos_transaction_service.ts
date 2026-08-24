@@ -11,9 +11,9 @@
  * Every write here is best-effort: a failure to log must never break a real
  * sale, so every exported writer swallows its own errors after logging them.
  */
-import { and, desc, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { posCheckoutTransactions, receipts, shopProducts, productBundles, shops, users } from "@/db/schema";
+import { posCheckoutTransactions, receipts, shopProducts, productBundles, shops, users, customers, departments } from "@/db/schema";
 import { pgNumber, pgToIso, bangkokDateRange } from "@/lib/dates";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import { userCanAccessShop } from "@/services/pos_service";
@@ -236,6 +236,23 @@ export async function getTransactionDetail(
         };
     });
 
+    // Resolve payer label and code
+    let payer_label: string | null = null;
+    let payer_code: string | null = null;
+    if (row.payerKind === "customer" && row.payerId) {
+        const cust = await db.select({ name: customers.name, studentCode: customers.studentCode, customerCode: customers.customerCode, externalId: customers.externalId }).from(customers).where(eq(customers.id, row.payerId)).limit(1);
+        payer_label = cust[0]?.name ?? null;
+        payer_code = cust[0] ? (cust[0].studentCode ?? cust[0].customerCode ?? cust[0].externalId ?? null) : null;
+    } else if (row.payerKind === "user" && row.payerId) {
+        const usr = await db.select({ fullName: users.fullName, username: users.username, externalId: users.externalId }).from(users).where(eq(users.id, row.payerId)).limit(1);
+        payer_label = usr[0]?.fullName ?? null;
+        payer_code = usr[0] ? (usr[0].externalId ?? usr[0].username ?? null) : null;
+    } else if (row.payerKind === "department" && row.payerId) {
+        const dept = await db.select({ departmentName: departments.departmentName, departmentCode: departments.departmentCode }).from(departments).where(eq(departments.id, row.payerId)).limit(1);
+        payer_label = dept[0]?.departmentName ?? null;
+        payer_code = dept[0]?.departmentCode ?? null;
+    }
+
     return {
         id: row.id,
         ref_code: row.refCode,
@@ -248,6 +265,8 @@ export async function getTransactionDetail(
         cashier_name: row.cashierName,
         payer_kind: row.payerKind,
         payer_id: row.payerId,
+        payer_label,
+        payer_code,
         items_count: row.itemsCount,
         amount: pgNumber(row.amount),
         receipt_id: row.receiptId,
@@ -286,6 +305,9 @@ export interface ListTransactionsParams {
     dateTo?: string;
     page?: number;
     pageSize?: number;
+    sortBy?: "created_at" | "resolved_at";
+    sortOrder?: "asc" | "desc";
+    createdBy?: number;
 }
 
 export interface TransactionDTO {
@@ -300,6 +322,8 @@ export interface TransactionDTO {
     cashier_name: string | null;
     payer_kind: string | null;
     payer_id: number | null;
+    payer_label: string | null;
+    payer_code: string | null;
     items_count: number | null;
     amount: number | null;
     receipt_id: number | null;
@@ -352,6 +376,7 @@ function buildTransactionFilters(
     }
     if (p.dateFrom) conds.push(gte(posCheckoutTransactions.createdAt, bangkokDateRange(p.dateFrom, p.dateFrom).start));
     if (p.dateTo) conds.push(lte(posCheckoutTransactions.createdAt, bangkokDateRange(p.dateTo, p.dateTo).end));
+    if (p.createdBy) conds.push(eq(posCheckoutTransactions.cashierUserId, p.createdBy));
     return conds;
 }
 
@@ -362,6 +387,12 @@ export async function listTransactions(p: ListTransactionsParams): Promise<ListT
     const offset = (page - 1) * pageSize;
     const conds = buildTransactionFilters(p, scope);
     const where = conds.length > 0 ? and(...conds) : undefined;
+
+    // Determine sort order
+    const sortFn = p.sortOrder === "asc" ? asc : desc;
+    const orderByCols = p.sortBy === "resolved_at"
+        ? [sortFn(posCheckoutTransactions.resolvedAt), desc(posCheckoutTransactions.id)]
+        : [sortFn(posCheckoutTransactions.createdAt), desc(posCheckoutTransactions.id)];
 
     const [countRow, rows] = await Promise.all([
         db.select({ total: sql<string>`count(*)` }).from(posCheckoutTransactions).where(where),
@@ -391,32 +422,69 @@ export async function listTransactions(p: ListTransactionsParams): Promise<ListT
             .leftJoin(users, eq(users.id, posCheckoutTransactions.cashierUserId))
             .leftJoin(receipts, eq(receipts.id, posCheckoutTransactions.receiptId))
             .where(where)
-            .orderBy(desc(posCheckoutTransactions.createdAt), desc(posCheckoutTransactions.id))
+            .orderBy(...orderByCols)
             .limit(pageSize)
             .offset(offset),
     ]);
 
     const total = Number(countRow[0]?.total ?? 0);
-    const items: TransactionDTO[] = rows.map((r) => ({
-        id: r.id,
-        ref_code: r.refCode,
-        status: r.status,
-        transaction_mode: r.transactionMode,
-        payment_method: r.paymentMethod,
-        shop_id: r.shopId,
-        shop_name: r.shopName,
-        cashier_user_id: r.cashierUserId,
-        cashier_name: r.cashierName,
-        payer_kind: r.payerKind,
-        payer_id: r.payerId,
-        items_count: r.itemsCount,
-        amount: pgNumber(r.amount),
-        receipt_id: r.receiptId,
-        receipt_number: r.receiptNumber,
-        error_message: r.errorMessage,
-        created_at: pgToIso(r.createdAt)!,
-        resolved_at: pgToIso(r.resolvedAt),
-    }));
+
+    // Resolve payer labels: collect customer, user, and department IDs then fetch names
+    const customerIds = [...new Set(rows.filter((r) => r.payerKind === "customer" && r.payerId).map((r) => r.payerId as number))];
+    const userIds = [...new Set(rows.filter((r) => r.payerKind === "user" && r.payerId).map((r) => r.payerId as number))];
+    const deptIds = [...new Set(rows.filter((r) => r.payerKind === "department" && r.payerId).map((r) => r.payerId as number))];
+
+    const [customerRows, userRows, deptRows] = await Promise.all([
+        customerIds.length > 0 ? db.select({ id: customers.id, name: customers.name, studentCode: customers.studentCode, customerCode: customers.customerCode, externalId: customers.externalId }).from(customers).where(inArray(customers.id, customerIds)) : Promise.resolve([]),
+        userIds.length > 0 ? db.select({ id: users.id, fullName: users.fullName, username: users.username, externalId: users.externalId }).from(users).where(inArray(users.id, userIds)) : Promise.resolve([]),
+        deptIds.length > 0 ? db.select({ id: departments.id, departmentName: departments.departmentName, departmentCode: departments.departmentCode }).from(departments).where(inArray(departments.id, deptIds)) : Promise.resolve([]),
+    ]);
+
+    const customerNameById = new Map(customerRows.map((c) => [c.id, { name: c.name, code: c.studentCode ?? c.customerCode ?? c.externalId ?? null }]));
+    const userNameById = new Map(userRows.map((u) => [u.id, { name: u.fullName, code: u.externalId ?? u.username ?? null }]));
+    const deptNameById = new Map(deptRows.map((d) => [d.id, { name: d.departmentName, code: d.departmentCode ?? null }]));
+
+    const items: TransactionDTO[] = rows.map((r, index) => {
+        let payer_label: string | null = null;
+        let payer_code: string | null = null;
+        if (r.payerKind === "customer" && r.payerId) {
+            const info = customerNameById.get(r.payerId);
+            payer_label = info?.name ?? null;
+            payer_code = info?.code ?? null;
+        } else if (r.payerKind === "user" && r.payerId) {
+            const info = userNameById.get(r.payerId);
+            payer_label = info?.name ?? null;
+            payer_code = info?.code ?? null;
+        } else if (r.payerKind === "department" && r.payerId) {
+            const info = deptNameById.get(r.payerId);
+            payer_label = info?.name ?? null;
+            payer_code = info?.code ?? null;
+        }
+
+        return {
+            seq: (page - 1) * pageSize + index + 1,
+            id: r.id,
+            ref_code: r.refCode,
+            status: r.status,
+            transaction_mode: r.transactionMode,
+            payment_method: r.paymentMethod,
+            shop_id: r.shopId,
+            shop_name: r.shopName,
+            cashier_user_id: r.cashierUserId,
+            cashier_name: r.cashierName,
+            payer_kind: r.payerKind,
+            payer_id: r.payerId,
+            payer_label,
+            payer_code,
+            items_count: r.itemsCount,
+            amount: pgNumber(r.amount),
+            receipt_id: r.receiptId,
+            receipt_number: r.receiptNumber,
+            error_message: r.errorMessage,
+            created_at: pgToIso(r.createdAt)!,
+            resolved_at: pgToIso(r.resolvedAt),
+        };
+    });
 
     return {
         items,

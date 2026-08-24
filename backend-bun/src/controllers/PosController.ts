@@ -29,6 +29,9 @@ import { qrInquiry as bayQrInquiry } from "@/services/pymt_gateway";
 import { parseIntParam } from "@/utils/ControllerValidatorUtils";
 import { errorFromService, errorResponse, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
+import { db } from "@/db/client";
+import { edcTxnEvents, posCheckoutTransactions } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 
 type PosUser = AccessTokenPayload & { shop_id?: string | null };
 
@@ -55,6 +58,7 @@ export const PosController = {
 				page: query.page ? Number(query.page) : undefined,
 				pageSize: query.page_size ? Number(query.page_size) : undefined,
 				includeStats: query.include_stats === "1" || query.include_stats === "true",
+				createdBy: query.created_by ? Number(query.created_by) : undefined,
 			});
 			logger.info(`[${reqContext.requestId} (PC-01)] PosController.listReceipts() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
@@ -100,6 +104,9 @@ export const PosController = {
 				dateTo: query.date_to ?? undefined,
 				page: query.page ? Number(query.page) : undefined,
 				pageSize: query.page_size ? Number(query.page_size) : undefined,
+				sortBy: (query.sort_by === "created_at" || query.sort_by === "resolved_at") ? query.sort_by : undefined,
+				sortOrder: (query.sort_order === "asc" || query.sort_order === "desc") ? query.sort_order : undefined,
+				createdBy: query.created_by ? Number(query.created_by) : undefined,
 			});
 			logger.info(`[${reqContext.requestId} (PC-11)] PosController.listTransactions() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
@@ -256,6 +263,10 @@ export const PosController = {
 			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
 		}
 		try {
+			logger.info(`[${reqContext.requestId} (PC-05)] PosController.createQrIntent() body.cart:`, {
+				shop_id: body.cart?.shop_id,
+				keys: Object.keys(body.cart ?? {}),
+			});
 			logger.info(`[${reqContext.requestId} (PC-05)] PosController.createQrIntent() calling createPosQrIntent().`);
 			const result = await createPosQrIntent({
 				cart: { ...(body.cart as Omit<CheckoutInput, "payment_method">), userId: Number(user.sub) },
@@ -430,6 +441,81 @@ export const PosController = {
 		await markTransactionCancelledByRefCode(params.refCode);
 		logger.info(`[${reqContext.requestId} (PC-15)] PosController.abandonEdcAttempt() completed.`);
 		return successResponse(reqContext, { ok: true }, ResponseStatus.OK);
+	},
+
+	verifyEdcAndCreateReceipt: async (ctx: any) => {
+		const { reqContext, user } = authedCtx(ctx);
+		const { params } = reqContext;
+		logger.info(`[${reqContext.requestId} (PC-16)] PosController.verifyEdcAndCreateReceipt() called.`);
+		if (!hasRole(user.roles, ...POS_ROLES)) {
+			logger.warn(`[${reqContext.requestId} (PC-16)] PosController.verifyEdcAndCreateReceipt() forbidden.`);
+			return errorResponse(reqContext, "Forbidden", ResponseStatus.FORBIDDEN);
+		}
+
+		try {
+			const refCode = params.refCode;
+
+			// Query EDC transaction event using refCode (= idempotencyKey)
+			const edcEvent = await db
+				.select()
+				.from(edcTxnEvents)
+				.where(eq(edcTxnEvents.idempotencyKey, refCode))
+				.then((rows) => rows[0]);
+
+			if (!edcEvent) {
+				logger.warn(`[${reqContext.requestId} (PC-16)] No EDC event found for refCode: ${refCode}`);
+				return errorResponse(reqContext, "EDC event not found", ResponseStatus.NOT_FOUND);
+			}
+
+			// Check if payment was approved
+			if (edcEvent.responseCode !== "00" || !edcEvent.hasApprovalCode) {
+				logger.warn(`[${reqContext.requestId} (PC-16)] EDC payment not approved. Response: ${edcEvent.responseCode}`);
+				return errorResponse(reqContext, "EDC payment was not approved", ResponseStatus.BAD_REQUEST);
+			}
+
+			// Get the transaction record to access cashier info
+			const txn = await db
+				.select()
+				.from(posCheckoutTransactions)
+				.where(eq(posCheckoutTransactions.refCode, refCode))
+				.then((rows) => rows[0]);
+
+			if (!txn) {
+				logger.warn(`[${reqContext.requestId} (PC-16)] Transaction not found for refCode: ${refCode}`);
+				return errorResponse(reqContext, "Transaction not found", ResponseStatus.NOT_FOUND);
+			}
+
+			// Check if already has a receipt
+			if (txn.receiptId) {
+				logger.info(`[${reqContext.requestId} (PC-16)] Receipt already exists: ${txn.receiptId}`);
+				return successResponse(reqContext, { ok: true, receiptId: txn.receiptId }, ResponseStatus.OK);
+			}
+
+			// Use cart snapshot if available
+			if (!edcEvent.cartSnapshot) {
+				logger.warn(`[${reqContext.requestId} (PC-16)] No cart snapshot available`);
+				return errorResponse(reqContext, "Cart snapshot not available", ResponseStatus.BAD_REQUEST);
+			}
+
+			// Attempt to create receipt using the checkout service
+			const checkoutInput = edcEvent.cartSnapshot as CheckoutInput;
+			const result = await checkout({
+				...checkoutInput,
+				shop_id: txn.shopId || checkoutInput.shop_id,
+				cashier_user_id: txn.cashierUserId || checkoutInput.requester_user_id,
+			});
+
+			if (!result.receipt_id) {
+				logger.error(`[${reqContext.requestId} (PC-16)] Checkout failed to create receipt`);
+				return errorResponse(reqContext, "Failed to create receipt", ResponseStatus.INTERNAL_SERVER_ERROR);
+			}
+
+			logger.info(`[${reqContext.requestId} (PC-16)] Receipt created: ${result.receipt_id}`);
+			return successResponse(reqContext, { ok: true, receiptId: result.receipt_id }, ResponseStatus.OK);
+		} catch (err) {
+			logger.error(`[${reqContext.requestId} (PC-16)] Unexpected error:`, err);
+			return errorFromService(reqContext, err as Error);
+		}
 	},
 
 	/**

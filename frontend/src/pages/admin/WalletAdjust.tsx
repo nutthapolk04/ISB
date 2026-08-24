@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, ApiError } from "@/lib/api";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useRfidListener } from "@/hooks/useRfidListener";
+import { toCanonicalCardUid } from "@/lib/cardUid";
 import { formatCurrency as formatTHB } from "@/lib/format";
 import { exportToPDF, exportToExcel } from "@/lib/reportExport";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
@@ -177,6 +179,21 @@ export default function WalletAdjust() {
     const [rptExporting, setRptExporting] = useState(false);
     const [rptDateTimeSort, setRptDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
 
+    // RFID listener for card UID scanning
+    useRfidListener({
+        onCapture: (uid) => setSearch(toCanonicalCardUid(uid)),
+    });
+
+    const handleSearchChange = (value: string) => {
+        // Auto-convert decimal/hex card UIDs to canonical form
+        const trimmed = value.trim();
+        if (trimmed && /^(\d{8,12}|[0-9A-Fa-f]{8,16})$/.test(trimmed)) {
+            setSearch(toCanonicalCardUid(trimmed));
+        } else {
+            setSearch(value);
+        }
+    };
+
     const rptQueryParams = (page: number, pageSize: number, sort = rptDateTimeSort) => {
         const params = new URLSearchParams();
         if (rptDateFrom) params.set("date_from", rptDateFrom);
@@ -330,9 +347,6 @@ export default function WalletAdjust() {
     const totalPages = Math.max(1, Math.ceil(cardholdersTotal / PAGE_SIZE));
     const safePage = Math.min(page, totalPages);
 
-    // Reset to page 1 whenever search changes
-    const handleSearch = (v: string) => { setSearch(v); setPage(1); };
-
     const openAdjust = (c: Cardholder) => {
         if (!c.wallet_id) {
             toast({ title: t("admin.walletAdjust.noWallet"), variant: "destructive" });
@@ -406,7 +420,8 @@ export default function WalletAdjust() {
                         <Input
                             placeholder={t("admin.walletAdjust.searchPlaceholder")}
                             value={search}
-                            onChange={(e) => handleSearch(e.target.value)}
+                            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                            onBlur={(e) => handleSearchChange(e.target.value)}
                             className="pl-9"
                         />
                     </div>

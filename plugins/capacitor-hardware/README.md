@@ -105,8 +105,6 @@ would exceed it is held in escrow and surfaced via an `overpayPending` event.
 stopCollecting() => Promise<void>
 ```
 
-End the session and inhibit the acceptor so no further bills are taken.
-
 --------------------
 
 

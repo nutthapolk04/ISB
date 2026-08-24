@@ -62,13 +62,13 @@ export function StoreInternalUsedTable({
               </thead>
               <tbody>
                 {g.rows.map((r: InternalUsedRow, idx: number) => (
-                  <tr key={r.id} className={cn("border-t", r.status !== "ACTIVE" && "opacity-60")}>
+                  <tr key={r.id} className={cn("border-t", r.status === "voided" ? "bg-destructive/5" : "")}>
                     <td className="px-2 py-1.5">{idx + 1}</td>
                     <td className="px-2 py-1.5 font-mono whitespace-nowrap">{r.receipt_number}</td>
                     <td className="px-2 py-1.5 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
                     <td className="px-2 py-1.5 font-mono text-[10px]">{r.cashier_id}</td>
                     <td className="px-2 py-1.5 font-mono text-[10px]">{r.isb_id}</td>
-                    <td className="px-2 py-1.5 text-right font-mono">{r.amount.toFixed(2)}</td>
+                    <td className={cn("px-2 py-1.5 text-right font-mono", r.status === "voided" && "text-destructive")}>{r.amount < 0 ? "−" : ""}฿{Math.abs(r.amount).toFixed(2)}</td>
                     <td className="px-2 py-1.5 text-muted-foreground max-w-[8rem] truncate" title={r.remarks ?? ""}>{r.remarks ?? ""}</td>
                   </tr>
                 ))}

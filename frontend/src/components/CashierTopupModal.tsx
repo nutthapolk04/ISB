@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, type MutableRefObject } from 
 import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import { useRfidListener } from "@/hooks/useRfidListener";
+import { PAYMENT_QR_BG, PAYMENT_QR_FG } from "@/lib/paymentQrColors";
 import {
     Dialog,
     DialogContent,
@@ -147,9 +148,7 @@ export function CashierTopupModal({
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
     const [submitting, setSubmitting] = useState(false);
 
-    // QR & EDC top-up have no backend minimum floor beyond ฿1 (see topup_service.ts);
-    // cash keeps the ฿100 floor since that's a separate, unaffected backend path.
-    const minTopupAmount = paymentMethod === "cash" ? 100 : 1;
+    const minTopupAmount = 100;
 
     const [topupResult, setTopupResult] = useState<TopupSuccessResult | null>(null);
     const [lastPaymentMethod, setLastPaymentMethod] = useState<PaymentMethod>("cash");
@@ -364,7 +363,7 @@ export function CashierTopupModal({
         if (!selectedCustomer) return;
 
         const amountNum = parseFloat(amount);
-        const minAmount = paymentMethod === "cash" ? 100 : 1;
+        const minAmount = minTopupAmount;
         if (isNaN(amountNum) || amountNum < minAmount || amountNum > 50000) {
             toast.error(t("topup.invalidAmount", { min: minAmount, max: 50000, defaultValue: `Amount must be between ฿${minAmount} and ฿50,000` }));
             return;
@@ -854,7 +853,12 @@ export function CashierTopupModal({
                             </div>
 
                             <div className="flex justify-center rounded-xl bg-white p-4 border border-emerald-100 shadow-inner">
-                                <QRCodeSVG value={intent.qr_payload} size={220} />
+                                <QRCodeSVG
+                                    value={intent.qr_payload}
+                                    size={220}
+                                    fgColor={PAYMENT_QR_FG}
+                                    bgColor={PAYMENT_QR_BG}
+                                />
                             </div>
 
                             {qrStatus === "waiting" && (

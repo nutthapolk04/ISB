@@ -530,7 +530,10 @@
       "itemsLoading": "Loading cart…",
       "itemsNone": "No cart snapshot for this attempt",
       "checkNow": "Check with Bank Now",
-      "checkFailed": "Could not check with the bank"
+      "checkFailed": "Could not check with the bank",
+      "verifyEdc": "Verify & Create Receipt",
+      "verified": "Payment verified and receipt created",
+      "verifyFailed": "Could not verify EDC payment"
     },
     "searchReceipt": "Search by receipt ID, name, amount, or date...",
     "searchPanel": {
@@ -1985,11 +1988,11 @@
       "department": "Budget Deduction",
       "other": "Other",
       "wallet": "Campus Card",
-      "card_tap": "Campus Card",
+      "card_tap": "Member Card",
       "qr": "Thai QR",
       "qr_promptpay": "Thai QR",
       "bay_qr": "Thai QR",
-      "bank_transfer": "Thai QR",
+      "bank_transfer": "Bank Transfer",
       "edc": "EDC Credit Card",
       "bay_easypay": "Credit Card"
     },
@@ -2233,6 +2236,7 @@
     "edcQueryNoAnswer": "Terminal did not respond — enter the code from the slip instead",
     "edcQueryFailed": "Could not check with the terminal — enter the code from the slip instead",
     "edcQrTimeoutChecking": "QR scan timed out on our side — the EDC terminal may still be processing (its own 3-minute window hasn't elapsed yet). Checking with the terminal automatically. Do not retry the transaction until the result is confirmed.",
+    "edcBlankResult": "The EDC terminal returned no result at all (it may be hung or asleep) — it may still be processing the transaction. Do not retry until you've checked with the terminal.",
     "edcApprovedNoCode": "The terminal approved this transaction but did not return an approval code — do not retry (this may cause a duplicate charge). Please contact your administrator to record the receipt manually.",
     "edcConnectionLost": "Connection to the EDC terminal was lost during the transaction — it may still be processing (e.g. the QR hasn't timed out yet). Do not retry until you've checked with the terminal.",
     "edcUnknownOutcomeDesc": "The actual outcome of this transaction is not yet known.",
@@ -2663,7 +2667,7 @@
       "creditCard": "Credit/Debit",
       "creditFee": "3% fee",
       "amountLabel": "Amount (THB)",
-      "amountPlaceholder": "Enter amount",
+      "amountPlaceholder": "Minimum ฿100",
       "topUpBtn": "Top up",
       "processingBank": "Processing with bank...",
       "creatingQr": "Creating QR...",
@@ -2684,7 +2688,7 @@
       "close": "Close",
       "confirmTransfer": "Confirm transfer",
       "confirming": "Confirming...",
-      "invalidAmount": "Please enter a valid amount",
+      "invalidAmount": "Amount must be between ฿100 and ฿50,000",
       "maxAmount": "Exceeds maximum ฿50,000 per transaction",
       "topupSuccess": "Top-up successful",
       "topupSuccessDesc": "{{amount}} added to wallet (fee {{fee}})",
@@ -2792,7 +2796,7 @@
     },
     "lowBalanceAlert": {
       "cooldownNote": "When your wallet balance drops below the set threshold after a transaction, an alert email will be sent at 7:00 PM on the day of the transaction.",
-      "invalidThreshold": "Enter a balance threshold to alert on",
+      "invalidThreshold": "Enter a balance above 0, or use the school default",
       "lastSent": "Last alert sent",
       "neverSent": "Never sent yet",
       "saveFailed": "Failed to save",
@@ -2800,7 +2804,11 @@
       "sendTo": "Send to",
       "thresholdLabel": "Alert when balance is below (THB)",
       "title": "Low-balance email alerts",
-      "toggleLabel": "Email me when the balance drops below the threshold"
+      "toggleLabel": "Email our family when the balance drops below the threshold",
+      "familyScopeNote": "This setting is shared with every guardian of this student. Each child is set separately.",
+      "useDefault": "Use default",
+      "followingDefault": "Following the school default — this updates automatically if the school changes it.",
+      "customThreshold": "Your own amount. School default is ฿{{amount}}."
     },
     "childSettings": {
       "title": "Daily Spending Limits",

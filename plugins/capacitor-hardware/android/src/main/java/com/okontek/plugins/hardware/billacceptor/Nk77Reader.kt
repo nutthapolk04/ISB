@@ -43,7 +43,9 @@ data class BillEvent(
  *     collected + bill <= target → accept (0x02) → stacked (0x10) → add to collected.
  *     collected + bill  > target → hold (0x18, freezes the 5s clock) → emit overpayPending;
  *                                  JS decides via acceptBill() (0x02) or returnBill() (0x0F).
- * - stopCollecting(): disable (0x5E).
+ * - stopCollecting(): disable (0x5E). If a bill was already accepted (0x02) but
+ *     not yet stacked (0x10), wait for that stack so the running total includes it.
+ *     A held overpay bill is returned (0x0F) first.
  *
  * Polling (ICT104U §3.3):
  * - After init, a background thread sends 0x0C every POLL_INTERVAL_MS so the acceptor stays
@@ -88,6 +90,9 @@ class Nk77Reader(
     // True while an over-target bill is held (0x18) awaiting a JS decision.
     @Volatile
     private var awaitingOverpayDecision = false
+    // True after 0x02 was sent for the current escrow, until 0x10 / 0x11.
+    @Volatile
+    private var escrowAccepted = false
 
     private var thread: Thread? = null
     private var promptThread: Thread? = null
@@ -95,7 +100,9 @@ class Nk77Reader(
     private val writeLock = Any()
     private val stateLock = Any()
     private val pollWaitLock = Any()
+    private val settleLock = Any()
     private var pollWaiter: PollWaiter? = null
+    private var settleLatch: CountDownLatch? = null
 
     private class PollWaiter(val latch: CountDownLatch) {
         var statusByte: Int? = null
@@ -128,6 +135,7 @@ class Nk77Reader(
             collectedThb = 0
             collecting = true
             awaitingOverpayDecision = false
+            escrowAccepted = false
             clearEscrow()
         }
         Log.i(TAG, "startCollecting(target=$target THB) — enable (0x3E)")
@@ -171,15 +179,92 @@ class Nk77Reader(
         }
     }
 
-    /** End the session: inhibit the acceptor so no further bills are taken. */
+    /**
+     * End the session: inhibit new bills. If a bill was already accepted (0x02)
+     * and is still in the stacker path, wait for 0x10 so collectedThb includes it.
+     * A held (not-yet-accepted) escrow bill is returned first.
+     */
     fun stopCollecting() {
+        val waitForStack: Boolean
+        val returnHeld: Boolean
+        var latch: CountDownLatch? = null
         synchronized(stateLock) {
             collecting = false
             awaitingOverpayDecision = false
+            waitForStack = escrowAccepted && escrowThb != null
+            returnHeld = !escrowAccepted && escrowThb != null
+            if (waitForStack || returnHeld) {
+                latch = CountDownLatch(1)
+                synchronized(settleLock) { settleLatch = latch }
+            } else {
+                escrowAccepted = false
+                clearEscrow()
+            }
+        }
+        if (returnHeld) {
+            Log.i(TAG, "stopCollecting — return held escrow then disable")
+            sendCommand(CMD_DECLINE)
+            waitSettle(latch, ESCROW_SETTLE_MS)
+            sendCommand(CMD_DISABLE)
+            return
+        }
+        Log.i(TAG, "stopCollecting — disable (0x5E)${if (waitForStack) ", waiting for in-flight stack" else ""}")
+        sendCommand(CMD_DISABLE)
+        if (waitForStack) {
+            val settled = waitSettle(latch, ESCROW_SETTLE_MS)
+            if (!settled) creditInFlightEscrowIfNeeded()
+        }
+    }
+
+    private fun signalEscrowSettled() {
+        synchronized(settleLock) {
+            settleLatch?.countDown()
+            settleLatch = null
+        }
+    }
+
+    private fun waitSettle(latch: CountDownLatch?, timeoutMs: Long): Boolean {
+        if (latch == null) return true
+        return try {
+            latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        }
+    }
+
+    /** 0x02 was sent but 0x10 never arrived before disable — still credit the escrowed amount. */
+    private fun creditInFlightEscrowIfNeeded() {
+        val slot: Int?
+        val code: Int?
+        val amount: Int?
+        val total: Int
+        val target: Int
+        synchronized(stateLock) {
+            amount = escrowThb
+            if (!escrowAccepted || amount == null) return
+            slot = escrowSlot
+            code = escrowCode
+            collectedThb += amount
+            total = collectedThb
+            target = targetThb
+            escrowAccepted = false
             clearEscrow()
         }
-        Log.i(TAG, "stopCollecting — disable (0x5E)")
-        sendCommand(CMD_DISABLE)
+        Log.w(TAG, "stopCollecting timed out waiting 0x10 — crediting in-flight $amount THB (total $total)")
+        emit(
+            BillEvent(
+                type = "stacked",
+                billSlot = slot,
+                billCode = code,
+                billAmountThb = amount,
+                collectedThb = total,
+                targetThb = target,
+                rawHex = "10",
+                message = "In-flight bill credited after disable — $amount THB (total $total)",
+            ),
+        )
+        signalEscrowSettled()
     }
 
     /** Accept the bill currently held in escrow (0x02). Used to resolve an overpay prompt. */
@@ -190,6 +275,7 @@ class Nk77Reader(
                 return
             }
             awaitingOverpayDecision = false
+            escrowAccepted = true
         }
         Log.i(TAG, "acceptBill — accept (0x02)")
         sendCommand(CMD_ACCEPT)
@@ -199,6 +285,7 @@ class Nk77Reader(
     fun returnBill() {
         synchronized(stateLock) {
             awaitingOverpayDecision = false
+            escrowAccepted = false
         }
         Log.i(TAG, "returnBill — decline (0x0F)")
         sendCommand(CMD_DECLINE)
@@ -213,6 +300,7 @@ class Nk77Reader(
             targetThb = 0
             collectedThb = 0
             awaitingOverpayDecision = false
+            escrowAccepted = false
             clearEscrow()
         }
     }
@@ -394,7 +482,11 @@ class Nk77Reader(
         val amount = THB_DENOMINATIONS.getOrNull(byte - BILL_CODE_MIN)
 
         if (!collecting) {
-            // No active session — return any inserted bill.
+            // Session already ending — do not reject a bill we already sent 0x02 for.
+            if (escrowAccepted) {
+                Log.w(TAG, "Bill 0x$hex after session end but accept already sent — ignore")
+                return
+            }
             Log.w(TAG, "Bill 0x$hex outside a session — decline (0x0F)")
             sendCommand(CMD_DECLINE)
             return
@@ -413,6 +505,7 @@ class Nk77Reader(
                 escrowSlot = slot
                 escrowCode = byte
                 escrowThb = amount
+                escrowAccepted = false
             }
             sendCommand(CMD_DECLINE)
             // Device replies 0x11 → onReturned(); keep escrow until then.
@@ -427,7 +520,12 @@ class Nk77Reader(
             escrowThb = amount
             wouldBe = collectedThb + amount
             overTarget = wouldBe > targetThb
-            if (overTarget) awaitingOverpayDecision = true
+            if (overTarget) {
+                awaitingOverpayDecision = true
+                escrowAccepted = false
+            } else {
+                escrowAccepted = true
+            }
         }
 
         if (!overTarget) {
@@ -536,10 +634,12 @@ class Nk77Reader(
             total = collectedThb
             target = targetThb
             complete = collecting && total >= target && target > 0
+            escrowAccepted = false
             clearEscrow()
         }
 
         Log.i(TAG, "Bill stacked (0x10)${amount?.let { " — $it THB" } ?: ""}, total $total/$target")
+        signalEscrowSettled()
         emit(
             BillEvent(
                 type = "stacked",
@@ -574,10 +674,12 @@ class Nk77Reader(
             amount = escrowThb
             total = collectedThb
             target = targetThb
+            escrowAccepted = false
             clearEscrow()
         }
 
         Log.i(TAG, "Bill returned (0x11)${amount?.let { " — $it THB" } ?: ""}")
+        signalEscrowSettled()
         emit(
             BillEvent(
                 type = "returned",
@@ -635,6 +737,8 @@ class Nk77Reader(
         private const val STATUS_PROMPT_MS = 3_000L
         private const val POLL_INTERVAL_MS = 300L
         private const val POLL_STATUS_TIMEOUT_MS = 500L
+        /** Wait for 0x10/0x11 after disable/return so an in-flight bill is counted. */
+        private const val ESCROW_SETTLE_MS = 8_000L
 
         private const val CMD_ACK = 0x02
         private const val CMD_STATUS_POLL = 0x0C

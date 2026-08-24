@@ -2,6 +2,13 @@ import { and, asc, eq, isNotNull, ne, notInArray, sql } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { parentChildLinks, customers, users, wallets } from "@/db/schema";
 import { pgNumber, pgToIso } from "@/lib/dates";
+import { getRaw } from "@/services/settings_service";
+
+/** The school-wide alert amount, used whenever a family hasn't set its own. */
+async function schoolDefaultThreshold(): Promise<number> {
+    const raw = (await getRaw("low_balance_threshold")) as number | null;
+    return typeof raw === "number" && raw > 0 ? raw : 100;
+}
 
 export interface ChildSummaryDTO {
     link_id: number;
@@ -23,7 +30,11 @@ export interface ChildSummaryDTO {
 export interface LowBalanceAlertDTO {
     child_customer_id: number;
     enabled: boolean;
+    /** null = follow the school-wide default in `default_threshold`. */
     threshold: number | null;
+    /** The school-wide amount, so the page can show the number that will
+     *  actually be used instead of an empty box. */
+    default_threshold: number;
     last_alert_at: string | null;
 }
 
@@ -126,6 +137,7 @@ export async function getLowBalanceAlert(parentUserId: number, childId: number):
         child_customer_id: childId,
         enabled: link.lowBalanceAlertEnabled,
         threshold: pgNumber(link.lowBalanceThreshold),
+        default_threshold: await schoolDefaultThreshold(),
         last_alert_at: pgToIso(link.lastLowBalanceAlertAt),
     };
 }
@@ -275,6 +287,27 @@ export async function familyByUserId(parentUserId: number): Promise<{
 
 // ── Writes ─────────────────────────────────────────────────────────────────
 
+/**
+ * Save a child's low-balance alert setting.
+ *
+ * Written to EVERY guardian link for that child, not just the caller's own.
+ * The alert is delivered to the family's shared notification addresses
+ * (family_profiles.notification_emails — see low_balance_notification.ts), and
+ * those addresses cannot be attributed back to an individual guardian, so
+ * "off for me but on for my co-parent" is not deliverable. Keeping one value
+ * per child makes that explicit instead of letting the two links disagree and
+ * silently resolving it later. Siblings stay independent — only this child's
+ * links are touched.
+ *
+ * `threshold: null` means "follow the school-wide default", and is written as a
+ * real NULL. The previous version skipped nulls entirely, so once a family had
+ * set an amount there was no way back to the default. Enabled-with-no-amount is
+ * a valid state for the same reason — it is what the "Use default" button
+ * produces.
+ *
+ * Authorization still comes from the caller's own link: a guardian can only
+ * change children they are linked to.
+ */
 export async function updateLowBalanceAlert(args: {
     parentUserId: number;
     childId: number;
@@ -291,23 +324,28 @@ export async function updateLowBalanceAlert(args: {
         (err as { status?: number }).status = 404;
         throw err;
     }
-    if (args.enabled && (args.threshold === null || args.threshold <= 0)) {
-        const err = new Error("Threshold must be a positive number when alerts are enabled");
+    if (args.threshold !== null && args.threshold <= 0) {
+        const err = new Error("Threshold must be a positive number, or omitted to use the school default");
         (err as { status?: number }).status = 400;
         throw err;
     }
-    const updates: Record<string, unknown> = { lowBalanceAlertEnabled: args.enabled };
-    if (args.threshold !== null) updates.lowBalanceThreshold = String(args.threshold);
-    const [updated] = await db
+    const updated = await db
         .update(parentChildLinks)
-        .set(updates)
-        .where(eq(parentChildLinks.id, links[0].id))
+        .set({
+            lowBalanceAlertEnabled: args.enabled,
+            lowBalanceThreshold: args.threshold === null ? null : String(args.threshold),
+        })
+        .where(eq(parentChildLinks.childCustomerId, args.childId))
         .returning();
+    // Every row carries the same value now, so the caller's own link is as good
+    // as any for the response.
+    const own = updated.find((l) => l.parentUserId === args.parentUserId) ?? updated[0];
     return {
         child_customer_id: args.childId,
-        enabled: updated.lowBalanceAlertEnabled,
-        threshold: pgNumber(updated.lowBalanceThreshold),
-        last_alert_at: pgToIso(updated.lastLowBalanceAlertAt),
+        enabled: own.lowBalanceAlertEnabled,
+        threshold: pgNumber(own.lowBalanceThreshold),
+        default_threshold: await schoolDefaultThreshold(),
+        last_alert_at: pgToIso(own.lastLowBalanceAlertAt),
     };
 }
 

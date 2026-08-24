@@ -26,9 +26,9 @@
  * fixtures, FK-ordered cleanup in `finally`.
  */
 import { describe, expect, it, beforeAll } from "bun:test";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, pingDb } from "@/db/client";
-import { receiptItems, receipts, shopProducts } from "@/db/schema";
+import { receiptItems, receipts, shopProducts, shops } from "@/db/schema";
 import { allocateReceiptTotalToLines, salesByItemReport, salesSummaryReport } from "@/services/report_service";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 
@@ -192,6 +192,82 @@ async function cleanup(): Promise<void> {
 
 const report = (netTotals: boolean) =>
     salesByItemReport({ user: adminUser, dateFrom: DAY, dateTo: DAY, shopId: SHOP_ID, netTotals });
+
+describe("salesByItemReport — Shop column", () => {
+    it.if(HAS_DB)(
+        "names the shop the sale happened in",
+        async () => {
+            if (!dbOk) return;
+            try {
+                const pid = await seedProduct(`${TAG}-SH`);
+                await seedReceipt({ suffix: "SH1", lines: [{ productId: pid, qty: 1, unitPrice: 100 }] });
+
+                const [shop] = await db.select({ name: shops.name }).from(shops)
+                    .where(eq(shops.id, SHOP_ID)).limit(1);
+
+                for (const net of [true, false]) {
+                    const rows = (await report(net)).rows;
+                    expect(rows.length).toBeGreaterThan(0);
+                    // Present for Sales Report AND Sales by Item Report — they
+                    // share this endpoint and both wanted the column.
+                    expect(rows.every((r) => r.shop_name === shop.name)).toBe(true);
+                }
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "keeps the column filled on a voided receipt's reversal leg",
+        async () => {
+            if (!dbOk) return;
+            // The void leg is built from the same row, but a missed field here
+            // would leave half the report's Shop cells blank.
+            try {
+                const pid = await seedProduct(`${TAG}-SH2`);
+                await seedReceipt({
+                    suffix: "SH2", lines: [{ productId: pid, qty: 1, unitPrice: 80 }],
+                    status: "VOIDED", voidedAt: `${DAY}T12:00:00+07:00`,
+                });
+                const rows = (await report(true)).rows;
+                expect(rows).toHaveLength(2);
+                expect(rows.every((r) => typeof r.shop_name === "string" && r.shop_name.length > 0)).toBe(true);
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+
+    it.if(HAS_DB)(
+        "reports null rather than crashing when the receipt has no shop",
+        async () => {
+            if (!dbOk) return;
+            // receipts.shop_id is nullable (a deleted shop is impossible — there
+            // is an FK — but an unassigned one is not), and shops is LEFT JOINed,
+            // so the row still has to come back.
+            try {
+                const pid = await seedProduct(`${TAG}-SH3`);
+                await seedReceipt({ suffix: "SH3", lines: [{ productId: pid, qty: 1, unitPrice: 55 }] });
+                await db.update(receipts)
+                    .set({ shopId: null })
+                    .where(eq(receipts.receiptNumber, `R-${TAG}-SH3`));
+
+                // No shop/module filter, or the null-shop receipt is filtered out.
+                const rows = (await salesByItemReport({
+                    user: adminUser, dateFrom: DAY, dateTo: DAY, netTotals: true,
+                })).rows.filter((r) => r.receipt_number === `R-${TAG}-SH3`);
+                expect(rows).toHaveLength(1);
+                expect(rows[0].shop_name).toBeNull();
+            } finally {
+                await cleanup();
+            }
+        },
+        DB_TIMEOUT_MS,
+    );
+});
 
 describe("salesByItemReport — netTotals", () => {
     it.if(HAS_DB)(

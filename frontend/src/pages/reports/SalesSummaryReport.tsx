@@ -126,7 +126,7 @@ export function SalesSummaryReport({
     canteenStalls,
 }: SalesSummaryReportProps) {
     const { t } = useTranslation();
-    const { user } = useAuth();
+    const { user, hasRole } = useAuth();
     const school = useSchoolInfo();
 
     const [ssDateFrom, setSsDateFrom] = useState("");
@@ -143,6 +143,17 @@ export function SalesSummaryReport({
     const [ssPage, setSsPage] = useState(1);
     const [ssPageSize, setSsPageSize] = useState(25);
     const [ssDateTimeSort, setSsDateTimeSort] = useState<DateTimeSortDir>(DEFAULT_DATE_TIME_SORT);
+    const [ssCashiers, setSsCashiers] = useState<Array<{ user_id: string; username: string; full_name: string }>>([]);
+
+    // Check if current user is a cashier
+    const isCashier = hasRole("cashier");
+
+    // Auto-set cashier_id filter if user is cashier
+    useEffect(() => {
+        if (isCashier && user?.username) {
+            setSsCashierId(user.username);
+        }
+    }, [isCashier, user?.username]);
 
     const ssDisplayRows = ssData
         ? ssData.rows.map((r, idx) => ({ ...r, seq: idx + 1 }))
@@ -155,6 +166,32 @@ export function SalesSummaryReport({
     useEffect(() => {
         setSsPage(1);
     }, [ssData, ssPageSize]);
+
+    // Fetch cashiers for the selected shop
+    useEffect(() => {
+        const fetchCashiers = async () => {
+            try {
+                const shopId = needsShopSelector && selectedStall !== "all" ? selectedStall : user?.shopId;
+                console.log("Fetching cashiers for shopId:", shopId);
+                if (!shopId) {
+                    setSsCashiers([]);
+                    return;
+                }
+                const data = await api.get<Array<{ user_id: string; username: string; full_name: string }>>(
+                    `/shops/${shopId}/cashiers`
+                );
+                setSsCashiers(data || []);
+                // Reset cashier filter when shop changes (but not for cashier users)
+                if (!isCashier) {
+                    setSsCashierId("");
+                }
+            } catch (err) {
+                console.error("Error fetching cashiers:", err);
+                setSsCashiers([]);
+            }
+        };
+        void fetchCashiers();
+    }, [selectedStall, user?.shopId, needsShopSelector, isCashier]);
 
     /**
      * Build the /reports/sales-summary querystring. Skip empty filters so the
@@ -170,7 +207,10 @@ export function SalesSummaryReport({
         if (ssReceiptNoFrom.trim()) params.set("receipt_no_from", ssReceiptNoFrom.trim());
         if (ssReceiptNoTo.trim()) params.set("receipt_no_to", ssReceiptNoTo.trim());
         if (ssReceiveType && ssReceiveType !== "all") params.set("receive_type", ssReceiveType);
-        if (ssCashierId.trim()) params.set("cashier_id", ssCashierId.trim());
+        if (ssCashierId.trim()) {
+            console.log("Adding cashier_id filter:", ssCashierId.trim());
+            params.set("cashier_id", ssCashierId.trim());
+        }
         params.set("sort_order", sort);
 
         // Admin + canteen-area-manager pick a shop from the dropdown; other shop
@@ -188,6 +228,8 @@ export function SalesSummaryReport({
         setSsLoading(true);
         try {
             const qs = buildSalesSummaryQuery(sort);
+            console.log("Query string:", qs);
+            console.log("Full URL:", `/reports/sales-summary${qs ? `?${qs}` : ""}`);
             const data = await api.get<SalesSummaryReportData>(
                 `/reports/sales-summary${qs ? `?${qs}` : ""}`,
             );
@@ -353,12 +395,19 @@ export function SalesSummaryReport({
         <div className="mt-6 space-y-4">
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        Daily Sales Report
-                    </CardTitle>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                        <CardTitle className="flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-primary" />
+                            Daily Sales Report
+                        </CardTitle>
+                        {isCashier && (
+                            <div className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                Your Transactions
+                            </div>
+                        )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                        All filters are optional. Leave any field blank to skip that filter.
+                        {isCashier ? "Showing your transactions only" : "All filters are optional. Leave any field blank to skip that filter."}
                     </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -429,12 +478,29 @@ export function SalesSummaryReport({
 
                         <div className="space-y-2">
                             <Label htmlFor="ssCashierId">Cashier ID</Label>
-                            <Input
-                                id="ssCashierId"
-                                placeholder="Search cashier ID"
-                                value={ssCashierId}
-                                onChange={(e) => setSsCashierId(e.target.value)}
-                            />
+                            {isCashier ? (
+                                <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm font-medium">
+                                    {user?.fullName} ({user?.username})
+                                </div>
+                            ) : (
+                                <Select
+                                    value={ssCashierId}
+                                    onValueChange={(val) => {
+                                        console.log("Cashier filter changed:", val);
+                                        setSsCashierId(val);
+                                    }}
+                                >
+                                    <SelectTrigger id="ssCashierId"><SelectValue placeholder="Select cashier" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Cashiers</SelectItem>
+                                        {ssCashiers.map((c) => (
+                                            <SelectItem key={c.user_id} value={c.username}>
+                                                {c.username} · {c.full_name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -488,6 +554,12 @@ export function SalesSummaryReport({
                     {/* Results */}
                     {ssData && (
                         <div className="space-y-3">
+                            {isCashier && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2 text-sm">
+                                    <span className="font-medium text-blue-900">Showing your transactions:</span>
+                                    <span className="ml-2 text-blue-800">{user?.fullName}</span>
+                                </div>
+                            )}
                             <div className="text-sm text-muted-foreground">
                                 Found <span className="font-semibold text-foreground">{ssData.receipt_count}</span> receipts
                                 {" · "}Grand total{" "}

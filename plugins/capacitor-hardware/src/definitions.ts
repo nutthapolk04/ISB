@@ -56,7 +56,9 @@ export interface HardwarePlugin {
      */
     startCollecting(options: { targetThb: number }): Promise<void>;
 
-    /** End the session and inhibit the acceptor so no further bills are taken. */
+    //  * End the session and inhibit the acceptor so no further bills are taken.
+    //  * Blocks until an in-flight accepted bill has stacked (or a short timeout).
+    //  */
     stopCollecting(): Promise<void>;
 
     /** Accept the bill currently held in escrow (resolves an `overpayPending` prompt). */
