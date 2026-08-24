@@ -36,6 +36,15 @@ export const salesByPaymentReport = {
     },
 };
 
+export const salesByCashierReport = {
+    query: t.Object(dateRangeQuery),
+    detail: {
+        tags: ["Reports"],
+        summary: "Sales grouped by cashier, with a payment-method breakdown per cashier",
+        description: "Cashiers get their own sales only; managers/admins/finance get every cashier plus a grand total.",
+    },
+};
+
 export const stockReport = {
     query: t.Object({
         shop_id: t.Optional(t.Nullable(t.String())),

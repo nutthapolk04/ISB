@@ -314,6 +314,151 @@ export async function salesByPaymentReport(args: {
     };
 }
 
+// ── /sales-by-cashier ───────────────────────────────────────────────────────
+
+export interface SalesByCashierRow {
+    cashier_id: number;
+    cashier_name: string;
+    payment_method: string;
+    receipt_count: number;
+    total: number;
+    edc_card_fee: number;
+    shop_id: string;
+    shop_name: string | null;
+    status: string;
+}
+
+export interface SalesByCashierReport {
+    date_from: string;
+    date_to: string;
+    shop_id: string | null;
+    rows: SalesByCashierRow[];
+    grand_total: number;
+    total_receipts: number;
+    /** True when the caller is cashier-only (not manager/admin/finance) — the
+     *  rows above are already filtered to their own sales; the frontend must
+     *  not offer a "view other cashiers" breakdown in that case. */
+    own_sales_only: boolean;
+}
+
+export async function salesByCashierReport(args: {
+    user: AccessTokenPayload;
+    dateFrom: string;
+    dateTo: string;
+    shopId?: string;
+    module?: string;
+}): Promise<SalesByCashierReport> {
+    const effectiveShopId = scopeShop(args.user, args.shopId ?? null);
+    const effMod = effectiveShopId ? null : effectiveModule(args.user, args.module ?? null);
+    const { start, end } = dateRange(args.dateFrom, args.dateTo);
+
+    // Managers/admins/finance see every cashier's sales in the scoped shop(s);
+    // a plain cashier only ever sees their own — clamped server-side (not
+    // just hidden in the UI), same principle scopeShop() applies to shop_id.
+    const isPrivileged = args.user.is_superuser ||
+        args.user.roles.includes("admin") ||
+        args.user.roles.includes("finance") ||
+        args.user.roles.includes("manager");
+    const ownSalesOnly = !isPrivileged;
+
+    const cashierUsers = alias(users, "cashier_users_by_cashier");
+
+    // Same sale-leg/void-leg convention as salesByPaymentReport just above —
+    // see its comment for why grouping raw receipts by CURRENT status would
+    // double-remove a voided receipt's amount.
+    const scopeConds: SQL[] = [];
+    if (effectiveShopId) {
+        scopeConds.push(eq(receipts.shopId, effectiveShopId));
+    } else if (effMod) {
+        const ids = await moduleShopIds(effMod);
+        if (ids.length > 0) scopeConds.push(inArray(receipts.shopId, ids));
+    }
+    if (ownSalesOnly) {
+        scopeConds.push(eq(receipts.createdBy, Number(args.user.sub)));
+    }
+
+    const aggregateBy = (dateConds: SQL[], extraConds: SQL[]) => db
+        .select({
+            cashier_id: receipts.createdBy,
+            cashier_username: cashierUsers.username,
+            cashier_full_name: cashierUsers.fullName,
+            payment_method: receipts.paymentMethod,
+            receipt_count: sql<string>`COUNT(${receipts.id})`,
+            total: sql<string>`SUM(${receipts.total})`,
+            edc_card_fee: sql<string>`SUM(COALESCE(${receipts.edcCardFee}, 0))`,
+            shop_id: receipts.shopId,
+            shop_name: shops.name,
+        })
+        .from(receipts)
+        .innerJoin(shops, eq(shops.id, receipts.shopId))
+        .leftJoin(cashierUsers, eq(cashierUsers.id, receipts.createdBy))
+        .where(and(...scopeConds, ...dateConds, ...extraConds))
+        .groupBy(receipts.createdBy, cashierUsers.username, cashierUsers.fullName, receipts.shopId, shops.name, receipts.paymentMethod)
+        .orderBy(asc(cashierUsers.fullName), sql`SUM(${receipts.total}) DESC`);
+
+    const saleAgg = await aggregateBy(
+        [gte(receipts.transactionDate, start), lte(receipts.transactionDate, end)],
+        [],
+    );
+    const voidAgg = await aggregateBy(
+        [gte(receipts.voidedAt, start), lte(receipts.voidedAt, end)],
+        [eq(receipts.status, "VOIDED")],
+    );
+
+    let grand = 0;
+    let totalRec = 0;
+
+    const rows: SalesByCashierRow[] = [];
+    const cashierName = (r: { cashier_id: number; cashier_full_name: string | null; cashier_username: string | null }) =>
+        r.cashier_full_name ?? r.cashier_username ?? `User #${r.cashier_id}`;
+
+    for (const r of saleAgg) {
+        const total = pgNumber(r.total) ?? 0;
+        const count = Number(r.receipt_count) || 0;
+        grand += total;
+        totalRec += count;
+        rows.push({
+            cashier_id: r.cashier_id,
+            cashier_name: cashierName(r),
+            payment_method: r.payment_method,
+            receipt_count: count,
+            total,
+            edc_card_fee: pgNumber(r.edc_card_fee) ?? 0,
+            shop_id: r.shop_id ?? "",
+            shop_name: r.shop_name,
+            status: "ACTIVE",
+        });
+    }
+    // Void leg — reversal, dated by when the VOID happened (not the sale).
+    for (const r of voidAgg) {
+        const total = pgNumber(r.total) ?? 0;
+        const count = Number(r.receipt_count) || 0;
+        const edcFee = pgNumber(r.edc_card_fee) ?? 0;
+        grand -= total;
+        rows.push({
+            cashier_id: r.cashier_id,
+            cashier_name: cashierName(r),
+            payment_method: r.payment_method,
+            receipt_count: count,
+            total: -total,
+            edc_card_fee: -edcFee,
+            shop_id: r.shop_id ?? "",
+            shop_name: r.shop_name,
+            status: "VOIDED",
+        });
+    }
+
+    return {
+        date_from: args.dateFrom,
+        date_to: args.dateTo,
+        shop_id: effectiveShopId,
+        rows,
+        grand_total: grand,
+        total_receipts: totalRec,
+        own_sales_only: ownSalesOnly,
+    };
+}
+
 // ── /stock ──────────────────────────────────────────────────────────────────
 
 export interface StockRow {

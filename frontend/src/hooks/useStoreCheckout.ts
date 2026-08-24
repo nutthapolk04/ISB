@@ -354,7 +354,7 @@ export function useStoreCheckout({
 
     // ── Checkout ────────────────────────────────────────────────────────────
     const doCheckout = async (method: CanteenPaymentMethod, ctx: CheckoutCtx = {}) => {
-        console.log(`[Store] checkout started — method=${method} items=${cart.length} total=${total}`);
+        // console.log(`[Store] checkout started — method=${method} items=${cart.length} total=${total}`);
         setConfirming(true);
         // Tell the customer display the payment is going through. Payer info
         // resolved best-effort so the screen can show the balance preview.
@@ -482,7 +482,7 @@ export function useStoreCheckout({
                 payload,
                 { timeoutMs: CHECKOUT_TIMEOUT_MS },
             );
-            console.log(`[Store] checkout succeeded — receipt=${receipt.receipt_number} amount=${receipt.total}`);
+            // console.log(`[Store] checkout succeeded — receipt=${receipt.receipt_number} amount=${receipt.total}`);
 
             // Compute remaining balance for wallet payments to show in success modal
             let remaining: number | undefined;
@@ -509,7 +509,7 @@ export function useStoreCheckout({
             // requires Chromium launched with --kiosk-printing on the cashier station.
             // Skipped entirely when the per-station auto-print toggle is off.
             if (autoPrint) {
-                console.log(`[Store] auto-print firing for receipt=${receipt.receipt_number}`);
+                // console.log(`[Store] auto-print firing for receipt=${receipt.receipt_number}`);
                 try {
                     printReceipt(
                         {
@@ -544,7 +544,7 @@ export function useStoreCheckout({
             );
 
             // Reset cart + close all payment modals + open success
-            console.log(`[Store] checkout done — resetting cart, closing payment modals, showing success`);
+            // console.log(`[Store] checkout done — resetting cart, closing payment modals, showing success`);
             setCart([]);
             setLastAddedId(null);
             setRequesterUserId(null);
@@ -619,7 +619,7 @@ export function useStoreCheckout({
             return;
         }
         checkoutKeyRef.current = crypto.randomUUID();
-        console.log(`[Store] Charge pressed — items=${cart.length} total=${total} preSelectedMember=${preSelectedMember?.id ?? "none"}`);
+        // console.log(`[Store] Charge pressed — items=${cart.length} total=${total} preSelectedMember=${preSelectedMember?.id ?? "none"}`);
 
         // Customer display: surface "Your Order" the moment the cashier moves
         // to the payment step (whether the picker opens or a fast-path wallet
@@ -647,10 +647,10 @@ export function useStoreCheckout({
         // billing, not a customer/user wallet deduction); everyone else pays
         // by wallet.
         if (preSelectedMember) {
-            console.log("[Store] pre-selected member — charging directly, skipping method picker", {
-                kind: preSelectedMember.customer_kind,
-                id: preSelectedMember.id,
-            });
+            // console.log("[Store] pre-selected member — charging directly, skipping method picker", {
+            //     kind: preSelectedMember.customer_kind,
+            //     id: preSelectedMember.id,
+            // });
             setConfirming(true);
             try {
                 if (preSelectedMember.customer_kind === "department") {
@@ -684,12 +684,12 @@ export function useStoreCheckout({
             return;
         }
 
-        console.log("[Store] opening payment method picker");
+        // console.log("[Store] opening payment method picker");
         setMethodPickerOpen(true);
     };
 
     const handlePickMethod = (method: CanteenPaymentMethod) => {
-        console.log("[Store] payment method selected:", method);
+        // console.log("[Store] payment method selected:", method);
         setMethodPickerOpen(false);
         if (method === "wallet") setWalletOpen(true);
         else if (method === "cash") setCashOpen(true);
@@ -711,7 +711,7 @@ export function useStoreCheckout({
     };
 
     const handleBackToPicker = () => {
-        console.log("[Store] back to payment method picker");
+        // console.log("[Store] back to payment method picker");
         setWalletOpen(false);
         setCashOpen(false);
         setQrOpen(false);
@@ -732,7 +732,7 @@ export function useStoreCheckout({
     // notify the customer display. Without this, none of that ran — the cart
     // stayed populated and auto-print never fired after a QR payment.
     const handleQrConfirmed = async (info: { refCode: string; receiptId: number | null; receiptNumber: string | null }) => {
-        console.log("[Store] QR payment confirmed by BAY webhook", info);
+        // console.log("[Store] QR payment confirmed by BAY webhook", info);
         setQrOpen(false);
         const displayMethod = paymentMethodForDisplay("qr");
 

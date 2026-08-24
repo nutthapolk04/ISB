@@ -43,3 +43,4 @@ backend/venv/
 
 # Personal Claude Code settings (per-machine, not for team)
 .claude/settings.local.json
+backend-bun/.env.backup

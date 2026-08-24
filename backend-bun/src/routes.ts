@@ -179,6 +179,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
         app
             .get("/sales", ReportController.sales, ReportSchema.salesReport)
             .get("/sales-by-payment", ReportController.salesByPayment, ReportSchema.salesByPaymentReport)
+            .get("/sales-by-cashier", ReportController.salesByCashier, ReportSchema.salesByCashierReport)
             .get("/stock", ReportController.stock, ReportSchema.stockReport)
             .get("/returns", ReportController.returns, ReportSchema.returnsReport)
             .get("/voids", ReportController.voidReceipts, ReportSchema.voidReport)

@@ -16,7 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList, FileSpreadsheet, Building2, Truck } from "lucide-react";
+import { FileText, FileDown, ArrowLeftRight, Loader2, Package, TrendingUp, CreditCard, ClipboardList, FileSpreadsheet, Building2, Truck, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { InfoCallout } from "@/components/InfoCallout";
@@ -40,6 +40,7 @@ import { buildVendorSections, isMultiVendor, type CanteenShop } from "./reports/
 import { StockCardReport } from "./reports/StockCardReport";
 import { SalesSummaryReport } from "./reports/SalesSummaryReport";
 import { SalesByItemReport } from "./reports/SalesByItemReport";
+import { SalesByCashierReport } from "./reports/SalesByCashierReport";
 import { BundleReport } from "./reports/BundleReport";
 import { ReceiveStockReport } from "./reports/ReceiveStockReport";
 import { InternalUsedReportPanel } from "./reports/InternalUsedReport";
@@ -54,6 +55,7 @@ const INLINE_REPORT_TYPES = new Set([
     "bundleReport",
     "internalUsedReport",
     "receiveStockReport",
+    "salesByCashierReport",
 ]);
 
 interface SalesRow {
@@ -94,6 +96,7 @@ interface SalesByPaymentReportData {
     department_receipts: number;
 }
 
+
 // Reports that apply to BOTH modules (canteen + store). Void receipts can
 // happen in either module, so returnReport (title: "Void") lives here even
 // though it's named after the older "returns" concept.
@@ -105,6 +108,10 @@ const COMMON_REPORTS = [
     { type: "salesByItemReport", icon: Package, needsRange: false },
     { type: "returnReport", icon: ArrowLeftRight, needsRange: true },
     { type: "internalUsedReport", icon: Building2, needsRange: true },
+    // Kept last — this tile list order drives the grid layout, and this
+    // report is meant to be the "one more thing to check on the way out"
+    // shift/EOD summary, not a primary/first-glance report.
+    { type: "salesByCashierReport", icon: Users, needsRange: false },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
 // Store-only reports — these don't make sense in a canteen context. Canteen
@@ -117,12 +124,22 @@ const STORE_ONLY_REPORTS = [
     { type: "bundleReport", icon: Package, needsRange: false },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
-// Cashier-only reports — just the Daily Sales Report (Sales Summary Report)
+// Cashier-only reports — the Daily Sales Report (Sales Summary Report) plus
+// Today's Sale Report, which cashiers can also open (backend clamps them to
+// their own sales — see salesByCashierReport's own_sales_only).
 const CASHIER_ONLY_REPORTS = [
     { type: "salesSummaryReport", icon: FileText, needsRange: false },
+    { type: "salesByCashierReport", icon: Users, needsRange: false },
 ] satisfies { type: string; icon: typeof FileText; needsRange: boolean }[];
 
-const REPORT_DEFS = [...COMMON_REPORTS, ...STORE_ONLY_REPORTS];
+// Store's tile grid is COMMON_REPORTS + STORE_ONLY_REPORTS — reordered here
+// so Today's Sale Report stays last there too, not just in COMMON_REPORTS
+// (which Canteen renders directly, unmixed with the store-only tiles).
+const REPORT_DEFS = [
+    ...COMMON_REPORTS.filter((r) => r.type !== "salesByCashierReport"),
+    ...STORE_ONLY_REPORTS,
+    ...COMMON_REPORTS.filter((r) => r.type === "salesByCashierReport"),
+];
 
 const Reports = () => {
     const { t } = useTranslation();
@@ -163,6 +180,7 @@ const Reports = () => {
             salesByItemReport: "N005",
             returnReport: "N006",
             internalUsedReport: "N007",
+            salesByCashierReport: "N008",
         }
         : {
             salesReport: "S006",
@@ -176,6 +194,7 @@ const Reports = () => {
             bundleReport: "S014",
             internalUsedReport: "S015",
             receiveStockReport: "S016",
+            salesByCashierReport: "S017",
         };
 
     // Shop selector visibility:
@@ -216,7 +235,8 @@ const Reports = () => {
             reportType === "salesByItemReport" ||
             reportType === "bundleReport" ||
             reportType === "internalUsedReport" ||
-            reportType === "receiveStockReport"
+            reportType === "receiveStockReport" ||
+            reportType === "salesByCashierReport"
         ) {
             setSelectedReportType(reportType);
             setReportOpenNonce((n) => n + 1);
@@ -648,6 +668,18 @@ const Reports = () => {
                 <ReceiveStockReport
                     key={reportOpenNonce}
                     reportId={REPORT_ID_MAP["receiveStockReport"]}
+                    needsShopSelector={needsShopSelector}
+                    isCanteenReportsPage={isCanteenReportsPage}
+                    selectedStall={selectedStall}
+                    onSelectedStallChange={setSelectedStall}
+                    canteenStalls={canteenStalls}
+                />
+            )}
+
+            {selectedReportType === "salesByCashierReport" && (
+                <SalesByCashierReport
+                    key={reportOpenNonce}
+                    reportId={REPORT_ID_MAP["salesByCashierReport"]}
                     needsShopSelector={needsShopSelector}
                     isCanteenReportsPage={isCanteenReportsPage}
                     selectedStall={selectedStall}
