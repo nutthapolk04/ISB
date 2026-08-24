@@ -27,6 +27,7 @@ import {
     Printer,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { blurOnWheel } from "@/lib/numberInputGuards";
 import { lookupUserByCard } from "@/lib/posCardLookup";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
@@ -771,6 +772,11 @@ export function CashierTopupModal({
                                         step="any"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
+                                        // A scroll over this field used to
+                                        // silently change the amount — see
+                                        // blurOnWheel. autoFocus below is what
+                                        // makes it reachable without a click.
+                                        onWheel={blurOnWheel}
                                         placeholder="0.00"
                                         className="pl-9 text-lg font-bold"
                                         autoFocus
