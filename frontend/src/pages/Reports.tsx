@@ -440,7 +440,7 @@ const Reports = () => {
                         { header: t("reports.colPaymentMethod") || "Payment Method", key: "payment_method", width: 25 },
                         { header: t("reports.colReceiptCount") || "Receipt Count", key: "receipt_count", format: "number", align: "right", width: 15 },
                         { header: t("reports.colTotal"), key: "total", format: "currency", align: "right", width: 15 },
-                        { header: "Card Fee (3%)", key: "edc_card_fee", format: "currency", align: "right", width: 12 },
+                        { header: "EDC Card Fee", key: "edc_card_fee", format: "currency", align: "right", width: 12 },
                         { header: "Status", key: "status", width: 15 },
                     ],
                     rows: bodyRows,

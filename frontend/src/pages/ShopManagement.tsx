@@ -60,6 +60,7 @@ interface ShopApiResponse {
     module: ShopModule;
     shop_number: number | null;
     allow_topup: boolean;
+    edc_card_fee_rate: number;
 }
 
 interface AssignableGroup {
@@ -87,6 +88,8 @@ interface Shop {
     module: ShopModule;
     shopNumber: number | null;
     allowTopup: boolean;
+    edcCardFeeRate: number;
+    enableEdcCardFee?: boolean;
 }
 
 const emptyShopForm = {
@@ -98,6 +101,8 @@ const emptyShopForm = {
     module: "store" as ShopModule,
     shopNumber: "" as string,
     allowTopup: true,
+    edcCardFeeRate: 0,
+    enableEdcCardFee: false,
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -151,6 +156,7 @@ const ShopManagement = () => {
                     } catch {
                         /* stats unavailable */
                     }
+                    const feeRate = s.edc_card_fee_rate ?? 0;
                     return {
                         id: s.id,
                         name: s.name,
@@ -161,6 +167,8 @@ const ShopManagement = () => {
                         module: s.module ?? "store",
                         shopNumber: s.shop_number ?? null,
                         allowTopup: s.allow_topup,
+                        edcCardFeeRate: feeRate,
+                        enableEdcCardFee: feeRate > 0,
                     };
                 }),
             );
@@ -188,6 +196,10 @@ const ShopManagement = () => {
             toast.error(t("management.shopIdMustBe5", "Shop ID must be exactly 5 characters"));
             return;
         }
+        if (shopForm.enableEdcCardFee && shopForm.edcCardFeeRate <= 0) {
+            toast.error("EDC Card Fee Rate must be greater than 0% if enabled");
+            return;
+        }
         try {
             setSaving(true);
             const newId = shopForm.id.trim().replace(/\s+/g, "_");
@@ -198,6 +210,8 @@ const ShopManagement = () => {
                 shop_type: shopForm.shopType,
                 module: shopForm.module,
                 shop_number: shopForm.shopNumber ? parseInt(shopForm.shopNumber) : null,
+                allow_topup: shopForm.allowTopup,
+                edc_card_fee_rate: shopForm.enableEdcCardFee ? shopForm.edcCardFeeRate : 0,
             });
             if (addGroupIds.size > 0) {
                 await api.patch(`/shops/${newId}/spending-groups`, {
@@ -229,6 +243,8 @@ const ShopManagement = () => {
             module: shop.module,
             shopNumber: shop.shopNumber ? String(shop.shopNumber) : "",
             allowTopup: shop.allowTopup,
+            edcCardFeeRate: shop.edcCardFeeRate,
+            enableEdcCardFee: shop.enableEdcCardFee ?? false,
         });
         setEditGroupIds(new Set());
         setInitialEditGroupIds(new Set());
@@ -248,6 +264,10 @@ const ShopManagement = () => {
             toast.error(t("management.fillAllRequired"));
             return;
         }
+        if (editForm.enableEdcCardFee && editForm.edcCardFeeRate <= 0) {
+            toast.error("EDC Card Fee Rate must be greater than 0% if enabled");
+            return;
+        }
         const groupsChanged =
             editGroupIds.size !== initialEditGroupIds.size ||
             [...editGroupIds].some((id) => !initialEditGroupIds.has(id));
@@ -259,6 +279,7 @@ const ShopManagement = () => {
                 is_active: editForm.isActive === "active",
                 shop_number: editForm.shopNumber ? parseInt(editForm.shopNumber) : null,
                 allow_topup: editForm.allowTopup,
+                edc_card_fee_rate: editForm.enableEdcCardFee ? editForm.edcCardFeeRate : 0,
             });
             if (groupsChanged) {
                 await api.patch(`/shops/${editTarget.id}/spending-groups`, {
@@ -311,6 +332,8 @@ const ShopManagement = () => {
             ...emptyShopForm,
             module,
             shopType: module === "canteen" ? "avg_cost" : "fifo",
+            enableEdcCardFee: false,
+            edcCardFeeRate: 0,
         });
         setAddGroupIds(new Set());
         setIsAddOpen(true);
@@ -411,6 +434,46 @@ const ShopManagement = () => {
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground mt-1">{t("management.shopTypeHint")}</p>
+                        </div>
+                        <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+                            <div className="space-y-0.5">
+                                <Label className="flex items-center gap-1.5">
+                                    <Wallet className="h-3.5 w-3.5" />
+                                    {t("management.allowTopup", "Allow top-up at this shop")}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {t("management.allowTopupHint", "Controls the top-up button on this shop's POS page")}
+                                </p>
+                            </div>
+                            <Switch
+                                checked={shopForm.allowTopup}
+                                onCheckedChange={(v) => setShopForm({ ...shopForm, allowTopup: v })}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+                            <div className="space-y-0.5 flex-1">
+                                <Label>EDC Card Fee Rate (%)</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Surcharge for credit/debit card payments via EDC terminal
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={shopForm.edcCardFeeRate}
+                                    onChange={(e) => setShopForm({ ...shopForm, edcCardFeeRate: parseFloat(e.target.value) || 0 })}
+                                    disabled={!shopForm.enableEdcCardFee}
+                                    className="h-8 w-20 rounded border border-input px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                                    placeholder="0.00"
+                                />
+                                <Switch
+                                    checked={shopForm.enableEdcCardFee}
+                                    onCheckedChange={(v) => setShopForm({ ...shopForm, enableEdcCardFee: v })}
+                                />
+                            </div>
                         </div>
                         <div>
                             <Label>{t("spendingGroup.title")}</Label>
@@ -639,6 +702,31 @@ const ShopManagement = () => {
                                 checked={editForm.allowTopup}
                                 onCheckedChange={(v) => setEditForm({ ...editForm, allowTopup: v })}
                             />
+                        </div>
+                        <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+                            <div className="space-y-0.5 flex-1">
+                                <Label>EDC Card Fee Rate (%)</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Surcharge for credit/debit card payments via EDC terminal
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={editForm.edcCardFeeRate}
+                                    onChange={(e) => setEditForm({ ...editForm, edcCardFeeRate: parseFloat(e.target.value) || 0 })}
+                                    disabled={!editForm.enableEdcCardFee}
+                                    className="h-8 w-20 rounded border border-input px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                                    placeholder="0.00"
+                                />
+                                <Switch
+                                    checked={editForm.enableEdcCardFee}
+                                    onCheckedChange={(v) => setEditForm({ ...editForm, enableEdcCardFee: v })}
+                                />
+                            </div>
                         </div>
                         <div>
                             <Label>{t("spendingGroup.title")}</Label>

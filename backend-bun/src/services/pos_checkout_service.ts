@@ -47,11 +47,7 @@ const ALLOWED_PAYMENT_METHODS = new Set([
     "QR_PROMPTPAY",
 ]);
 
-// Surcharge passed on to the customer for EDC card-swipe/tap sales (never
-// QR) — the acquirer's interchange fee, recovered at checkout rather than
-// absorbed by the shop.
-// NOTE: ปรับจาก 3% → 0% (ไม่มีค่าธรรมเนียม)
-const EDC_CARD_FEE_RATE = 0;
+// EDC card fee is now configurable per-shop (see shops.edc_card_fee_rate)
 
 export interface SelectedOptionInput {
     option_id: number;
@@ -433,9 +429,10 @@ async function runCheckout(input: CheckoutInput) {
     // ── Shop type detection: drives FIFO branching in the deduction path.
     let effectiveShopType: "fifo" | "avg_cost" | null = null;
     let effectiveShopModule: string | null = null;
+    let edcCardFeeRate = 0; // Default EDC fee rate
     if (effectiveShopId) {
         const sr = await db
-            .select({ shopType: shops.shopType, module: shops.module })
+            .select({ shopType: shops.shopType, module: shops.module, edcCardFeeRate: shops.edcCardFeeRate })
             .from(shops)
             .where(eq(shops.id, effectiveShopId))
             .limit(1);
@@ -446,6 +443,7 @@ async function runCheckout(input: CheckoutInput) {
         }
         effectiveShopType = sr[0].shopType as "fifo" | "avg_cost";
         effectiveShopModule = sr[0].module ?? null;
+        edcCardFeeRate = pgNumber(sr[0].edcCardFeeRate) ?? 0;
         // Department budget charges are allowed at every shop — no per-shop
         // opt-in flag anymore (removed per product decision; was previously
         // gated on shops.allow_department_charge).
@@ -657,11 +655,11 @@ async function runCheckout(input: CheckoutInput) {
 
         const billDiscount = Math.max(0, Math.min(input.discount ?? 0, subtotal));
         const netAfterDiscount = Math.round((subtotal - billDiscount) * 100) / 100;
-        const edcCardFee =
+        const edcCardFeeAmount =
             paymentMethod === "EDC" && input.edc_mode === "card"
-                ? Math.round(netAfterDiscount * EDC_CARD_FEE_RATE * 100) / 100
+                ? Math.round(netAfterDiscount * (edcCardFeeRate / 100) * 100) / 100
                 : 0;
-        const total = Math.round((netAfterDiscount + edcCardFee) * 100) / 100;
+        const total = Math.round((netAfterDiscount + edcCardFeeAmount) * 100) / 100;
 
         // ── Wallet deduction (department / user / customer) ──────────────
         let walletDeductData: {
@@ -839,7 +837,7 @@ async function runCheckout(input: CheckoutInput) {
               ${receiptCustomerId}, ${receiptPayerUserId}, ${receiptPayerDeptId}, ${input.requester_user_id ?? null},
               ${effectiveShopId}, ${subtotal}, ${billDiscount}, 0, ${total}, 'ACTIVE',
               ${input.notes ?? null}, ${input.edc_terminal_ref ?? null},
-              ${input.edc_approval_code ?? null}, ${input.edc_masked_card ?? null}, ${edcCardFee},
+              ${input.edc_approval_code ?? null}, ${input.edc_masked_card ?? null}, ${edcCardFeeAmount},
               ${paymentMethod === "CASH" ? input.cash_received ?? null : null},
               ${receiptSpendingGroupId}, ${input.userId}, ${input.idempotency_key ?? null})
       RETURNING id
@@ -877,7 +875,7 @@ async function runCheckout(input: CheckoutInput) {
               ${JSON.stringify({
             payment_method: paymentMethod.toLowerCase(),
             total,
-            edc_card_fee: edcCardFee,
+            edc_card_fee: edcCardFeeAmount,
             items: prepared.length,
             products: auditLines,
             payer_kind: payerKind,

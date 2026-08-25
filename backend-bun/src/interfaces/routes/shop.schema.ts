@@ -34,6 +34,8 @@ export const createShop = {
         module: t.Optional(t.Union([t.Literal("canteen"), t.Literal("store")])),
         uses_dual_pricing: t.Optional(t.Nullable(t.Boolean())),
         shop_number: t.Optional(t.Nullable(t.Number({ minimum: 1, maximum: 99999 }))),
+        allow_topup: t.Optional(t.Nullable(t.Boolean())),
+        edc_card_fee_rate: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 100 }))),
     }),
     detail: { ...shopsTag, summary: "Create a shop (admin)" },
 };
@@ -71,6 +73,7 @@ export const updateShop = {
         receipt_footer: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
         shop_number: t.Optional(t.Nullable(t.Number({ minimum: 1, maximum: 99999 }))),
         allow_topup: t.Optional(t.Nullable(t.Boolean())),
+        edc_card_fee_rate: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 100 }))),
     }),
     detail: { ...shopsTag, summary: "Update a shop (admin)" },
 };

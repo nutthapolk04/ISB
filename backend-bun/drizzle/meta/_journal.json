@@ -134,6 +134,13 @@
       "when": 1787734000000,
       "tag": "0018_add_pos_failed_checkouts",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787653141832,
+      "tag": "0019_add_edc_card_fee_rate_to_shops",
+      "breakpoints": true
     }
   ]
 }
