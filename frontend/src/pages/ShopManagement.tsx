@@ -459,10 +459,8 @@ const ShopManagement = () => {
                             </div>
                             <div className="flex items-center gap-3">
                                 <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="decimal"
                                     value={shopForm.edcCardFeeRate}
                                     onChange={(e) => setShopForm({ ...shopForm, edcCardFeeRate: parseFloat(e.target.value) || 0 })}
                                     disabled={!shopForm.enableEdcCardFee}
@@ -712,10 +710,8 @@ const ShopManagement = () => {
                             </div>
                             <div className="flex items-center gap-3">
                                 <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="decimal"
                                     value={editForm.edcCardFeeRate}
                                     onChange={(e) => setEditForm({ ...editForm, edcCardFeeRate: parseFloat(e.target.value) || 0 })}
                                     disabled={!editForm.enableEdcCardFee}
