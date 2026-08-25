@@ -90,8 +90,14 @@ foreach ($runKeyRoot in @("HKCU:\Software\Microsoft\Windows\CurrentVersion\Run",
         }
     }
 }
+# $watchdogTaskName is the ONE legitimate scheduled task allowed to touch
+# paywire -- everything else matching is a duplicate-autostart leftover from
+# before this script existed (paywire originally only ever autostarted via
+# the Startup shortcut, never Task Scheduler).
+$watchdogTaskName = "ISB EDC Bridge Watchdog"
 $staleTasks = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
-    $_.TaskName -match "paywire" -or ($_.Actions | ForEach-Object { $_.Execute } | Where-Object { $_ -match "paywire" })
+    $_.TaskName -ne $watchdogTaskName -and
+    ($_.TaskName -match "paywire" -or ($_.Actions | ForEach-Object { $_.Execute } | Where-Object { $_ -match "paywire" }))
 }
 foreach ($task in $staleTasks) {
     Write-Warn "พบ scheduled task ซ้ำ ($($task.TaskName)) -- ลบออก"
@@ -128,19 +134,119 @@ if (-not $paywireProc) {
         Write-Err "ไม่พบ $paywireExe -- ติดตั้ง ISB-POS-Setup ใหม่อีกรอบ"
     }
 }
+# HTTP 200 alone isn't "healthy" -- the bridge answers /whoami just fine even
+# while the EDC terminal itself is disconnected (device.connected: false,
+# capabilities: []), e.g. after the COM port gets stuck "resource in use" and
+# paywire's own reconnect loop never recovers on its own. A cashier only finds
+# out at charge time otherwise, so this has to look inside the body, not just
+# the status code.
+function Test-BridgeWhoami {
+    $body = & curl.exe -sk --max-time 5 "https://pos.local.bridge.schooney.tech:7331/whoami" 2>$null
+    $code = & curl.exe -sk -o NUL -w "%{http_code}" --max-time 5 "https://pos.local.bridge.schooney.tech:7331/whoami" 2>$null
+    $connected = $false
+    if ($code -match "^2\d\d$" -and $body) {
+        try { $connected = [bool]($body | ConvertFrom-Json).device.connected } catch { $connected = $false }
+    }
+    [pscustomobject]@{ HttpCode = $code; DeviceConnected = $connected }
+}
+
 if ($paywireProc) {
     Write-Ok "process paywire.exe กำลังรันอยู่ (PID $(($paywireProc | ForEach-Object { $_.Id }) -join ', '))"
-    $curlOut = & curl.exe -sk -o NUL -w "%{http_code}" --max-time 5 "https://pos.local.bridge.schooney.tech:7331/whoami" 2>$null
-    if ($curlOut -match "^2\d\d$") {
-        Write-Ok "bridge ตอบสนอง (HTTP $curlOut)"
+    $status = Test-BridgeWhoami
+    if ($status.HttpCode -match "^2\d\d$" -and $status.DeviceConnected) {
+        Write-Ok "bridge ตอบสนอง (HTTP $($status.HttpCode)) และเครื่อง EDC เชื่อมต่ออยู่ (device.connected = true)"
         $results["Paywire Bridge"] = $true
     } else {
-        Write-Err "bridge ไม่ตอบสนอง (HTTP status: '$curlOut') -- ลอง restart เครื่อง EDC แล้วรันสคริปต์นี้ซ้ำ"
-        $results["Paywire Bridge"] = $false
+        # Covers two cases the same way: bridge unreachable, or bridge up but
+        # the terminal itself stuck disconnected -- a plain process restart
+        # fixed this reliably when it came up on 2026-08-25, so do that
+        # automatically instead of just telling the operator to.
+        if ($status.HttpCode -match "^2\d\d$") {
+            Write-Warn "bridge ตอบ HTTP $($status.HttpCode) แต่เครื่อง EDC ไม่เชื่อมต่อ (device.connected = false) -- กำลัง restart paywire.exe เพื่อเคลียร์ค้าง..."
+        } else {
+            Write-Warn "bridge ไม่ตอบสนอง (HTTP status: '$($status.HttpCode)') -- กำลัง restart paywire.exe..."
+        }
+        Stop-Process -Name paywire -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 1
+        Start-Process -FilePath $paywireExe
+
+        # The terminal reconnect after a fresh start has taken anywhere from
+        # ~1.5s to ~15s in practice (paywire probes COM ports on its own
+        # ~5-12s cycle) -- poll instead of one fixed sleep so a fast
+        # reconnect doesn't sit waiting, and a slow one still gets caught.
+        $recovered = $false
+        for ($i = 0; $i -lt 5; $i++) {
+            Start-Sleep -Seconds 3
+            $status = Test-BridgeWhoami
+            if ($status.HttpCode -match "^2\d\d$" -and $status.DeviceConnected) {
+                $recovered = $true
+                break
+            }
+        }
+        if ($recovered) {
+            Write-Ok "restart สำเร็จ -- bridge ตอบสนองและเครื่อง EDC เชื่อมต่อแล้ว (HTTP $($status.HttpCode))"
+            $results["Paywire Bridge"] = $true
+        } else {
+            Write-Err "restart แล้วแต่ยังไม่เชื่อมต่อ (HTTP: '$($status.HttpCode)') -- เช็คสาย USB เครื่อง EDC จริง หรือดู log ที่ $env:LOCALAPPDATA\Paywire\logs\ แล้วรันสคริปต์นี้ซ้ำ"
+            $results["Paywire Bridge"] = $false
+        }
     }
 } else {
     Write-Err "เปิด paywire.exe ไม่สำเร็จ"
     $results["Paywire Bridge"] = $false
+}
+
+# ── 2b. Paywire bridge watchdog (scheduled task) ───────────────────────
+# The check above only catches a stuck bridge at the moment someone happens
+# to run this script. Register a Scheduled Task that re-runs the same
+# whoami-then-restart-if-needed check every 2 minutes on its own, so a
+# COM-port lockup (2026-08-25: device.connected stuck false, HTTP 200
+# throughout, needed a manual process restart) self-heals in ~2 minutes
+# instead of waiting for a cashier to notice a failed sale.
+Write-Step "2b) ตรวจสอบ Paywire watchdog (scheduled task)..."
+$watchdogScript = Join-Path $PSScriptRoot "paywire-watchdog.ps1"
+if (-not (Test-Path $watchdogScript)) {
+    Write-Err "ไม่พบ paywire-watchdog.ps1 ที่ $PSScriptRoot -- ติดตั้ง ISB-POS-Setup ใหม่อีกรอบ"
+    $results["Paywire Watchdog"] = $false
+} else {
+    # Task Scheduler, not a Startup shortcut: paywire.exe already autostarts
+    # once at login via the Startup shortcut above -- this needs to keep
+    # firing every 2 minutes for the rest of the session, which only a
+    # repeating trigger does. Registered for the *current interactive user*
+    # (not SYSTEM) so Start-Process lands back in this desktop session --
+    # SYSTEM would launch a copy with no tray icon, fighting the real one
+    # for port 7331 and the USB device.
+    $existingTask = Get-ScheduledTask -TaskName $watchdogTaskName -ErrorAction SilentlyContinue
+    $expectedArg = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$watchdogScript`""
+    $taskIsCorrect = $false
+    if ($existingTask) {
+        $currentArg = ($existingTask.Actions | Select-Object -First 1).Arguments
+        if ($currentArg -eq $expectedArg) { $taskIsCorrect = $true }
+    }
+    if (-not $taskIsCorrect) {
+        if ($existingTask) {
+            Write-Warn "พบ watchdog task แต่ path ไม่ตรง (อาจติดตั้งจากคนละที่) -- กำลังลงทะเบียนใหม่..."
+            Unregister-ScheduledTask -TaskName $watchdogTaskName -Confirm:$false -ErrorAction SilentlyContinue
+        } else {
+            Write-Warn "ไม่พบ watchdog task -- กำลังตั้งค่าให้รันทุก 2 นาที..."
+        }
+        $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $expectedArg
+        # [TimeSpan]::MaxValue looks like the obvious "forever" but Task
+        # Scheduler's XML duration field rejects it (out of range) -- 10
+        # years is effectively forever for a POS machine and round-trips fine.
+        $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 2) -RepetitionDuration (New-TimeSpan -Days 3650)
+        $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        # No -Password: registers as "run only when user is logged on" against
+        # the current session, which needs no stored credentials.
+        Register-ScheduledTask -TaskName $watchdogTaskName -Action $action -Trigger $trigger -Settings $settings -User $env:USERNAME -RunLevel Limited -Force | Out-Null
+    }
+    if (Get-ScheduledTask -TaskName $watchdogTaskName -ErrorAction SilentlyContinue) {
+        Write-Ok "watchdog task '$watchdogTaskName' พร้อมทำงาน (เช็คทุก 2 นาที, log ที่ $(Join-Path $PSScriptRoot 'logs\paywire-watchdog.log'))"
+        $results["Paywire Watchdog"] = $true
+    } else {
+        Write-Err "ลงทะเบียน watchdog task ไม่สำเร็จ"
+        $results["Paywire Watchdog"] = $false
+    }
 }
 
 # ── 3. Chrome kiosk auto-start shortcut ───────────────────────────────

@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { getEdcClient, readyEdc } from "@/lib/paywire/edcClient";
 import { logEdcEvent } from "@/lib/paywire/edcTelemetry";
 import { useEdcTerminalStatus } from "@/hooks/useEdcTerminalStatus";
+import { useEdcPendingClear } from "@/hooks/useEdcPendingClear";
 import {
     classifyEdcResponse,
     isNonStandardApproval,
@@ -120,6 +121,20 @@ export function EdcPaymentModal({
     // Shared with the payment method picker (see useEdcTerminalStatus) so the
     // EDC tile can show a live connection dot before this modal ever opens.
     const terminalStatus = useEdcTerminalStatus();
+    // True while a previous attempt's outcome is still unknown — client.ts
+    // marks this the instant ANY sale/qrSale/walletSale starts and only
+    // clears it on a trustworthy result, so this blocks a same-session retry
+    // right after a blank/uncertain result too, not just a post-refresh one.
+    const edcPendingClear = useEdcPendingClear();
+    const [isRetryingConnection, setIsRetryingConnection] = useState(false);
+    const handleRetryConnection = async () => {
+        setIsRetryingConnection(true);
+        try {
+            await getEdcClient().refresh();
+        } finally {
+            setIsRetryingConnection(false);
+        }
+    };
 
     // Guards against setState after the modal is closed/unmounted mid-transaction —
     // any in-flight attempt bumps this ref to invalidate itself before touching state.
@@ -469,6 +484,10 @@ export function EdcPaymentModal({
     };
 
     const handleSelectMode = (mode: EdcMode) => {
+        if (edcPendingClear) {
+            console.log("[EDC] mode select blocked — previous attempt still unresolved:", mode);
+            return;
+        }
         console.log("[EDC] mode selected:", mode);
         void runAttempt(mode);
     };
@@ -580,6 +599,17 @@ export function EdcPaymentModal({
                             : terminalStatus === "disconnected"
                                 ? t("storePos.edcTerminalDisconnected", "EDC not connected")
                                 : t("storePos.edcTerminalConnecting", "Connecting to EDC…")}
+                        {terminalStatus === "disconnected" && (
+                            <button
+                                type="button"
+                                onClick={() => void handleRetryConnection()}
+                                disabled={isRetryingConnection}
+                                className="ml-1 inline-flex items-center gap-1 text-violet-600 underline underline-offset-2 hover:text-violet-700 disabled:opacity-60 disabled:no-underline"
+                            >
+                                {isRetryingConnection && <Loader2 className="h-3 w-3 animate-spin" />}
+                                {t("storePos.edcRetryConnection", "Retry connection")}
+                            </button>
+                        )}
                     </div>
                 </DialogHeader>
 
@@ -603,13 +633,22 @@ export function EdcPaymentModal({
                         <button
                             type="button"
                             onClick={() => handleSelectMode("card")}
-                            className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all
-                         hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-200/40 hover:border-violet-300 active:scale-[0.98]"
+                            disabled={edcPendingClear}
+                            className={`group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center transition-all ${
+                                edcPendingClear
+                                    ? "cursor-not-allowed opacity-50"
+                                    : "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-200/40 hover:border-violet-300 active:scale-[0.98]"
+                            }`}
                         >
                             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400 to-purple-600 text-white shadow-md">
                                 <CreditCard className="h-8 w-8" />
                             </div>
                             <div className="font-semibold">{t("storePos.edcModeCard", "CREDIT CARD")}</div>
+                            {edcPendingClear && (
+                                <div className="text-xs text-muted-foreground">
+                                    {t("storePos.edcClearingPrevious", "Clearing previous transaction…")}
+                                </div>
+                            )}
                         </button>
                     </div>
                 )}

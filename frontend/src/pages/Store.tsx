@@ -21,6 +21,7 @@ import { useProductReorder } from "@/hooks/useProductReorder";
 import { useStoreRfidScanner } from "@/hooks/useStoreRfidScanner";
 import { useStoreCheckout } from "@/hooks/useStoreCheckout";
 import { useEdcTerminalStatus } from "@/hooks/useEdcTerminalStatus";
+import { useEdcPendingClear } from "@/hooks/useEdcPendingClear";
 import { autoOpenCustomerDisplayWindow } from "@/lib/customerDisplayWindow";
 import { payerForCustomer } from "@/lib/customerDisplay";
 import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
@@ -367,6 +368,7 @@ const Store = () => {
         display,
     });
     const edcStatus = useEdcTerminalStatus();
+    const edcPendingClear = useEdcPendingClear();
 
     // ── Passive RFID/barcode listener (page-level, no input focused) ────────
     const rfidScanner = useStoreRfidScanner({
@@ -724,6 +726,7 @@ const Store = () => {
                 walletLabel={t("store.studentCard", "บัตรนักเรียน")}
                 onSelect={checkout.handlePickMethod}
                 edcStatus={edcStatus}
+                edcPendingClear={edcPendingClear}
             />
 
             {/* Wallet (student / parent / staff card) */}

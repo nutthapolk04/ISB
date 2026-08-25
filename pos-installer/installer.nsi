@@ -53,6 +53,7 @@ Section "-Common" SecCommon
   File "README.txt"
   File "check-pos.ps1"
   File "fix-edc-driver.ps1"
+  File "paywire-watchdog.ps1"
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
 

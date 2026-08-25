@@ -1271,7 +1271,9 @@ export async function salesSummaryReport(args: {
     // "Customer Type" = payer identity: student (customer wallet), parent/staff/
     // finance (user wallet), or department (budget deduction).
     applySalesSummaryCustomerTypeFilter(args.customerType, commonConds);
-    if (args.familyCode) commonConds.push(eq(customers.familyCode, args.familyCode));
+    if (args.familyCode) {
+        commonConds.push(or(eq(customers.familyCode, args.familyCode), eq(users.familyCode, args.familyCode))!);
+    }
     if (args.userName) {
         const pat = `%${args.userName}%`;
         commonConds.push(or(ilike(customers.name, pat), ilike(users.fullName, pat))!);
@@ -1558,7 +1560,9 @@ export async function salesByItemReport(args: {
         const methods = RECEIVE_TYPE_GROUPS[args.receiveType as ReceiveTypeKey];
         if (methods) commonConds.push(inArray(receipts.paymentMethod, [...methods]));
     }
-    if (args.familyCode) commonConds.push(eq(customers.familyCode, args.familyCode));
+    if (args.familyCode) {
+        commonConds.push(or(eq(customers.familyCode, args.familyCode), eq(users.familyCode, args.familyCode))!);
+    }
     if (args.userName) {
         const pat = `%${args.userName}%`;
         commonConds.push(or(ilike(customers.name, pat), ilike(users.fullName, pat))!);
