@@ -21,6 +21,7 @@ export interface ShopRow {
     void_shortcuts: string[];
     shop_number: number | null;
     allow_topup: boolean;
+    edc_card_fee_rate: number;
 }
 
 export interface ListShopsFilters {
@@ -90,6 +91,8 @@ export interface CreateShopInput {
     module?: ShopModule;
     uses_dual_pricing?: boolean;
     shop_number?: number | null;
+    allow_topup?: boolean | null;
+    edc_card_fee_rate?: number | null;
 }
 
 export async function createShop(input: CreateShopInput): Promise<ShopRow> {
@@ -111,6 +114,8 @@ export async function createShop(input: CreateShopInput): Promise<ShopRow> {
             module: input.module ?? "store",
             usesDualPricing: input.uses_dual_pricing ?? true,
             shopNumber: input.shop_number ?? null,
+            allowTopup: input.allow_topup ?? true,
+            edcCardFeeRate: (input.edc_card_fee_rate ?? 0).toString(),
         })
         .returning();
     return toShopResponse(rows[0]);
@@ -127,6 +132,7 @@ export interface UpdateShopInput {
     receipt_footer?: string | null;
     shop_number?: number | null;
     allow_topup?: boolean | null;
+    edc_card_fee_rate?: number | null;
 }
 
 export async function updateShop(shopId: string, input: UpdateShopInput): Promise<ShopRow> {
@@ -141,6 +147,7 @@ export async function updateShop(shopId: string, input: UpdateShopInput): Promis
     if (input.receipt_footer !== undefined) updates.receiptFooter = input.receipt_footer;
     if (input.shop_number !== undefined) updates.shopNumber = input.shop_number;
     if (input.allow_topup !== undefined && input.allow_topup !== null) updates.allowTopup = input.allow_topup;
+    if (input.edc_card_fee_rate !== undefined) updates.edcCardFeeRate = (input.edc_card_fee_rate ?? 0).toString();
 
     if (Object.keys(updates).length > 0) {
         const updated = await db
@@ -302,6 +309,7 @@ function toShopResponse(row: typeof shops.$inferSelect): ShopRow {
         void_shortcuts: Array.isArray(row.voidShortcuts) ? row.voidShortcuts : [],
         shop_number: row.shopNumber ?? null,
         allow_topup: row.allowTopup,
+        edc_card_fee_rate: pgNumber(row.edcCardFeeRate) ?? 0,
     };
 }
 

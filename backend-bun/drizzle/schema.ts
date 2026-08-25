@@ -1269,6 +1269,7 @@ export const shops = pgTable("shops", {
 	voidShortcuts: jsonb("void_shortcuts").$type<string[]>().default([]).notNull(),
 	shopNumber: integer("shop_number"),
 	allowTopup: boolean("allow_topup").default(true).notNull(),
+	edcCardFeeRate: numeric("edc_card_fee_rate", { precision: 5, scale: 2 }).default('0').notNull(),
 });
 
 export const pricePanels = pgTable("price_panels", {

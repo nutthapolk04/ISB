@@ -1,0 +1,1 @@
+ALTER TABLE "shops" ADD COLUMN "edc_card_fee_rate" numeric(5, 2) DEFAULT '0' NOT NULL;
