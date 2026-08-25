@@ -22,6 +22,10 @@ interface PaymentMethodPickerProps {
    *  cashier knows before opening it. Omit the prop (rather than "unknown")
    *  to hide the dot entirely on pickers that never render an EDC tile. */
   edcStatus?: EdcTerminalStatus;
+  /** True while a previous EDC payment's outcome is unknown (page was
+   *  refreshed mid-transaction) — blocks a new one until the terminal
+   *  proves it's idle again. See useEdcPendingClear(). */
+  edcPendingClear?: boolean;
 }
 
 const ALL_METHODS: Record<
@@ -70,6 +74,7 @@ export function PaymentMethodPicker({
   walletLabel,
   onSelect,
   edcStatus,
+  edcPendingClear,
 }: PaymentMethodPickerProps) {
   // 5-method layout uses 5 cols on lg, 3 on smaller; 4-method stays 3-col grid.
   const gridCols = methods.length >= 5 ? "grid-cols-3 lg:grid-cols-5" : "grid-cols-3";
@@ -91,15 +96,21 @@ export function PaymentMethodPicker({
             const def = ALL_METHODS[key];
             const label = key === "wallet" && walletLabel ? walletLabel : def.label;
             const Icon = def.Icon;
+            const isBlockedEdc = key === "edc" && edcPendingClear === true;
             return (
               <button
                 key={key}
                 type="button"
-                onClick={() => onSelect(key)}
-                className="group relative flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-5 text-center transition-all
-                           hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/40 hover:border-amber-300 active:scale-[0.98]"
+                onClick={() => { if (!isBlockedEdc) onSelect(key); }}
+                disabled={isBlockedEdc}
+                title={isBlockedEdc ? "Waiting for EDC terminal to clear the previous transaction…" : undefined}
+                className={`group relative flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-5 text-center transition-all ${
+                  isBlockedEdc
+                    ? "cursor-not-allowed opacity-50"
+                    : "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-200/40 hover:border-amber-300 active:scale-[0.98]"
+                }`}
               >
-                {key === "edc" && edcStatus && (
+                {key === "edc" && edcStatus && !isBlockedEdc && (
                   <span
                     className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${
                       edcStatus === "connected"
@@ -123,7 +134,9 @@ export function PaymentMethodPicker({
                   <Icon className="h-8 w-8" />
                 </div>
                 <div className="font-semibold">{label}</div>
-                <div className="text-xs text-muted-foreground">{def.hint}</div>
+                <div className="text-xs text-muted-foreground">
+                    {isBlockedEdc ? "Clearing previous transaction…" : def.hint}
+                </div>
               </button>
             );
           })}

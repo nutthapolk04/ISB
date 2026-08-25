@@ -10,6 +10,7 @@ import { and, desc, eq, isNotNull, isNull, like, lt, or } from "drizzle-orm";
 import { db, pgClient } from "@/db/client";
 import { paymentIntents, wallets, walletTransactions, customers, users, parentChildLinks } from "@/db/schema";
 import { pgNumber, pgToIso, bangkokTodayCompact } from "@/lib/dates";
+import { config } from "@/lib/config";
 import { logger } from "@/logger";
 import type { AccessTokenPayload } from "@/middleware/AuthMiddleware";
 import {
@@ -73,27 +74,85 @@ function validateEdcFields(approvalCode?: string, terminalRef?: string | null, m
 
 /**
  * Verify EDC approval code against payment gateway (Paywire)
- * TODO: Implement actual gateway verification when Paywire API is available
+ * Calls the Paywire verification API if configured; otherwise logs a warning
+ * and returns unverified (development fallback).
  */
 async function verifyEdcApprovalCode(args: {
     approvalCode: string;
     terminalRef: string | null;
     amount: number;
 }): Promise<{ verified: boolean; error?: string }> {
-    // TODO: Call Paywire gateway to verify:
-    // POST https://paywire-api.example.com/verify
-    // {
-    //   "approvalCode": args.approvalCode,
-    //   "terminalRef": args.terminalRef,
-    //   "amount": args.amount
-    // }
-    // Return verified: true only if gateway confirms this code is valid
+    const { paywireApiUrl, paywireApiKey } = config;
 
     logger.info(`[EDC] Verifying approval code: ${args.approvalCode} for amount ฿${args.amount}`);
 
-    // For now, just log — this is a placeholder for gateway integration
-    // In production, implement actual verification before crediting wallet
-    return { verified: true };
+    // If API key is not configured, log warning and return unverified
+    if (!paywireApiKey) {
+        logger.warn(
+            `[EDC] PAYWIRE_API_KEY not configured — approval code verification skipped. ` +
+            `Configure PAYWIRE_API_KEY in .env to enable real gateway verification.`
+        );
+        return { verified: false, error: "Paywire API not configured" };
+    }
+
+    try {
+        const verifyUrl = `${paywireApiUrl}/api/v1/verify`;
+        const payload = {
+            approvalCode: args.approvalCode,
+            terminalRef: args.terminalRef,
+            amount: args.amount,
+            // Amount in satang (1 THB = 100 satang)
+            amountSatang: Math.round(args.amount * 100),
+        };
+
+        const response = await fetch(verifyUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${paywireApiKey}`,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            logger.error(
+                `[EDC] Paywire verification failed: ${response.status} ${response.statusText}`,
+                { approvalCode: args.approvalCode, terminalRef: args.terminalRef, error: errorBody }
+            );
+            return {
+                verified: false,
+                error: `Paywire gateway error: ${response.status}`,
+            };
+        }
+
+        const result = await response.json() as {
+            verified?: boolean;
+            valid?: boolean;
+            responseCode?: string;
+            message?: string;
+        };
+
+        // Support multiple response formats from Paywire
+        const isVerified = result.verified === true || result.valid === true || result.responseCode === "00";
+
+        logger.info(
+            `[EDC] Verification result: ${isVerified ? "approved" : "declined"}`,
+            { approvalCode: args.approvalCode, terminalRef: args.terminalRef, paywireResponse: result }
+        );
+
+        return {
+            verified: isVerified,
+            error: isVerified ? undefined : (result.message ?? "Verification failed"),
+        };
+    } catch (e) {
+        const err = e instanceof Error ? e.message : String(e);
+        logger.error(`[EDC] Verification request failed: ${err}`, { approvalCode: args.approvalCode });
+        return {
+            verified: false,
+            error: `Verification request failed: ${err}`,
+        };
+    }
 }
 
 /**

@@ -16,6 +16,7 @@ import type {
   DeviceInfo,
 } from "./types.js";
 import { UnsupportedDeviceError, UnsupportedCapabilityError } from "./errors.js";
+import { markPendingTxn, clearPendingTxn } from "./edcPendingTxn";
 
 const DEFAULT_DOMAIN = "pos.local.bridge.schooney.tech";
 const DEFAULT_PORT = 7331;
@@ -43,6 +44,7 @@ export class EdcClient {
   // are no-ops unless something calls pingTerminal()/setHeartbeatHealthy().
   private _txnInFlight = 0;
   private _pingAbortController: AbortController | null = null;
+  private _pingInFlight: Promise<boolean> | null = null;
   private _heartbeatOverride = false;
 
   constructor(opts: EdcClientOptions = {}) {
@@ -83,6 +85,38 @@ export class EdcClient {
     this._connectStatus();
   }
 
+  private _refreshInFlight: Promise<void> | null = null;
+
+  /**
+   * Re-fetches /whoami and updates `capabilities`/`device` from it, then
+   * notifies status listeners. Needed because the /status WS push only ever
+   * carries `{ state, port, firmware, reason, since }` — never
+   * capabilities — so a page that first loaded (or last called ready())
+   * while the terminal happened to be down freezes `capabilities: []`
+   * forever, even after the pill goes back to green from a WS "connected"
+   * push. requireCapability() would then reject a real sale on a terminal
+   * that is, in fact, back up. Safe to call anytime; failures are swallowed
+   * (the WS-driven `terminalConnected` still reflects the live state either
+   * way) and overlapping calls share the one in-flight request.
+   */
+  async refresh(): Promise<void> {
+    if (this._refreshInFlight) return this._refreshInFlight;
+    this._refreshInFlight = (async () => {
+      try {
+        const res = await fetch(`${this.baseUrl}/whoami`);
+        if (!res.ok) return;
+        this._whoami = (await res.json()) as WhoamiResponse;
+        this._terminalConnected = this._whoami.device.connected;
+        this._emitStatus();
+      } catch {
+        // best-effort — see doc comment above.
+      } finally {
+        this._refreshInFlight = null;
+      }
+    })();
+    return this._refreshInFlight;
+  }
+
   get bridgeId(): string { return this._whoami?.bridgeId ?? ""; }
   get device(): DeviceInfo | null { return this._whoami?.device ?? null; }
   // `_heartbeatOverride` stays false forever unless something calls
@@ -115,7 +149,11 @@ export class EdcClient {
       };
       if (raw.kind === "edc" && raw.edc) {
         const e = raw.edc;
+        const wasConnected = this._terminalConnected;
         this._terminalConnected = e.state === "connected";
+        // Reconnect transition — refresh capabilities (see refresh() doc
+        // comment); fire-and-forget so this handler stays synchronous.
+        if (this._terminalConnected && !wasConnected) void this.refresh();
         const flat: EDCStatusEvent = {
           kind: "edc",
           state: (e.state ?? "disconnected") as EDCStatusEvent["state"],
@@ -179,23 +217,37 @@ export class EdcClient {
    */
   async pingTerminal(timeoutMs = 6000): Promise<boolean> {
     if (this._txnInFlight > 0) return true;
-    const controller = new AbortController();
-    this._pingAbortController = controller;
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(`${this.baseUrl}/txn/commstest`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": this._randomKey() },
-        body: JSON.stringify({ fields: {} }),
-        signal: controller.signal,
-      });
-      return res.ok;
-    } catch {
-      return false;
-    } finally {
-      clearTimeout(timer);
-      if (this._pingAbortController === controller) this._pingAbortController = null;
-    }
+    // Single-flight: the app-wide heartbeat (every VITE_EDC_HEARTBEAT_MS) and
+    // useEdcPendingClear's own 3s poll both call this independently, and
+    // nothing stopped them landing at the same moment — 2026-08-25: this is
+    // what actually flooded the single serial link with overlapping
+    // /txn/commstest writes (seen as several TX lines a few *milliseconds*
+    // apart with no RX at all), which is what desynced the terminal's
+    // request/response pairing in the first place. Callers that arrive while
+    // one is already running just await that same result instead of
+    // starting a second one.
+    if (this._pingInFlight) return this._pingInFlight;
+    this._pingInFlight = (async () => {
+      const controller = new AbortController();
+      this._pingAbortController = controller;
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(`${this.baseUrl}/txn/commstest`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Idempotency-Key": this._randomKey() },
+          body: JSON.stringify({ fields: {} }),
+          signal: controller.signal,
+        });
+        return res.ok;
+      } catch {
+        return false;
+      } finally {
+        clearTimeout(timer);
+        if (this._pingAbortController === controller) this._pingAbortController = null;
+        this._pingInFlight = null;
+      }
+    })();
+    return this._pingInFlight;
   }
 
   // ── Capability guard ───────────────────────────────────────────────────────
@@ -340,6 +392,30 @@ export class EdcClient {
   ): AsyncGenerator<TxnEvent> {
     const reqId = idempotencyKey;
 
+    // Survives exactly what wipes everything else here: a refresh/tab-close
+    // while the terminal may still be mid-transaction on the wire. Marked
+    // only for commands that actually charge a card — cleared in the finally
+    // below, but ONLY once we've seen a trustworthy outcome (see
+    // paymentOutcomeKnown below); a marker still present on the NEXT page
+    // load — or still present a moment from now in THIS session, since
+    // _emitStatus() right after this line makes useEdcPendingClear.ts
+    // re-check and block immediately, refresh or not — means the caller
+    // must wait for the terminal to prove it's idle again before starting a
+    // new one.
+    const isPayment = cmd === "sale" || cmd === "qrsale" || cmd === "walletsale";
+    if (isPayment) {
+      markPendingTxn(cmd, reqId);
+      this._emitStatus();
+    }
+    // Only a well-formed result (a real responseCode) proves the terminal
+    // actually let go of this attempt. A blank one — empty responseCode, the
+    // exact shape seen 2026-08-25 when overlapping SALE writes left the
+    // terminal returning cross-wired/empty responses — means something WAS
+    // written to the terminal and its true outcome is still unknown, so the
+    // marker must survive this attempt's finally rather than clear as if
+    // nothing happened.
+    let paymentOutcomeKnown = true;
+
     // A real transaction always wins over the optional heartbeat: cancel any
     // liveness probe still in flight (no-op if none is) before this command
     // reaches the terminal, and mark ourselves busy so the heartbeat won't
@@ -377,6 +453,16 @@ export class EdcClient {
     // try/finally so an abandoned generator (consumer breaks/returns out of its
     // for-await mid-stream — generator.return() runs finally blocks) still closes
     // the /events WebSocket instead of leaking it until page reload.
+    //
+    // fetchAbort exists so that abandonment also aborts the POST itself, not
+    // just the WS — without it, closing the modal (or our own pendingClear
+    // retry after a refresh) left the ORIGINAL fetch running invisibly in the
+    // background with nothing awaiting it, so a cashier who gave up and
+    // tried again fired a second overlapping /txn/sale at the terminal while
+    // the first was possibly still being written to it (2026-08-25: seen as
+    // multiple SALE TX lines to the same terminal within seconds of each
+    // other, terminal never responding to any of them cleanly).
+    const fetchAbort = new AbortController();
     try {
       // Start the POST without awaiting so events stream while it is pending.
       const fetchPromise: Promise<RawTxnResponse> = (async () => {
@@ -384,6 +470,7 @@ export class EdcClient {
           method: "POST",
           headers: { "Content-Type": "application/json", "Idempotency-Key": reqId },
           body: JSON.stringify(body),
+          signal: fetchAbort.signal,
         });
         if (!res.ok) throw new Error(`/txn/${cmd} returned HTTP ${res.status}`);
         return (await res.json()) as RawTxnResponse;
@@ -404,6 +491,7 @@ export class EdcClient {
       }
 
       const raw = await fetchPromise;
+      if (isPayment && !String(raw.responseCode ?? "").trim()) paymentOutcomeKnown = false;
 
       // Brief grace for any trailing mid-txn events still in flight on the WS.
       await new Promise<void>(r => setTimeout(r, 50));
@@ -412,8 +500,17 @@ export class EdcClient {
       while (queue.length > 0) yield queue.shift()!;
       yield this._toResult(reqId, raw);
     } finally {
+      // No-op if the fetch already settled on its own — abort() past that
+      // point is harmless. If it hasn't (generator abandoned mid-flight),
+      // this is what actually stops a second attempt from ever overlapping
+      // with this one's still-open POST.
+      fetchAbort.abort();
       ws?.close();
       this._txnInFlight--;
+      if (isPayment) {
+        if (paymentOutcomeKnown) clearPendingTxn();
+        this._emitStatus();
+      }
     }
   }
 

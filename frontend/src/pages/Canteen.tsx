@@ -91,6 +91,7 @@ import { SpendingLimitChip } from "@/components/SpendingLimitChip";
 import { useAutoPrint } from "@/hooks/useAutoPrint";
 import { useRecentColors } from "@/hooks/useRecentColors";
 import { useEdcTerminalStatus } from "@/hooks/useEdcTerminalStatus";
+import { useEdcPendingClear } from "@/hooks/useEdcPendingClear";
 
 /** Fallback when user has no shopId (e.g., admin browsing canteen) */
 const DEFAULT_CANTEEN_SHOP_ID = "canteen";
@@ -159,6 +160,7 @@ export default function Canteen() {
 
     const cart = useCanteenCart();
     const edcStatus = useEdcTerminalStatus();
+    const edcPendingClear = useEdcPendingClear();
     /**
      * Idempotency key for the sale being paid for — minted once per press of
      * Charge, never per confirm click. Same contract as the Store POS; see
@@ -1268,6 +1270,7 @@ export default function Canteen() {
                 methods={["wallet", "cash", "qr", "edc"]}
                 onSelect={handleSelectMethod}
                 edcStatus={edcStatus}
+                edcPendingClear={edcPendingClear}
             />
             <RfidPaymentModal
                 open={rfidOpen}

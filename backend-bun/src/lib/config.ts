@@ -32,6 +32,11 @@ export const config = {
   // failing boot, since Google SSO is opt-in per deployment.
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  // Paywire EDC gateway verification — leave PAYWIRE_API_KEY blank to disable
+  // real verification (logs warning, returns unverified). Endpoint defaults to
+  // production Paywire service.
+  paywireApiUrl: process.env.PAYWIRE_API_URL ?? "https://gateway.paywire.net",
+  paywireApiKey: process.env.PAYWIRE_API_KEY ?? "",
 } as const;
 
 export const APP_VERSION = "0.1.0";
