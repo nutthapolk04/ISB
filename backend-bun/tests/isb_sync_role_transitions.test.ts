@@ -385,10 +385,9 @@ describe("parent <-> other", () => {
         await setSetting("low_balance_alert_enabled", true);
         await setSetting("low_balance_threshold", 100);
 
-        // Sole guardian: ISB cannot express a parentless family (mainParent is
-        // required), so the family drops out of the batch entirely and
-        // reconcileParentLinks never runs — the link survives. This is the
-        // shape where the leak was reachable.
+        // Sole guardian. ISB drops the whole family from /sync/families this
+        // round, so none of the family reconcilers run — detachFromFormerFamily
+        // in upsertOther is the only thing that unwinds the household.
         await processFamilyBatch([familyOf(40, { withParent: true })]);
         const guardian = await userByExt(40);
         const [kid] = await db.select().from(customers).where(eq(customers.externalId, String(ext(940)))).limit(1);
@@ -403,17 +402,17 @@ describe("parent <-> other", () => {
         expect(beforeRows.map((r) => r.to)).toContain(`${TAG}.p40@parents.isb.ac.th`);
         await db.delete(emailAlertsLog).where(eq(emailAlertsLog.childCustomerId, kid!.id));
 
-        // Now they become an "other" card. The link is still there.
+        // Now they become an "other" card.
         await processOthersBatch([otherOf(40, { firstName: `${TAG}P40`, lastName: "Guardian" })]);
-        const stillLinked = await db.select().from(parentChildLinks)
-            .where(eq(parentChildLinks.parentUserId, (await userByExt(40))!.id));
-        expect(stillLinked.length).toBe(1);
+        // Their guardianship is gone at the source now, not merely filtered out
+        // at every read — see detachFromFormerFamily.
+        expect(await db.select().from(parentChildLinks)
+            .where(eq(parentChildLinks.parentUserId, (await userByExt(40))!.id))).toEqual([]);
 
         await checkAndSendLowBalanceAlerts(kid!.id, 1);
         const afterRows = await db.select({ to: emailAlertsLog.recipientEmail })
             .from(emailAlertsLog).where(eq(emailAlertsLog.childCustomerId, kid!.id));
-        // Nothing queued at all: their link is the only one, and it no longer
-        // counts as an opt-in either.
+        // Nothing queued: the child has no guardian opted in any more.
         expect(afterRows).toEqual([]);
     }, DB_TIMEOUT_MS);
 
@@ -443,6 +442,103 @@ describe("parent <-> other", () => {
         const [after] = await db.select().from(emailAlertsLog).where(eq(emailAlertsLog.id, queued!.id)).limit(1);
         expect(after!.status).toBe("skipped");
         expect(after!.errorMessage).toMatch(/no guardian is linked/i);
+    }, DB_TIMEOUT_MS);
+});
+
+// ── leaving the household ────────────────────────────────────────────────
+
+describe("detaching from the former family", () => {
+    /**
+     * The real ISB behaviour: the round a parent becomes an "other", the WHOLE
+     * family disappears from /sync/families — not "the family minus them". So
+     * upsertFamilyProfile, reconcileParentLinks and
+     * clearFamilyCodeForOrphanedParents all fail to run, and the stale
+     * household survives for hours until family_sweep_service catches it (and
+     * that sweep skips role='other' rows entirely).
+     */
+    async function seedTwoParentFamily(n: number) {
+        const fam = familyOf(n, { withParent: true });
+        (fam as { secondaryParent: unknown }).secondaryParent = {
+            customerId: ext(n + 1), customerType: "Parent",
+            firstName: `${TAG}P${n + 1}`, lastName: "Guardian", profileImage: "",
+            login: [`${TAG}.p${n + 1}@parents.isb.ac.th`], smartCard: { cardNumber: CARD(n + 1) },
+        };
+        await processFamilyBatch([fam]);
+        return fam;
+    }
+
+    it.if(HAS_DB)("removes only the leaver's address from the household's login_ids", async () => {
+        if (!dbOk) return;
+        await seedTwoParentFamily(70);
+        const fc = String(500000 + 70);
+        const before = await db.select().from(familyProfiles).where(eq(familyProfiles.familyCode, fc)).limit(1);
+        expect(before[0]!.loginIds).toEqual([`${TAG}.p70@parents.isb.ac.th`, `${TAG}.p71@parents.isb.ac.th`]);
+
+        // ISB sends ONLY the others batch this round — no family batch at all.
+        await processOthersBatch([otherOf(70, { firstName: `${TAG}P70`, lastName: "Guardian" })]);
+
+        const after = await db.select().from(familyProfiles).where(eq(familyProfiles.familyCode, fc)).limit(1);
+        expect(after[0]!.loginIds).toEqual([`${TAG}.p71@parents.isb.ac.th`]);
+        // The remaining guardian is untouched.
+        expect((await userByExt(71))!.role).toBe("parent");
+        expect((await userByExt(71))!.familyCode).toBe(fc);
+    }, DB_TIMEOUT_MS);
+
+    it.if(HAS_DB)("drops the leaver's parent_child_links", async () => {
+        if (!dbOk) return;
+        await seedTwoParentFamily(72);
+        const leaver = await userByExt(72);
+        expect((await db.select().from(parentChildLinks)
+            .where(eq(parentChildLinks.parentUserId, leaver!.id))).length).toBe(1);
+
+        await processOthersBatch([otherOf(72, { firstName: `${TAG}P72`, lastName: "Guardian" })]);
+
+        expect(await db.select().from(parentChildLinks)
+            .where(eq(parentChildLinks.parentUserId, (await userByExt(72))!.id))).toEqual([]);
+        // The remaining guardian keeps theirs.
+        expect((await db.select().from(parentChildLinks)
+            .where(eq(parentChildLinks.parentUserId, (await userByExt(73))!.id))).length).toBe(1);
+    }, DB_TIMEOUT_MS);
+
+    it.if(HAS_DB)("leaves notification_emails alone — that column is ISB's to curate", async () => {
+        if (!dbOk) return;
+        const fam = familyOf(74, { withParent: true });
+        (fam as { notificationEmails: string[] }).notificationEmails = [`${TAG}.p74@parents.isb.ac.th`, "office@example.com"];
+        await processFamilyBatch([fam]);
+        const fc = String(500000 + 74);
+
+        await processOthersBatch([otherOf(74, { firstName: `${TAG}P74`, lastName: "Guardian" })]);
+
+        const after = await db.select().from(familyProfiles).where(eq(familyProfiles.familyCode, fc)).limit(1);
+        expect(after[0]!.notificationEmails).toEqual([`${TAG}.p74@parents.isb.ac.th`, "office@example.com"]);
+    }, DB_TIMEOUT_MS);
+
+    it.if(HAS_DB)("is idempotent — a re-sync neither errors nor eats the remaining guardian", async () => {
+        if (!dbOk) return;
+        await seedTwoParentFamily(76);
+        const fc = String(500000 + 76);
+        await processOthersBatch([otherOf(76, { firstName: `${TAG}P76`, lastName: "Guardian" })]);
+        const once = await db.select().from(familyProfiles).where(eq(familyProfiles.familyCode, fc)).limit(1);
+
+        const again = await processOthersBatch([otherOf(76, { firstName: `${TAG}P76`, lastName: "Guardian" })]);
+        expect(again.failed).toBe(0);
+        const twice = await db.select().from(familyProfiles).where(eq(familyProfiles.familyCode, fc)).limit(1);
+        expect(twice[0]!.loginIds).toEqual(once[0]!.loginIds);
+        expect(twice[0]!.loginIds).toEqual([`${TAG}.p77@parents.isb.ac.th`]);
+    }, DB_TIMEOUT_MS);
+
+    it.if(HAS_DB)("survives a leaver whose family_code was already cleared", async () => {
+        if (!dbOk) return;
+        await seedTwoParentFamily(78);
+        const leaver = await userByExt(78);
+        // Nothing to detach from — must skip quietly, not throw.
+        await db.update(users).set({ familyCode: null }).where(eq(users.id, leaver!.id));
+
+        const res = await processOthersBatch([otherOf(78, { firstName: `${TAG}P78`, lastName: "Guardian" })]);
+        expect(res.failed).toBe(0);
+        // Links still go, since those are keyed on the user, not the family.
+        expect(await db.select().from(parentChildLinks)
+            .where(eq(parentChildLinks.parentUserId, (await userByExt(78))!.id))).toEqual([]);
     }, DB_TIMEOUT_MS);
 });
 

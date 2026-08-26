@@ -1124,6 +1124,69 @@ async function unusablePasswordHash(): Promise<string> {
     return Bun.password.hash(secret, { algorithm: "bcrypt", cost: PLACEHOLDER_ACCOUNT_BCRYPT_COST });
 }
 
+/**
+ * Cut a cardholder loose from the household they are leaving.
+ *
+ * ISB drops the WHOLE family from /sync/families the round a parent becomes an
+ * "other" — not "the family minus that parent". So none of the reconcilers that
+ * normally tidy up run at all: upsertFamilyProfile never rewrites `login_ids`,
+ * reconcileParentLinks never drops the parent_child_links row, and
+ * clearFamilyCodeForOrphanedParents never fires. The stale household then sits
+ * there for hours until family_sweep_service catches it — and that sweep skips
+ * role='other' rows, so parts of it are never cleaned at all.
+ *
+ * Measured consequences before this existed: the ex-parent's own former login
+ * email still rendered on the remaining guardian's User Detail page, the
+ * ex-parent's page still listed the child as family, and where ISB's others
+ * payload reuses the ORIGINAL family code, their own old address rendered on
+ * their own page permanently.
+ *
+ * Safe to delete both things because ISB owns them and rewrites them wholesale
+ * whenever the family reappears: upsertFamilyProfile overwrites `login_ids` in
+ * full, and upsertLink recreates the parent_child_links row. Deliberately does
+ * NOT touch `notification_emails` or `admin_notification_emails` (2026-08
+ * decision — that column means "send alerts to these addresses", is ISB's to
+ * curate, and ISB removes the address itself on transition).
+ */
+async function detachFromFormerFamily(args: {
+    userId: number;
+    /** family_code the row held BEFORE this sync overwrote it. */
+    formerFamilyCode: string | null;
+    /** Every address known to belong to this person, read before they're purged. */
+    formerEmails: string[];
+}): Promise<void> {
+    // An "other" is never a guardian. Unconditional (not just on the transition
+    // round) so rows that flipped before this shipped heal on their next sync.
+    await db.delete(parentChildLinks).where(eq(parentChildLinks.parentUserId, args.userId));
+
+    // Needs both a household to edit and a real address to remove — after the
+    // first round the row only carries its synthetic address, which was never
+    // in login_ids anyway.
+    const emails = args.formerEmails
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
+    if (!args.formerFamilyCode || emails.length === 0) return;
+
+    const [profile] = await db
+        .select({ loginIds: familyProfiles.loginIds })
+        .from(familyProfiles)
+        .where(eq(familyProfiles.familyCode, args.formerFamilyCode))
+        .limit(1);
+    if (!profile) return;
+
+    const current = Array.isArray(profile.loginIds) ? (profile.loginIds as string[]) : [];
+    const kept = current.filter((e) => !emails.includes(String(e).trim().toLowerCase()));
+    if (kept.length === current.length) return; // nothing of theirs in the list
+
+    await db.update(familyProfiles)
+        .set({ loginIds: kept as unknown as never })
+        .where(eq(familyProfiles.familyCode, args.formerFamilyCode));
+    logger.info(
+        `[isb other sync] detached ${emails.length} address(es) from family_profiles[${args.formerFamilyCode}].login_ids`,
+        { userId: args.userId, remaining: kept.length },
+    );
+}
+
 export async function upsertOther(payload: OtherPayload, syncLogId: number): Promise<typeof users.$inferSelect> {
     const extId = String(payload.customerId);
     const fullName = `${payload.firstName} ${payload.lastName}`.trim();
@@ -1178,6 +1241,20 @@ export async function upsertOther(payload: OtherPayload, syncLogId: number): Pro
     // value we generated ourselves would only ever produce false positives.
     const existing = (await db.select().from(users).where(eq(users.externalId, extId)).limit(1))[0];
     const created = !existing;
+
+    // Read the household and the addresses this person is leaving BEFORE the
+    // update below replaces them with the synthetic pair and the delete below
+    // purges user_login_emails — after that the link is gone for good and
+    // detachFromFormerFamily would have nothing to match on.
+    const formerFamilyCode = existing?.familyCode ?? null;
+    const formerEmails = existing
+        ? [
+            existing.email,
+            ...(await db.select({ email: userLoginEmails.email })
+                .from(userLoginEmails)
+                .where(eq(userLoginEmails.userId, existing.id))).map((r) => r.email),
+        ].filter((e): e is string => !!e && !e.endsWith("@others.isb.ac.th"))
+        : [];
     const before = snapshot(existing as unknown as Record<string, unknown> | null, USER_AUDIT_FIELDS);
 
     let userRow: typeof users.$inferSelect;
@@ -1280,6 +1357,14 @@ export async function upsertOther(payload: OtherPayload, syncLogId: number): Pro
     // never have an SSO-resolvable address on file, so there is no source
     // whose rows are legitimate to keep.
     await db.delete(userLoginEmails).where(eq(userLoginEmails.userId, userRow.id));
+
+    // ...and cut them out of the household they left. See the function's own
+    // comment for why nothing else will do it.
+    await detachFromFormerFamily({
+        userId: userRow.id,
+        formerFamilyCode,
+        formerEmails,
+    });
 
     const after = snapshot(userRow as unknown as Record<string, unknown>, USER_AUDIT_FIELDS);
     await emitAudit({

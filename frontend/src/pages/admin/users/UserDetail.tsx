@@ -12,6 +12,7 @@ import { BasicProfileCard } from "./BasicProfileCard";
 import { HealthProfileCard } from "./HealthProfileCard";
 import { UserRoleManager } from "./UserRoleManager";
 import { FamilyGroupCard } from "./FamilyGroupCard";
+import { shouldShowFamilyCard } from "./userDetailHelpers";
 import { LinkedStudentsTable } from "./LinkedStudentsTable";
 import { IdentityHistoryTable } from "./IdentityHistoryTable";
 import { CardBindingDialog } from "./CardBindingDialog";
@@ -188,9 +189,9 @@ export default function UserDetail() {
 
         <UserRoleManager userId={userId!} primaryRole={user.role} />
 
-        {user.family_code ? (
+        {shouldShowFamilyCard(user.role, user.family_code) ? (
           <FamilyGroupCard
-            familyCode={user.family_code}
+            familyCode={user.family_code!}
             members={user.family_members}
             familyProfile={user.family_profile}
             onProfileUpdated={(profile) => setUser({ ...user, family_profile: profile })}
