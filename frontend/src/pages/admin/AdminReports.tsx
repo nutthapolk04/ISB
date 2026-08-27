@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
-import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt, Monitor, ChevronDown, Building2, TrendingUp } from "lucide-react";
+import { FileSpreadsheet, FileText, Loader2, Wallet, Receipt, Monitor, ChevronDown, Building2, TrendingUp, Store } from "lucide-react";
 import UserPicker, { type StaffPickerUser } from "@/components/UserPicker";
 import ShopPicker from "@/components/ShopPicker";
 import CardholderPicker, { type CardholderPickerValue } from "@/components/CardholderPicker";
@@ -46,9 +46,10 @@ import { PaginationBar } from "@/components/PaginationBar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SortableDateTimeHeader } from "@/components/SortableDateTimeHeader";
 import { InternalUsedTable, type InternalUsedReportData } from "@/components/reports/InternalUsedTable";
+import { ShopReport } from "../reports/ShopReport";
 import { scrollToReportSection } from "@/lib/scrollToReportSection";
 
-type ReportKind = "topup" | "transaction" | "kiosk" | "internal_used" | "balance";
+type ReportKind = "topup" | "transaction" | "kiosk" | "internal_used" | "balance" | "shop";
 type TopupChannel = "all" | "kiosk" | "online" | "cashier";
 type BalanceType = "all" | "purchase" | "void_refund" | "refund" | "topup" | "adjustment" | "transfer" | "other";
 type BalanceRole = "all" | "student" | "department" | "parent" | "staff" | "cashier" | "manager" | "kitchen" | "admin" | "kiosk";
@@ -1342,6 +1343,12 @@ export default function AdminReports() {
             title: t("admin.adminReports.internalUsedReport"),
             desc: t("admin.adminReports.internalUsedReportDesc"),
         },
+        {
+            kind: "shop" as const,
+            icon: Store,
+            title: t("admin.adminReports.shopReport", "Shop Report"),
+            desc: t("admin.adminReports.shopReportDesc", "Directory of all shops with status and settings"),
+        },
     ];
 
     const hasData = selected === "topup" ? !!topupData
@@ -1395,26 +1402,32 @@ export default function AdminReports() {
                                     : selected === "transaction" ? <Receipt className="h-5 w-5 text-primary" />
                                         : selected === "balance" ? <TrendingUp className="h-5 w-5 text-primary" />
                                             : selected === "internal_used" ? <Building2 className="h-5 w-5 text-primary" />
-                                                : <Monitor className="h-5 w-5 text-primary" />}
+                                                : selected === "shop" ? <Store className="h-5 w-5 text-primary" />
+                                                    : <Monitor className="h-5 w-5 text-primary" />}
                                 {selected === "topup" ? t("admin.adminReports.topupReport")
                                     : selected === "transaction" ? t("admin.adminReports.transactionReport")
                                         : selected === "balance" ? "Balance Report"
                                             : selected === "internal_used" ? t("admin.adminReports.internalUsedReport")
-                                                : t("admin.adminReports.kioskReport", "Kiosk Report")}
+                                                : selected === "shop" ? t("admin.adminReports.shopReport", "Shop Report")
+                                                    : t("admin.adminReports.kioskReport", "Kiosk Report")}
                             </CardTitle>
-                            <p className="text-xs text-muted-foreground">{t("reports.selectDateRangeDesc")}</p>
+                            {selected !== "shop" && (
+                                <p className="text-xs text-muted-foreground">{t("reports.selectDateRangeDesc")}</p>
+                            )}
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                    <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
-                                    <DateRangePicker
-                                        startDate={dateFrom}
-                                        endDate={dateTo}
-                                        onStartChange={setDateFrom}
-                                        onEndChange={setDateTo}
-                                    />
-                                </div>
+                                {selected !== "shop" && (
+                                    <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                                        <Label>{t("reports.startDate")} — {t("reports.endDate")}</Label>
+                                        <DateRangePicker
+                                            startDate={dateFrom}
+                                            endDate={dateTo}
+                                            onStartChange={setDateFrom}
+                                            onEndChange={setDateTo}
+                                        />
+                                    </div>
+                                )}
                                 {selected === "topup" && (
                                     <>
                                         <div className="space-y-2">
@@ -1657,24 +1670,26 @@ export default function AdminReports() {
                                 )}
                             </div>
 
-                            <div className="flex flex-wrap gap-2">
-                                <Button onClick={handleSearch} disabled={loading}>
-                                    {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                                    Search
-                                </Button>
-                                {searched && hasData && (
-                                    <>
-                                        <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
-                                            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                                            {t("reports.exportPdf")}
-                                        </Button>
-                                        <Button variant="outline" onClick={handleExportExcel} disabled={exporting}>
-                                            <FileSpreadsheet className="h-4 w-4 mr-2" />
-                                            {t("reports.exportExcel")}
-                                        </Button>
-                                    </>
-                                )}
-                            </div>
+                            {selected !== "shop" && (
+                                <div className="flex flex-wrap gap-2">
+                                    <Button onClick={handleSearch} disabled={loading}>
+                                        {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                                        Search
+                                    </Button>
+                                    {searched && hasData && (
+                                        <>
+                                            <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+                                                {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                                                {t("reports.exportPdf")}
+                                            </Button>
+                                            <Button variant="outline" onClick={handleExportExcel} disabled={exporting}>
+                                                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                                {t("reports.exportExcel")}
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
 
                             {searched && selected === "topup" && topupData && (
                                 <div className="space-y-3">
@@ -1796,6 +1811,8 @@ export default function AdminReports() {
                                     onToggleDateTimeSort={handleToggleDateTimeSort}
                                 />
                             )}
+
+                            {selected === "shop" && <ShopReport />}
                         </CardContent>
                     </Card>
                 </div>

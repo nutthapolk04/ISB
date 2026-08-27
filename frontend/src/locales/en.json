@@ -1250,6 +1250,8 @@
       "paymentMethodAll": "All",
       "internalUsedReport": "Internal Used Report",
       "internalUsedReportDesc": "Staff requisitions charged against a department's budget at a shop, grouped by department",
+      "shopReport": "Shop Report",
+      "shopReportDesc": "Directory of all shops with status and settings",
       "internalUsedEmpty": "No internal-use receipts match these filters.",
       "departmentFilter": "Department",
       "staffFilter": "Staff",
@@ -2086,7 +2088,9 @@
     "dailyLimitReached": "Daily spending limit reached",
     "shopMissingGroup": "This shop has no spending group assigned",
     "quantityDialogTitle": "Set Quantity",
-    "quantityDialogConfirm": "Add {{qty}}"
+    "quantityDialogConfirm": "Add {{qty}}",
+    "printLastReceipt": "Print Last Receipt",
+    "printLastReceiptNotFound": "No receipt found for this cashier at this shop"
   },
   "checkout": {
     "failed": "Checkout failed",

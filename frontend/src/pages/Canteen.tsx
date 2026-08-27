@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { InfoCallout } from "@/components/InfoCallout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { CreditCard, Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet, ArrowUpDown, Check as CheckIcon } from "lucide-react";
+import { CreditCard, Search, ShoppingCart, UtensilsCrossed, UserSearch, Wallet, ArrowUpDown, Check as CheckIcon, Loader2 } from "lucide-react";
 import {
     DndContext,
     closestCenter,
@@ -56,7 +56,7 @@ import type { SpendingLimitData } from "@/hooks/useDisplayBroadcast";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSchoolInfo } from "@/contexts/SchoolInfoContext";
-import { printReceipt, type ReceiptApi } from "@/lib/printReceipt";
+import { printReceipt, printLastReceiptByCashier, type ReceiptApi } from "@/lib/printReceipt";
 import { useCanteenCart, type CanteenProduct } from "@/hooks/useCanteenCart";
 import { useRfidListener } from "@/hooks/useRfidListener";
 import { usePricePanels } from "@/hooks/usePricePanels";
@@ -169,6 +169,31 @@ export default function Canteen() {
     const cart = useCanteenCart();
     const edcStatus = useEdcTerminalStatus();
     const edcPendingClear = useEdcPendingClear();
+    // Reprint last receipt — always fetched fresh from the backend (see
+    // printLastReceiptByCashier), never from local component state.
+    const [reprintingLast, setReprintingLast] = useState(false);
+    const handleReprintLastReceipt = async () => {
+        if (!user?.id || !CANTEEN_SHOP_ID || reprintingLast) return;
+        setReprintingLast(true);
+        try {
+            await printLastReceiptByCashier(
+                CANTEEN_SHOP_ID,
+                user.id,
+                schoolInfo,
+                user?.shopName,
+                "en",
+                shopReceipt ?? undefined,
+            );
+        } catch (err) {
+            if (err instanceof Error && err.message === "NO_RECEIPT_FOUND") {
+                toast.error(t("pos.printLastReceiptNotFound"));
+            } else {
+                toast.error(t("checkout.failed", "Checkout failed"));
+            }
+        } finally {
+            setReprintingLast(false);
+        }
+    };
     /**
      * Idempotency key for the sale being paid for — minted once per press of
      * Charge, never per confirm click. Same contract as the Store POS; see
@@ -1059,6 +1084,22 @@ export default function Canteen() {
                                 schoolInfo={schoolInfo}
                             />
                         )}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleReprintLastReceipt()}
+                            disabled={reprintingLast}
+                            className="gap-1.5"
+                            title={t("pos.printLastReceipt")}
+                            aria-label={t("pos.printLastReceipt")}
+                        >
+                            {reprintingLast ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Printer className="h-4 w-4" />
+                            )}
+                            <span className="hidden sm:inline">{t("pos.printLastReceipt")}</span>
+                        </Button>
                         <label
                             className="inline-flex items-center gap-2 rounded-full border border-input bg-background px-3 py-1.5 text-xs cursor-pointer select-none hover:bg-muted/50 transition"
                             title={t("pos.autoPrintTooltip", "Auto-print receipt after each sale")}

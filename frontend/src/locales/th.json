@@ -1250,6 +1250,8 @@
       "paymentMethodAll": "ทั้งหมด",
       "internalUsedReport": "รายงานการเบิกใช้ภายใน",
       "internalUsedReportDesc": "รายการที่พนักงานเบิกใช้จากงบประมาณของแผนกที่ร้านค้า จัดกลุ่มตามแผนก",
+      "shopReport": "รายงานร้านค้า",
+      "shopReportDesc": "รายชื่อร้านค้าทั้งหมดพร้อมสถานะและการตั้งค่า",
       "internalUsedEmpty": "ไม่พบรายการเบิกใช้ภายในตามตัวกรองนี้",
       "departmentFilter": "แผนก",
       "staffFilter": "พนักงาน",
@@ -2086,7 +2088,9 @@
     "dailyLimitReached": "ใช้วงเงินวันนี้ครบแล้ว",
     "shopMissingGroup": "ร้านค้านี้ยังไม่ถูกกำหนดกลุ่มวงเงิน",
     "quantityDialogTitle": "กำหนดจำนวน",
-    "quantityDialogConfirm": "เพิ่ม {{qty}} ชิ้น"
+    "quantityDialogConfirm": "เพิ่ม {{qty}} ชิ้น",
+    "printLastReceipt": "พิมพ์ใบเสร็จล่าสุด",
+    "printLastReceiptNotFound": "ไม่พบใบเสร็จของแคชเชียร์นี้ที่ร้านนี้"
   },
   "checkout": {
     "failed": "ชำระเงินไม่สำเร็จ",

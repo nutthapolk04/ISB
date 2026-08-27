@@ -4,6 +4,7 @@
 import type { SchoolInfo } from "@/contexts/SchoolInfoContext";
 import { fmtDateTime } from "@/lib/dateFormat";
 import { formatPaymentMethodLabelPlain } from "@/lib/paymentMethodLabels";
+import { api } from "@/lib/api";
 
 // ── Mask full name for print only ──────────────────────────────────────────
 // Show: FirstName Lxxxx (first letter of last name + xxxx)
@@ -634,6 +635,36 @@ export function printReceipt(
     // OS print dialog round-trip on stations without --kiosk-printing.
     setTimeout(() => iframe.remove(), 1500);
   }, 250);
+}
+
+/**
+ * Reprint the given cashier's most recent receipt at the given shop.
+ *
+ * Always hits the backend fresh (never local/cached state): first a 1-row
+ * `/pos/receipt` list scoped to `shop_id` + `created_by` to find the latest
+ * receipt id (sorted `desc(created_at)` server-side), then `/pos/receipt/:id`
+ * for the full receipt with line items — the list endpoint never returns
+ * items (see PosController.listReceipts / pos_service.listReceipts).
+ *
+ * Throws `Error("NO_RECEIPT_FOUND")` when the cashier has no receipt yet at
+ * this shop — callers should catch this and map it to
+ * `pos.printLastReceiptNotFound`.
+ */
+export async function printLastReceiptByCashier(
+  shopId: string,
+  cashierId: number,
+  school: SchoolInfo,
+  shopName?: string | null,
+  lang: string = "en",
+  shopOverrides?: { receiptHeader?: string | null; receiptFooter?: string | null },
+): Promise<void> {
+  const query = `shop_id=${encodeURIComponent(shopId)}&created_by=${encodeURIComponent(String(cashierId))}&page=1&page_size=1`;
+  const list = await api.get<{ items: Array<{ id: number }> }>(`/pos/receipt?${query}`);
+  if (!list.items || list.items.length === 0) {
+    throw new Error("NO_RECEIPT_FOUND");
+  }
+  const receipt = await api.get<ReceiptApi>(`/pos/receipt/${list.items[0].id}`);
+  printReceipt(receipt, school, shopName, lang, shopOverrides);
 }
 
 /**

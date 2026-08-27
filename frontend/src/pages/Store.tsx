@@ -11,11 +11,13 @@ import {
     ArrowUpDown,
     Check,
     Printer,
+    Loader2,
 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { printLastReceiptByCashier } from "@/lib/printReceipt";
 import { useDisplayBroadcast } from "@/hooks/useDisplayBroadcast";
 import { useProductReorder } from "@/hooks/useProductReorder";
 import { useStoreRfidScanner } from "@/hooks/useStoreRfidScanner";
@@ -375,6 +377,32 @@ const Store = () => {
     const edcStatus = useEdcTerminalStatus();
     const edcPendingClear = useEdcPendingClear();
 
+    // Reprint last receipt — always fetched fresh from the backend (see
+    // printLastReceiptByCashier), never from local component state.
+    const [reprintingLast, setReprintingLast] = useState(false);
+    const handleReprintLastReceipt = async () => {
+        if (!user?.id || !user?.shopId || reprintingLast) return;
+        setReprintingLast(true);
+        try {
+            await printLastReceiptByCashier(
+                user.shopId,
+                user.id,
+                schoolInfo,
+                user?.shopName,
+                "en",
+                shopReceipt ?? undefined,
+            );
+        } catch (err) {
+            if (err instanceof Error && err.message === "NO_RECEIPT_FOUND") {
+                toast.error(t("pos.printLastReceiptNotFound"));
+            } else {
+                toast.error(t("checkout.failed", "Checkout failed"));
+            }
+        } finally {
+            setReprintingLast(false);
+        }
+    };
+
     // ── Passive RFID/barcode listener (page-level, no input focused) ────────
     const rfidScanner = useStoreRfidScanner({
         products: allProducts,
@@ -514,6 +542,22 @@ const Store = () => {
                                 schoolInfo={schoolInfo}
                             />
                         )}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleReprintLastReceipt()}
+                            disabled={reprintingLast}
+                            className="gap-1.5"
+                            title={t("pos.printLastReceipt")}
+                            aria-label={t("pos.printLastReceipt")}
+                        >
+                            {reprintingLast ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Printer className="h-4 w-4" />
+                            )}
+                            <span className="hidden sm:inline">{t("pos.printLastReceipt")}</span>
+                        </Button>
                         {canManageOrder && user?.shopId && (
                             reorderMode ? (
                                 <div className="flex items-center gap-1.5">
