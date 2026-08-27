@@ -296,7 +296,7 @@ export function SalesSummaryReport({
             { header: "Amt. Cash", key: "amt_cash", format: "currency", width: 50 },
             { header: "Amt. Campus card", key: "amt_campus_card", format: "currency", width: 58 },
             { header: "Amt. Credit card", key: "amt_credit_card", format: "currency", width: 58 },
-            { header: "Card Fee (3%)", key: "edc_card_fee", format: "currency", width: 50 },
+            { header: "Card Fee", key: "edc_card_fee", format: "currency", width: 50 },
             { header: "Amt. QR Code", key: "amt_qr_code", format: "currency", width: 52 },
             { header: "Amt. Department", key: "amt_department", format: "currency", width: 48 },
             { header: "Remark", key: "remark", width: 75 },

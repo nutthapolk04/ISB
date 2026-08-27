@@ -2242,7 +2242,7 @@
     "edcApprovedNoCode": "The terminal approved this transaction but did not return an approval code — do not retry (this may cause a duplicate charge). Please contact your administrator to record the receipt manually.",
     "edcConnectionLost": "Connection to the EDC terminal was lost during the transaction — it may still be processing (e.g. the QR hasn't timed out yet). Do not retry until you've checked with the terminal.",
     "edcUnknownOutcomeDesc": "The actual outcome of this transaction is not yet known.",
-    "edcCardFeeNote": "Includes 3% card fee: ฿{{fee}} (goods total ฿{{goods}})",
+    "edcCardFeeNote": "Includes {{rate}}% card fee: ฿{{fee}} (goods total ฿{{goods}})",
     "edcConnectionLostTitle": "Transaction outcome unknown",
     "edcQueryTerminal": "Check latest transaction with terminal",
     "edcManualApprLabel": "Or enter APPR.CODE from the slip",

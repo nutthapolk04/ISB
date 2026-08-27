@@ -77,9 +77,10 @@ export interface CheckoutInput {
     edc_terminal_ref?: string | null;
     edc_approval_code?: string | null;
     edc_masked_card?: string | null;
-    // "card" (physical swipe/tap) carries a 3% surcharge computed server-side
-    // below; "qr" (Thai QR) never does. Absent/other values are treated as no
-    // fee — safe-by-default, never silently overcharges the customer.
+    // "card" (physical swipe/tap) carries the shop's configured surcharge
+    // (shops.edc_card_fee_rate) computed server-side below; "qr" (Thai QR)
+    // never does. Absent/other values are treated as no fee — safe-by-default,
+    // never silently overcharges the customer.
     edc_mode?: "qr" | "card" | null;
     cash_received?: number | null;
     discount?: number;

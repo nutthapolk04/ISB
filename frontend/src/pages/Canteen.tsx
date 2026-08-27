@@ -151,10 +151,18 @@ export default function Canteen() {
         receiptFooter: string | null;
     } | null>(null);
 
+    // Admin-configured EDC card-swipe surcharge (percent, e.g. 3 for 3%) —
+    // drives the on-screen fee preview in EdcPaymentModal; backend
+    // independently recomputes this from the same shop setting.
+    const [shopEdcCardFeeRate, setShopEdcCardFeeRate] = useState(0);
+
     useEffect(() => {
         if (!user?.shopId) return;
-        api.get<{ receipt_header: string | null; receipt_footer: string | null }>(`/shops/${user.shopId}`)
-            .then((s) => setShopReceipt({ receiptHeader: s.receipt_header, receiptFooter: s.receipt_footer }))
+        api.get<{ receipt_header: string | null; receipt_footer: string | null; edc_card_fee_rate: number }>(`/shops/${user.shopId}`)
+            .then((s) => {
+                setShopReceipt({ receiptHeader: s.receipt_header, receiptFooter: s.receipt_footer });
+                setShopEdcCardFeeRate(s.edc_card_fee_rate ?? 0);
+            })
             .catch(() => { });
     }, [user?.shopId]);
 
@@ -1387,6 +1395,7 @@ export default function Canteen() {
                 onBack={() => { setEdcOpen(false); setMethodPickerOpen(true); }}
                 onConfirm={handleConfirmEdc}
                 confirming={confirming}
+                cardFeeRatePercent={shopEdcCardFeeRate}
                 buildCartPayload={() => ({
                     transaction_mode: cart.priceMode === "internal" ? "internal_issue" : "sale",
                     payer_kind: "customer",

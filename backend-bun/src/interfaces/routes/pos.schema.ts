@@ -89,7 +89,7 @@ export const posCheckout = {
         edc_terminal_ref: t.Optional(t.Nullable(t.String())),
         edc_approval_code: t.Optional(t.Nullable(t.String())),
         edc_masked_card: t.Optional(t.Nullable(t.String())),
-        // "card" (physical swipe/tap) carries a 3% surcharge; "qr" never does.
+        // "card" (physical swipe/tap) carries the shop's configured surcharge; "qr" never does.
         edc_mode: t.Optional(t.Nullable(t.Union([t.Literal("qr"), t.Literal("card")]))),
         cash_received: t.Optional(t.Nullable(t.Number())),
         discount: t.Optional(t.Nullable(t.Number())),

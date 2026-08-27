@@ -36,12 +36,6 @@ interface EdcRefs {
 /** Which way the customer pays on the terminal — drives qrSale vs sale. */
 export type EdcMode = "qr" | "card";
 
-/** Customer-facing card surcharge — must match EDC_CARD_FEE_RATE in
- * backend-bun/src/services/pos_checkout_service.ts; the backend recomputes
- * and is the source of truth, this is only for the on-screen preview.
- * NOTE: ปรับจาก 3% → 0% (ไม่มีค่าธรรมเนียม) */
-const EDC_CARD_FEE_RATE = 0;
-
 interface EdcPaymentModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -49,6 +43,14 @@ interface EdcPaymentModalProps {
     onBack: () => void;
     onConfirm: (refs: EdcRefs) => Promise<void>;
     confirming: boolean;
+    /**
+     * Shop's configured card-swipe surcharge, as a percent (e.g. 3 for 3%) —
+     * this is the shop.edc_card_fee_rate the admin set in Shop Management.
+     * Only a preview: the backend independently recomputes this from the
+     * same shop setting at checkout time and is the source of truth. Absent
+     * (e.g. the cashier-topup flow, which has no shop scope) means no fee.
+     */
+    cardFeeRatePercent?: number;
     /**
      * Builds the checkout-shaped cart (same shape /pos/checkout expects) used
      * to log a pending Transactions-tab row the instant an attempt starts —
@@ -94,6 +96,7 @@ export function EdcPaymentModal({
     confirming,
     buildCartPayload,
     telemetry,
+    cardFeeRatePercent = 0,
 }: EdcPaymentModalProps) {
     const { t } = useTranslation();
     const [step, setStep] = useState<"choice" | "processing" | "approved" | "declined">(
@@ -210,10 +213,10 @@ export function EdcPaymentModal({
         setStep("processing");
         // console.log(`[EDC] attempt #${attemptId} start`, { mode, idempotencyKey: idempotencyKeyRef.current, total });
 
-        // Card swipe/tap carries a 3% surcharge the customer pays on top of
+        // Card swipe/tap carries the shop's configured surcharge on top of
         // the goods total — QR never does. Backend recomputes and stores
         // this independently; this is what's actually charged at the terminal.
-        const cardFee = mode === "card" ? Math.round(total * EDC_CARD_FEE_RATE * 100) / 100 : 0;
+        const cardFee = mode === "card" ? Math.round(total * (cardFeeRatePercent / 100) * 100) / 100 : 0;
         const chargeAmount = total + cardFee;
 
         // Log a `pending` Transactions-tab row for this attempt BEFORE
@@ -526,10 +529,10 @@ export function EdcPaymentModal({
             : t("storePos.edcModalTitleCard", "EDC — Credit Card")
         : t("storePos.edcModalTitle", "EDC — Credit / Debit Card");
 
-    // Card mode adds the 3% surcharge on top of the goods total — shown once
-    // the cashier has actually picked "card" so the choice screen itself
-    // still reads as one flat total per method.
-    const cardFee = edcMode === "card" ? Math.round(total * EDC_CARD_FEE_RATE * 100) / 100 : 0;
+    // Card mode adds the shop's configured surcharge on top of the goods
+    // total — shown once the cashier has actually picked "card" so the
+    // choice screen itself still reads as one flat total per method.
+    const cardFee = edcMode === "card" ? Math.round(total * (cardFeeRatePercent / 100) * 100) / 100 : 0;
     const chargeTotal = total + cardFee;
 
     const description =
@@ -581,8 +584,8 @@ export function EdcPaymentModal({
                         <p className="text-xs text-amber-600 dark:text-amber-400">
                             {t(
                                 "storePos.edcCardFeeNote",
-                                "รวมค่าธรรมเนียมบัตร 3%: ฿{{fee}} (ยอดสินค้า ฿{{goods}})",
-                                { fee: cardFee.toFixed(2), goods: total.toFixed(2) },
+                                "รวมค่าธรรมเนียมบัตร {{rate}}%: ฿{{fee}} (ยอดสินค้า ฿{{goods}})",
+                                { rate: cardFeeRatePercent, fee: cardFee.toFixed(2), goods: total.toFixed(2) },
                             )}
                         </p>
                     )}

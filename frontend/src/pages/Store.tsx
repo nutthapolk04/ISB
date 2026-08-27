@@ -93,13 +93,18 @@ const Store = () => {
     // admin disables it via Shop Management. Default true here so the button
     // doesn't flash-hide before this loads.
     const [shopAllowsTopup, setShopAllowsTopup] = useState(true);
+    // Admin-configured EDC card-swipe surcharge (percent, e.g. 3 for 3%) —
+    // drives the on-screen fee preview in EdcPaymentModal; backend
+    // independently recomputes this from the same shop setting.
+    const [shopEdcCardFeeRate, setShopEdcCardFeeRate] = useState(0);
 
     useEffect(() => {
         if (!user?.shopId) return;
-        api.get<{ receipt_header: string | null; receipt_footer: string | null; allow_topup: boolean }>(`/shops/${user.shopId}`)
+        api.get<{ receipt_header: string | null; receipt_footer: string | null; allow_topup: boolean; edc_card_fee_rate: number }>(`/shops/${user.shopId}`)
             .then((s) => {
                 setShopReceipt({ receiptHeader: s.receipt_header, receiptFooter: s.receipt_footer });
                 setShopAllowsTopup(s.allow_topup);
+                setShopEdcCardFeeRate(s.edc_card_fee_rate ?? 0);
             })
             .catch(() => { });
     }, [user?.shopId]);
@@ -810,6 +815,7 @@ const Store = () => {
                 onBack={checkout.handleBackToPicker}
                 onConfirm={checkout.handleConfirmEdc}
                 confirming={checkout.confirming}
+                cardFeeRatePercent={shopEdcCardFeeRate}
                 buildCartPayload={checkout.buildEdcCheckoutCartPayload}
                 telemetry={{
                     context: "store_pos",
