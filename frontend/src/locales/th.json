@@ -1835,6 +1835,7 @@
     "totalRevenue": "ยอดขายรวม",
     "itemCount": "จำนวนสินค้าที่ขาย",
     "cashier": "ผู้ขาย",
+    "cashierBreakdown": "แยกตามแคชเชียร์",
     "paymentBreakdown": "แยกตามช่องทางชำระเงิน",
     "paymentMethod": "ช่องทางชำระเงิน",
     "paymentMethod_wallet": "Campus Card",

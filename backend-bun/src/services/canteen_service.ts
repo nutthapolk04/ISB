@@ -1,5 +1,14 @@
 import { pgClient } from "@/db/client";
 import { pgNumber } from "@/lib/dates";
+import { hasRole } from "@/middleware/AuthMiddleware";
+import type { UserRole } from "@/enumerate/UserRole";
+
+export interface CashierBreakdownDTO {
+    cashier_id: number;
+    cashier_name: string;
+    total_orders: number;
+    total_revenue: number;
+}
 
 export interface CloseDaySummaryDTO {
     shop_id: string;
@@ -8,13 +17,18 @@ export interface CloseDaySummaryDTO {
     total_revenue: number;
     item_count: number;
     payment_breakdown: Record<string, number>;
+    cashier_breakdown: CashierBreakdownDTO[];
 }
 
 /**
  * End-of-day summary for one shop, scoped to "today" in Asia/Bangkok.
  * Mirrors FastAPI app/api/v1/canteen.py:close_day.
+ *
+ * `caller` gates the per-cashier breakdown: admin/manager see every cashier
+ * in the shop, a plain cashier only ever sees their own row (real permission
+ * boundary — enforced here, not trusted to the frontend).
  */
-export async function closeDay(shopId: string): Promise<CloseDaySummaryDTO> {
+export async function closeDay(shopId: string, caller: { id: number; roles: UserRole[] }): Promise<CloseDaySummaryDTO> {
     // Compute Bangkok-local "today" → its UTC bounds.
     const now = new Date();
     const bkkOffsetMs = 7 * 60 * 60 * 1000;
@@ -56,6 +70,7 @@ export async function closeDay(shopId: string): Promise<CloseDaySummaryDTO> {
             total_revenue: 0,
             item_count: 0,
             payment_breakdown: {},
+            cashier_breakdown: [],
         };
     }
     const totalRevenue = pgNumber(headerRows[0]?.total_revenue ?? null) ?? 0;
@@ -90,6 +105,42 @@ export async function closeDay(shopId: string): Promise<CloseDaySummaryDTO> {
         paymentBreakdown[r.payment_method] = pgNumber(r.method_total) ?? 0;
     }
 
+    const cashierRows = await pgClient<Array<{
+        cashier_id: number;
+        cashier_name: string | null;
+        total_orders: string;
+        total_revenue: string | null;
+    }>>`
+    SELECT receipts.created_by AS cashier_id,
+           COALESCE(users.full_name, users.username) AS cashier_name,
+           COUNT(*)::text AS total_orders,
+           COALESCE(SUM(receipts.total - COALESCE(refunded.refunded, 0)), 0)::text AS total_revenue
+    FROM receipts
+    JOIN users ON users.id = receipts.created_by
+    LEFT JOIN (
+      SELECT receipt_id, SUM(refund_amount) AS refunded
+      FROM return_requests
+      WHERE status = 'approved'
+      GROUP BY receipt_id
+    ) refunded ON refunded.receipt_id = receipts.receipt_number
+    WHERE receipts.shop_id = ${shopId}
+      AND receipts.status = 'ACTIVE'
+      AND receipts.transaction_date BETWEEN ${startIso} AND ${endIso}
+    GROUP BY receipts.created_by, users.full_name, users.username
+    ORDER BY total_revenue DESC
+  `;
+    let cashierBreakdown: CashierBreakdownDTO[] = cashierRows.map((r) => ({
+        cashier_id: r.cashier_id,
+        cashier_name: r.cashier_name ?? String(r.cashier_id),
+        total_orders: Number(r.total_orders ?? 0),
+        total_revenue: pgNumber(r.total_revenue ?? null) ?? 0,
+    }));
+    // Permission boundary: a plain cashier (no admin/manager role) only ever
+    // sees their own row, never anyone else's in the same shop.
+    if (!hasRole(caller.roles, "admin", "manager")) {
+        cashierBreakdown = cashierBreakdown.filter((row) => row.cashier_id === caller.id);
+    }
+
     return {
         shop_id: shopId,
         date: isoDate,
@@ -97,5 +148,6 @@ export async function closeDay(shopId: string): Promise<CloseDaySummaryDTO> {
         total_revenue: totalRevenue,
         item_count: itemCount,
         payment_breakdown: paymentBreakdown,
+        cashier_breakdown: cashierBreakdown,
     };
 }

@@ -1835,6 +1835,7 @@
     "totalRevenue": "Total Revenue",
     "itemCount": "Items Sold",
     "cashier": "Cashier",
+    "cashierBreakdown": "By Cashier",
     "paymentBreakdown": "Payment Breakdown",
     "paymentMethod": "Payment Method",
     "paymentMethod_wallet": "Campus Card",

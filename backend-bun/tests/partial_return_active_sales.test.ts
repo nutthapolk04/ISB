@@ -52,6 +52,10 @@ const CD_SHOP_ID = `cd-${TAG}`;
 const RC_SHOP_ID = `rc-${TAG}`;
 const FIXED_DAY = "2032-09-21";
 const adminUser = { sub: "1", roles: ["admin"], shop_id: null } as unknown as AccessTokenPayload;
+// closeDay() now requires a caller (admin/manager see the full per-cashier
+// breakdown; these pre-existing tests only assert the shop-wide totals, so
+// an admin caller keeps their behavior unchanged).
+const ADMIN_CALLER = { id: 1, roles: ["admin"] as AccessTokenPayload["roles"] };
 
 let cashierUserId = 0;
 const receiptIds: number[] = [];
@@ -158,7 +162,7 @@ describe("canteen_service.closeDay() — nets out approved returns", () => {
             if (!dbOk) return;
             try {
                 await seedReceipt({ shopId: CD_SHOP_ID, suffix: "CDA", total: 100 });
-                const summary = await closeDay(CD_SHOP_ID);
+                const summary = await closeDay(CD_SHOP_ID, ADMIN_CALLER);
                 expect(summary.total_orders).toBe(1);
                 expect(summary.total_revenue).toBeCloseTo(100, 2);
                 expect(summary.payment_breakdown.CASH).toBeCloseTo(100, 2);
@@ -175,7 +179,7 @@ describe("canteen_service.closeDay() — nets out approved returns", () => {
             if (!dbOk) return;
             try {
                 await seedReceipt({ shopId: CD_SHOP_ID, suffix: "CDB", total: 200, status: "VOIDED" });
-                const summary = await closeDay(CD_SHOP_ID);
+                const summary = await closeDay(CD_SHOP_ID, ADMIN_CALLER);
                 expect(summary.total_orders).toBe(0);
                 expect(summary.total_revenue).toBe(0);
             } finally {
@@ -192,7 +196,7 @@ describe("canteen_service.closeDay() — nets out approved returns", () => {
             try {
                 const r = await seedReceipt({ shopId: CD_SHOP_ID, suffix: "CDC", total: 150 });
                 await seedReturn({ receiptNumber: r.receiptNumber, refundAmount: 40, suffix: "C1" });
-                const summary = await closeDay(CD_SHOP_ID);
+                const summary = await closeDay(CD_SHOP_ID, ADMIN_CALLER);
                 expect(summary.total_orders).toBe(1);
                 expect(summary.total_revenue).toBeCloseTo(110, 2); // 150 - 40
                 expect(summary.payment_breakdown.CASH).toBeCloseTo(110, 2);
@@ -211,7 +215,7 @@ describe("canteen_service.closeDay() — nets out approved returns", () => {
                 const r = await seedReceipt({ shopId: CD_SHOP_ID, suffix: "CDD", total: 300 });
                 await seedReturn({ receiptNumber: r.receiptNumber, refundAmount: 50, suffix: "D1" });
                 await seedReturn({ receiptNumber: r.receiptNumber, refundAmount: 30, suffix: "D2" });
-                const summary = await closeDay(CD_SHOP_ID);
+                const summary = await closeDay(CD_SHOP_ID, ADMIN_CALLER);
                 expect(summary.total_revenue).toBeCloseTo(220, 2); // 300 - 50 - 30
             } finally {
                 await cleanup();
@@ -228,7 +232,7 @@ describe("canteen_service.closeDay() — nets out approved returns", () => {
                 const r = await seedReceipt({ shopId: CD_SHOP_ID, suffix: "CDE", total: 90 });
                 await seedReturn({ receiptNumber: r.receiptNumber, refundAmount: 20, status: "pending", suffix: "E1" });
                 await seedReturn({ receiptNumber: r.receiptNumber, refundAmount: 15, status: "rejected", suffix: "E2" });
-                const summary = await closeDay(CD_SHOP_ID);
+                const summary = await closeDay(CD_SHOP_ID, ADMIN_CALLER);
                 expect(summary.total_revenue).toBeCloseTo(90, 2);
             } finally {
                 await cleanup();

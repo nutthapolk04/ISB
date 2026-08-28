@@ -29,7 +29,13 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
 import { type SchoolInfo } from "@/contexts/SchoolInfoContext";
-import { useAuth } from "@/contexts/AuthContext";
+
+export interface CashierBreakdown {
+  cashier_id: number;
+  cashier_name: string;
+  total_orders: number;
+  total_revenue: number;
+}
 
 export interface CloseDaySummary {
   shop_id: string;
@@ -38,6 +44,7 @@ export interface CloseDaySummary {
   total_revenue: number;
   item_count: number;
   payment_breakdown: Record<string, number | undefined>;
+  cashier_breakdown: CashierBreakdown[];
 }
 
 interface Props {
@@ -51,7 +58,6 @@ interface Props {
 
 export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", className }: Props) {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const [summary, setSummary] = useState<CloseDaySummary | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -75,6 +81,18 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
         return `<tr><td style="padding:4px 8px">${label}</td><td style="padding:4px 8px;text-align:right">฿${(amount ?? 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td></tr>`;
       })
       .join("");
+
+    const cashierRows = s.cashier_breakdown
+      .map(
+        (row) =>
+          `<tr><td style="padding:4px 8px">${row.cashier_name}</td><td style="padding:4px 8px;text-align:right">${row.total_orders}</td><td style="padding:4px 8px;text-align:right">฿${row.total_revenue.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td></tr>`,
+      )
+      .join("");
+    const cashierBreakdownHtml = s.cashier_breakdown.length > 0
+      ? `<hr/>
+        <p style="text-align:left;padding:0 8px;font-weight:bold;margin:4px 0">${t("canteen.cashierBreakdown")}</p>
+        <table>${cashierRows}</table>`
+      : "";
 
     const logoHtml = schoolInfo?.logoUrl
       ? `<img src="${schoolInfo.logoUrl}" width="56" height="56" style="object-fit:contain;display:block;margin:0 auto 4px" />`
@@ -116,11 +134,11 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
         <table>
           <tr><td style="padding:4px 8px">${t("canteen.totalOrders")}</td><td style="padding:4px 8px;text-align:right">${s.total_orders}</td></tr>
           <tr><td style="padding:4px 8px">${t("canteen.itemCount")}</td><td style="padding:4px 8px;text-align:right">${s.item_count}</td></tr>
-          <tr><td style="padding:4px 8px">${t("canteen.cashier")}</td><td style="padding:4px 8px;text-align:right">${user?.fullName ?? user?.username ?? "—"}</td></tr>
         </table>
         <hr/>
         <p style="text-align:left;padding:0 8px;font-weight:bold;margin:4px 0">${t("canteen.paymentBreakdown")}</p>
         <table>${paymentRows}</table>
+        ${cashierBreakdownHtml}
         <hr/>
         <table><tr class="total"><td style="padding:4px 8px">${t("canteen.totalRevenue")}</td><td style="padding:4px 8px;text-align:right">฿${s.total_revenue.toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td></tr></table>
       </body></html>`;
@@ -181,6 +199,32 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
                   </div>
                 </CardContent>
               </Card>
+
+              {summary.cashier_breakdown.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">{t("canteen.cashierBreakdown")}</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("canteen.cashier")}</TableHead>
+                        <TableHead className="text-right">{t("canteen.totalOrders")}</TableHead>
+                        <TableHead className="text-right">฿</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {summary.cashier_breakdown.map((row) => (
+                        <TableRow key={row.cashier_id}>
+                          <TableCell>{row.cashier_name}</TableCell>
+                          <TableCell className="text-right tabular-nums">{row.total_orders}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {row.total_revenue.toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
 
               <div>
                 <p className="text-sm font-medium mb-2">{t("canteen.paymentBreakdown")}</p>

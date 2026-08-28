@@ -23,7 +23,7 @@ export const CanteenController = {
 		}
 		try {
 			logger.info(`[${reqContext.requestId} (CN-01)] CanteenController.closeDay() calling closeDay().`);
-			const result = await closeDay(effective);
+			const result = await closeDay(effective, { id: Number(user.sub), roles: user.roles });
 			logger.info(`[${reqContext.requestId} (CN-01)] CanteenController.closeDay() completed.`);
 			return successResponse(reqContext, result, ResponseStatus.OK);
 		} catch (e) {
