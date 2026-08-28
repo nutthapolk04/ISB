@@ -29,12 +29,23 @@ export async function closeDay(shopId: string): Promise<CloseDaySummaryDTO> {
     const startIso = startUtc.toISOString();
     const endIso = endUtc.toISOString();
 
+    // LEFT JOIN a per-receipt sum of approved returns/exchanges so a partial
+    // return is subtracted from the sale it belongs to (dated by the original
+    // sale, since we still filter on receipts.transaction_date) — the receipt
+    // row itself is never mutated, only netted out at query time.
     const headerRows = await pgClient<Array<{ total_orders: string; total_revenue: string | null }>>`
-    SELECT COUNT(*)::text AS total_orders, COALESCE(SUM(total), 0)::text AS total_revenue
+    SELECT COUNT(*)::text AS total_orders,
+           COALESCE(SUM(receipts.total - COALESCE(refunded.refunded, 0)), 0)::text AS total_revenue
     FROM receipts
-    WHERE shop_id = ${shopId}
-      AND status = 'ACTIVE'
-      AND transaction_date BETWEEN ${startIso} AND ${endIso}
+    LEFT JOIN (
+      SELECT receipt_id, SUM(refund_amount) AS refunded
+      FROM return_requests
+      WHERE status = 'approved'
+      GROUP BY receipt_id
+    ) refunded ON refunded.receipt_id = receipts.receipt_number
+    WHERE receipts.shop_id = ${shopId}
+      AND receipts.status = 'ACTIVE'
+      AND receipts.transaction_date BETWEEN ${startIso} AND ${endIso}
   `;
     const totalOrders = Number(headerRows[0]?.total_orders ?? 0);
     if (totalOrders === 0) {
@@ -60,12 +71,19 @@ export async function closeDay(shopId: string): Promise<CloseDaySummaryDTO> {
     const itemCount = Number(itemRows[0]?.item_count ?? 0);
 
     const pmRows = await pgClient<Array<{ payment_method: string; method_total: string }>>`
-    SELECT payment_method, COALESCE(SUM(total), 0)::text AS method_total
+    SELECT receipts.payment_method,
+           COALESCE(SUM(receipts.total - COALESCE(refunded.refunded, 0)), 0)::text AS method_total
     FROM receipts
-    WHERE shop_id = ${shopId}
-      AND status = 'ACTIVE'
-      AND transaction_date BETWEEN ${startIso} AND ${endIso}
-    GROUP BY payment_method
+    LEFT JOIN (
+      SELECT receipt_id, SUM(refund_amount) AS refunded
+      FROM return_requests
+      WHERE status = 'approved'
+      GROUP BY receipt_id
+    ) refunded ON refunded.receipt_id = receipts.receipt_number
+    WHERE receipts.shop_id = ${shopId}
+      AND receipts.status = 'ACTIVE'
+      AND receipts.transaction_date BETWEEN ${startIso} AND ${endIso}
+    GROUP BY receipts.payment_method
   `;
     const paymentBreakdown: Record<string, number> = {};
     for (const r of pmRows) {

@@ -1834,6 +1834,7 @@
     "totalOrders": "Total Orders",
     "totalRevenue": "Total Revenue",
     "itemCount": "Items Sold",
+    "cashier": "Cashier",
     "paymentBreakdown": "Payment Breakdown",
     "paymentMethod": "Payment Method",
     "paymentMethod_wallet": "Campus Card",

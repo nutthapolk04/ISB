@@ -4,6 +4,7 @@ import { logger } from "@/logger";
 import {
     receipts,
     receiptItems,
+    returnRequests,
     shopProducts,
     shops,
     customers,
@@ -390,14 +391,29 @@ function buildReceiptFilters(
     return conds;
 }
 
+// Per-receipt sum of approved returns/exchanges, so a partial return is
+// netted out of the sale it belongs to (dated by the original sale — the
+// caller's transaction_date filter is unaffected). The receipt row itself is
+// never mutated, only netted out here at query time.
+const refundedByReceipt = db
+    .select({
+        receiptId: returnRequests.receiptId,
+        refunded: sql<string>`sum(${returnRequests.refundAmount})`.as("refunded"),
+    })
+    .from(returnRequests)
+    .where(eq(returnRequests.status, "approved"))
+    .groupBy(returnRequests.receiptId)
+    .as("refunded_by_receipt");
+
 async function aggregateActiveSales(conds: SQL[]): Promise<{ count: number; activeSales: number }> {
     const where = conds.length > 0 ? and(...conds) : undefined;
     const [row] = await db
         .select({
             count: count(),
-            activeSales: sql<string>`coalesce(sum(case when ${receipts.status} = 'ACTIVE' then ${receipts.total}::numeric else 0 end), 0)`,
+            activeSales: sql<string>`coalesce(sum(case when ${receipts.status} = 'ACTIVE' then ${receipts.total}::numeric - coalesce(${refundedByReceipt.refunded}::numeric, 0) else 0 end), 0)`,
         })
         .from(receipts)
+        .leftJoin(refundedByReceipt, eq(refundedByReceipt.receiptId, receipts.receiptNumber))
         .where(where);
     return {
         count: Number(row?.count ?? 0),

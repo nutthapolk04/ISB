@@ -29,6 +29,7 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { api, ApiError } from "@/lib/api";
 import { type SchoolInfo } from "@/contexts/SchoolInfoContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface CloseDaySummary {
   shop_id: string;
@@ -50,6 +51,7 @@ interface Props {
 
 export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", className }: Props) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [summary, setSummary] = useState<CloseDaySummary | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -114,6 +116,7 @@ export function UpToDateSaleButton({ shopId, shopName, schoolInfo, size = "sm", 
         <table>
           <tr><td style="padding:4px 8px">${t("canteen.totalOrders")}</td><td style="padding:4px 8px;text-align:right">${s.total_orders}</td></tr>
           <tr><td style="padding:4px 8px">${t("canteen.itemCount")}</td><td style="padding:4px 8px;text-align:right">${s.item_count}</td></tr>
+          <tr><td style="padding:4px 8px">${t("canteen.cashier")}</td><td style="padding:4px 8px;text-align:right">${user?.fullName ?? user?.username ?? "—"}</td></tr>
         </table>
         <hr/>
         <p style="text-align:left;padding:0 8px;font-weight:bold;margin:4px 0">${t("canteen.paymentBreakdown")}</p>
