@@ -44,3 +44,7 @@ backend/venv/
 # Personal Claude Code settings (per-machine, not for team)
 .claude/settings.local.json
 backend-bun/.env.backup
+docs/KioskEventLog_AllKiosks_2026-08-19_2026-08-19.xlsx
+docs/KioskEventLog_Kiosk 1_2026-08-19_2026-09-02.xlsx
+docs/KioskTransactions_AllKiosks_2026-08-19_2026-08-19.xlsx
+docs/KioskTransactions_Kiosk 1_2026-08-19_2026-09-02.xlsx

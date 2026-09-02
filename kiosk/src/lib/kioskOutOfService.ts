@@ -90,3 +90,8 @@ export function __test__setOutOfServiceState(state: OutOfServiceState | null): v
     memoryOosState = null;
     writeState(state);
 }
+
+/** @internal — simulate process restart (localStorage survives, memory cleared). */
+export function __test__clearMemoryOosState(): void {
+    memoryOosState = null;
+}

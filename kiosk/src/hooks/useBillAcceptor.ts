@@ -9,7 +9,12 @@ import {
     type TopupStatus,
 } from '../lib/kioskAuditLog';
 import { retryTopupApi } from '../lib/topupApiRetry';
-import { recordStackedBill } from '../lib/kioskCashBox';
+import {
+    flushPendingInFlightStacksToCounter,
+    isInFlightStackedBillEvent,
+    onBillReturnedForCashBox,
+    onBillStackedForCashBox,
+} from '../lib/cashBoxStackReturn';
 
 const PENDING_KEY = 'kiosk-pending-cash-topup';
 
@@ -160,7 +165,10 @@ function handleBillEvent(event: BillEvent) {
         case 'stacked':
             if (event.billAmountThb === 100 || event.billAmountThb === 500 || event.billAmountThb === 1000) {
                 stackedBillAmounts.push(event.billAmountThb);
-                recordStackedBill(event.billAmountThb);
+                onBillStackedForCashBox(
+                    event.billAmountThb,
+                    isInFlightStackedBillEvent(event.message),
+                );
             }
             collectedThb.value = event.collectedThb ?? collectedThb.value;
             overpayPending.value = null;
@@ -171,12 +179,19 @@ function handleBillEvent(event: BillEvent) {
             if (event.targetThb != null) targetThb.value = event.targetThb;
             break;
         case 'returned':
+            if (event.billAmountThb === 100 || event.billAmountThb === 500 || event.billAmountThb === 1000) {
+                const denom = event.billAmountThb;
+                const stackedIdx = stackedBillAmounts.lastIndexOf(denom);
+                if (stackedIdx >= 0) stackedBillAmounts.splice(stackedIdx, 1);
+                onBillReturnedForCashBox(denom);
+            }
             overpayPending.value = null;
             if (event.collectedThb != null) collectedThb.value = event.collectedThb;
             break;
         case 'collectComplete':
             collecting.value = false;
             collectComplete.value = true;
+            flushPendingInFlightStacksToCounter();
             if (event.collectedThb != null) collectedThb.value = event.collectedThb;
             break;
         case 'error':
@@ -387,6 +402,11 @@ export function useBillAcceptor() {
 /** @deprecated use session payer from store — kept for import compatibility */
 export function setBillSessionMember(_memberLogId: string | null): void {
     /* no-op — audit logs use payer_id / receiver_id */
+}
+
+/** Credit in-flight escrow stacks once collection is confirmed. */
+export function flushPendingCashBoxStacks(): void {
+    flushPendingInFlightStacksToCounter();
 }
 
 export function __test__resetBillAcceptorState(): void {

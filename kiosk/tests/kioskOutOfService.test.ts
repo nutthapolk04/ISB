@@ -4,6 +4,7 @@ import {
     getOutOfServiceState,
     isOutOfService,
     unlockOutOfService,
+    __test__clearMemoryOosState,
     __test__setOutOfServiceState,
 } from '../src/lib/kioskOutOfService';
 import type { RecoveryTopupSnapshot } from '../src/lib/recoveryReceipt';
@@ -20,8 +21,23 @@ const snapshot: RecoveryTopupSnapshot = {
 };
 
 describe('kioskOutOfService', () => {
+    const lsStore = new Map<string, string>();
+
     beforeEach(() => {
         __test__setOutOfServiceState(null);
+        lsStore.clear();
+        globalThis.localStorage = {
+            getItem: (key: string) => lsStore.get(key) ?? null,
+            setItem: (key: string, value: string) => {
+                lsStore.set(key, value);
+            },
+            removeItem: (key: string) => {
+                lsStore.delete(key);
+            },
+            clear: () => lsStore.clear(),
+            key: () => undefined,
+            length: 0,
+        } as Storage;
     });
 
     test('enter sets active flag', () => {
@@ -45,6 +61,18 @@ describe('kioskOutOfService', () => {
 
     test('unlock clears state', () => {
         enterOutOfService(snapshot);
+        unlockOutOfService();
+        expect(isOutOfService()).toBe(false);
+    });
+
+    test('LOCK persists across app restart until technician unlock', () => {
+        enterOutOfService(snapshot);
+        expect(isOutOfService()).toBe(true);
+
+        __test__clearMemoryOosState();
+        expect(isOutOfService()).toBe(true);
+        expect(getOutOfServiceState()?.snapshot?.ref).toBe('ref-123');
+
         unlockOutOfService();
         expect(isOutOfService()).toBe(false);
     });

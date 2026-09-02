@@ -174,6 +174,23 @@ export function recordStackedBill(denom: BillDenom): void {
     enqueuePersist(next);
 }
 
+/** Reverse a stack when the hardware returns the bill (escrow return or in-flight race). */
+export function recordReturnedBill(denom: BillDenom): void {
+    const current = cashBoxState.value.counts[denom] ?? 0;
+    if (current <= 0) return;
+
+    const nextCounts = { ...cashBoxState.value.counts, [denom]: current - 1 };
+    if (nextCounts[denom] === 0) delete nextCounts[denom];
+
+    const next: CashBoxState = {
+        ...cashBoxState.value,
+        counts: nextCounts,
+        updatedAt: new Date().toISOString(),
+    };
+    applyState(next);
+    enqueuePersist(next);
+}
+
 export interface CashBoxClearSnapshot {
     amount: number;
     bills: BillsCount;

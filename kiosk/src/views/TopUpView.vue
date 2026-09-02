@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Banknote, QrCode, CreditCard, CheckCircle2, 
 import LogoutButton from '../components/LogoutButton.vue';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { realApi } from '../api/realApi';
-import { useBillAcceptor, type CashTopupContext } from '../hooks/useBillAcceptor';
+import { useBillAcceptor, flushPendingCashBoxStacks, type CashTopupContext } from '../hooks/useBillAcceptor';
 import { usePrinter } from '../hooks/usePrinter';
 import { auditTopupEnd } from '../lib/kioskAuditLog';
 import { enterOutOfService } from '../lib/kioskOutOfService';
@@ -612,6 +612,7 @@ const finalizeCashTopUp = async (): Promise<boolean> => {
     try {
         // Wait for any in-flight escrow to stack (or return) before reading the total.
         await bill.stop();
+        flushPendingCashBoxStacks();
         amount = resolveCashCreditAmount(bill.collectedThb.value);
         if (amount <= 0 || !ref || !ctx) {
             cashFinalizeStarted = false;
