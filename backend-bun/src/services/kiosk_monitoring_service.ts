@@ -56,7 +56,7 @@ async function getCustodians(kioskUserId: number): Promise<KioskCustodianDTO[]> 
 }
 
 async function logAndSendAlert(args: {
-    alertType: "kiosk_offline" | "kiosk_online" | "kiosk_password_changed";
+    alertType: "kiosk_offline" | "kiosk_online" | "kiosk_password_changed" | "kiosk_locked";
     recipientEmail: string;
     subject: string;
     html: string;
@@ -186,6 +186,84 @@ export async function notifyTechnicianPasswordChanged(caller: AccessTokenPayload
     for (const c of custodians) {
         await logAndSendAlert({
             alertType: "kiosk_password_changed",
+            recipientEmail: c.email,
+            subject,
+            html,
+        });
+    }
+    return { notified: custodians.length };
+}
+
+export interface KioskLockNotifyInput {
+    ref: string;
+    method: string;
+    payer_id: string;
+    receiver_id: string;
+    actual_amount: number;
+    target_amount?: number;
+    locked_at?: string;
+}
+
+/** English alert copy for custodians when a kiosk enters Out-of-Service (LOCK). */
+export function buildKioskLockedAlertContent(
+    kiosk: { fullName: string; username: string },
+    input: KioskLockNotifyInput,
+): { subject: string; html: string } {
+    const lockedAt = fmtBangkok(input.locked_at ?? new Date().toISOString());
+    const amount = input.actual_amount.toFixed(2);
+    const targetLine = input.target_amount != null
+        ? `<p>Target amount: <strong>${input.target_amount.toFixed(2)} THB</strong></p>`
+        : "";
+    const subject = `Kiosk locked — staff action required — ${kiosk.fullName} (${kiosk.username})`;
+    const html = `
+    <p>Kiosk <strong>${kiosk.fullName}</strong> (username: ${kiosk.username})
+       has entered <strong>Out of Service</strong> mode after a top-up could not be completed.</p>
+    <p>Cash may have been collected but the student wallet was not credited. Please inspect the kiosk,
+       verify the cash box if applicable, and adjust the wallet balance manually if needed.</p>
+    <p><strong>Transaction details</strong></p>
+    <ul>
+      <li>Reference: ${input.ref}</li>
+      <li>Method: ${input.method}</li>
+      <li>Payer ISB ID: ${input.payer_id}</li>
+      <li>Receiver ISB ID: ${input.receiver_id}</li>
+      <li>Amount collected: <strong>${amount} THB</strong></li>
+    </ul>
+    ${targetLine}
+    <p>Locked at: <strong>${lockedAt}</strong> (Bangkok time)</p>
+    <p>The kiosk will remain unavailable to members until a technician unlocks it on-site.</p>
+    ${EMAIL_FOOTER}
+  `;
+    return { subject, html };
+}
+
+/** Called by the kiosk app when it enters Out-of-Service (LOCK) after a failed top-up. */
+export async function notifyKioskLocked(
+    caller: AccessTokenPayload,
+    input: KioskLockNotifyInput,
+): Promise<{ notified: number }> {
+    requireKiosk(caller);
+    const userId = Number(caller.sub);
+    const rows = await db
+        .select({ id: users.id, username: users.username, fullName: users.fullName })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+    const kiosk = rows[0];
+    if (!kiosk) {
+        const err = new Error("User not found");
+        (err as { status?: number }).status = 404;
+        throw err;
+    }
+
+    const custodians = (await getCustodians(kiosk.id)).filter((c) => c.email?.trim());
+    if (custodians.length === 0) {
+        return { notified: 0 };
+    }
+
+    const { subject, html } = buildKioskLockedAlertContent(kiosk, input);
+    for (const c of custodians) {
+        await logAndSendAlert({
+            alertType: "kiosk_locked",
             recipientEmail: c.email,
             subject,
             html,

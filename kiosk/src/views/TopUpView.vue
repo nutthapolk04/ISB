@@ -26,7 +26,9 @@ import {
     cashDisplayTime as computeCashDisplayTime,
     cashIdleHoldSeconds,
     cashProgress as computeCashProgress,
+    isCashAcceptCutoff,
     resolveCashIdleExpiry,
+    shouldResetCashIdleTimer,
     shouldSkipIdleCountdownTick,
 } from '../lib/cashIdleTimer';
 import { resolveCashCreditAmount, shouldStartCashFinalize } from '../lib/cashTopupFinalize';
@@ -444,13 +446,22 @@ const handleCashIdleExpired = () => {
     void executeCancelTopup();
 };
 
+const maybeInhibitCashAccepting = (timeLeftSec: number) => {
+    if (isCashAcceptCutoff(timeLeftSec)) {
+        void bill.inhibitAccepting();
+    }
+};
+
 const resetCashIdleTimer = () => {
-    clearCashIdleTimer();
     if (currentStep.value !== 'cash-confirm') return;
+    if (!shouldResetCashIdleTimer(cashTimeLeft.value)) return;
+    clearCashIdleTimer();
     cashTimeLeft.value = CASH_IDLE_TOTAL_SEC;
     cashIdleInterval = window.setInterval(() => {
         if (shouldSkipIdleCountdownTick(bill.billInFlight.value)) return;
+        maybeInhibitCashAccepting(cashTimeLeft.value);
         cashTimeLeft.value--;
+        maybeInhibitCashAccepting(cashTimeLeft.value);
         if (cashTimeLeft.value <= 0) {
             handleCashIdleExpired();
         }
@@ -934,11 +945,15 @@ watch(currentStep, (step) => {
 });
 
 watch(() => bill.collectedThb.value, () => {
-    if (currentStep.value === 'cash-confirm') resetCashIdleTimer();
+    if (currentStep.value === 'cash-confirm' && shouldResetCashIdleTimer(cashTimeLeft.value)) {
+        resetCashIdleTimer();
+    }
 });
 
 watch(() => bill.billActivityTick.value, () => {
-    if (currentStep.value === 'cash-confirm') resetCashIdleTimer();
+    if (currentStep.value === 'cash-confirm' && shouldResetCashIdleTimer(cashTimeLeft.value)) {
+        resetCashIdleTimer();
+    }
 });
 
 const selectedColor = (prop: 'colorBg' | 'colorText' | 'border') => {

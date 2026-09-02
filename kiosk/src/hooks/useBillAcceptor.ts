@@ -101,6 +101,8 @@ const billInFlight = ref(false);
 const billActivityTick = ref(0);
 
 let listenerHandle: PluginListenerHandle | null = null;
+/** True after inhibitAccepting() — cleared when a new collecting session starts. */
+let cashAcceptInhibited = false;
 
 /** True while a bill is in escrow / stacking — do not finalize idle yet. */
 export function applyBillInFlight(type: BillEvent['type'], currentlyInFlight: boolean): boolean {
@@ -303,6 +305,7 @@ export function useBillAcceptor() {
     async function start(target: number): Promise<string> {
         await ensureListener();
         resetSessionState();
+        cashAcceptInhibited = false;
         cashSessionRef = newSessionRef();
         targetThb.value = target;
         lastHardwareError.value = null;
@@ -319,6 +322,13 @@ export function useBillAcceptor() {
         collecting.value = false;
         overpayPending.value = null;
         billInFlight.value = false;
+    }
+
+    /** Disable the acceptor for new bills without tearing down the cash session (idempotent). */
+    async function inhibitAccepting(): Promise<void> {
+        if (cashAcceptInhibited) return;
+        cashAcceptInhibited = true;
+        await stop();
     }
 
     async function acceptOverpay() {
@@ -388,6 +398,7 @@ export function useBillAcceptor() {
         isTargetMet,
         start,
         stop,
+        inhibitAccepting,
         acceptOverpay,
         returnOverpay,
         finalizeTopUp,
@@ -411,6 +422,7 @@ export function flushPendingCashBoxStacks(): void {
 
 export function __test__resetBillAcceptorState(): void {
     resetSessionState();
+    cashAcceptInhibited = false;
     billActivityTick.value = 0;
     lastHardwareError.value = null;
     hardwareReady.value = false;

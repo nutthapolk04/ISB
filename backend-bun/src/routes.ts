@@ -276,6 +276,7 @@ const apiV1AuthedRoutes = new Elysia({ name: "api-v1-authed-routes" })
             .post("/logs", KioskController.uploadLogs, KioskSchema.kioskUploadLogs)
             .post("/heartbeat", KioskController.heartbeat, KioskSchema.kioskHeartbeat)
             .post("/technician-password-changed", KioskController.technicianPasswordChanged, KioskSchema.kioskTechnicianPasswordChanged)
+            .post("/lock-alert", KioskController.lockAlert, KioskSchema.kioskLockAlert)
     )
     .group("/admin/departments", (app) =>
         app

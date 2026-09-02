@@ -426,6 +426,19 @@ export const realApi = {
         return requestPost<{ inserted: number }>('/kiosk/logs', { entries }, false, { skipLog: true });
     },
 
+    /** Notify assigned custodians by email when the kiosk enters Out-of-Service (LOCK). */
+    async notifyKioskLock(payload: {
+        ref: string;
+        method: string;
+        payer_id: string;
+        receiver_id: string;
+        actual_amount: number;
+        target_amount?: number;
+        locked_at?: string;
+    }): Promise<{ notified: number }> {
+        return requestPost<{ notified: number }>('/kiosk/lock-alert', payload, false, { skipLog: true });
+    },
+
     /**
      * Top-up a wallet via kiosk (cashier-topup endpoint, kiosk role allowed).
      * Returns updated balance_after and the new transaction_id.

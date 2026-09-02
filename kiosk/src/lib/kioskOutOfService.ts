@@ -1,4 +1,5 @@
 import { auditLock, auditUnlock } from './kioskAuditLog';
+import { notifyCustodiansOfLock } from './kioskLockNotify';
 import type { RecoveryTopupSnapshot } from './recoveryReceipt';
 
 const OOS_KEY = 'kiosk-out-of-service';
@@ -63,6 +64,7 @@ export function enterOutOfService(snapshot: RecoveryTopupSnapshot): void {
             actual_amount: snapshot.actual_amount,
         });
         state.lockLogged = true;
+        void notifyCustodiansOfLock(snapshot);
     }
 
     writeState(state);

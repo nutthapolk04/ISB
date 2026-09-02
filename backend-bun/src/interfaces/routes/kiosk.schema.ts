@@ -19,6 +19,19 @@ export const kioskTechnicianPasswordChanged = {
     detail: { tags: ["Kiosk"], summary: "Notify assigned custodians that the technician console password was changed" },
 };
 
+export const kioskLockAlert = {
+    body: t.Object({
+        ref: t.String({ minLength: 1, maxLength: 128 }),
+        method: t.String({ minLength: 1, maxLength: 16 }),
+        payer_id: t.String({ minLength: 1, maxLength: 64 }),
+        receiver_id: t.String({ minLength: 1, maxLength: 64 }),
+        actual_amount: t.Number({ minimum: 0 }),
+        target_amount: t.Optional(t.Number({ minimum: 0 })),
+        locked_at: t.Optional(t.String({ minLength: 1, maxLength: 64 })),
+    }),
+    detail: { tags: ["Kiosk"], summary: "Notify assigned custodians that the kiosk entered Out-of-Service (LOCK)" },
+};
+
 export const kioskUploadLogs = {
     body: t.Object({
         entries: t.Array(t.Object({

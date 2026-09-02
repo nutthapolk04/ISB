@@ -2,7 +2,7 @@
 import { authedCtx } from "@/interfaces/ServiceRequest";
 import ResponseStatus from "@/constants/ResponseStatus";
 import { getKioskProfile, updateKioskLocation, ingestKioskLogs } from "@/services/kiosk_service";
-import { recordHeartbeat, notifyTechnicianPasswordChanged } from "@/services/kiosk_monitoring_service";
+import { recordHeartbeat, notifyTechnicianPasswordChanged, notifyKioskLocked } from "@/services/kiosk_monitoring_service";
 import { errorFromService, successResponse } from "@/utils/ResponseUtil";
 import { logger } from "@/logger";
 
@@ -71,6 +71,22 @@ export const KioskController = {
             return successResponse(reqContext, result, ResponseStatus.OK);
         } catch (e) {
             logger.error(`[${reqContext.requestId} (KC-03)] KioskController.uploadLogs() error:`, e);
+            return errorFromService(reqContext, e);
+        }
+    },
+
+    lockAlert: async (ctx: any) => {
+        const { reqContext, user } = authedCtx(ctx);
+        const { body } = reqContext;
+        logger.info(`[${reqContext.requestId} (KC-06)] KioskController.lockAlert() called.`);
+        try {
+            const result = await notifyKioskLocked(
+                user as Parameters<typeof notifyKioskLocked>[0],
+                body,
+            );
+            return successResponse(reqContext, result, ResponseStatus.OK);
+        } catch (e) {
+            logger.error(`[${reqContext.requestId} (KC-06)] KioskController.lockAlert() error:`, e);
             return errorFromService(reqContext, e);
         }
     },
